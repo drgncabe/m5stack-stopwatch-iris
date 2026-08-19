@@ -7,6 +7,7 @@ namespace iris {
 
 void WatchScreen::enter() {
   lastDrawMs_ = 0;
+  layoutDrawn_ = false;
 }
 
 void WatchScreen::update(uint32_t nowMs) {
@@ -21,12 +22,16 @@ void WatchScreen::draw() {
       "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
   const DateTimeSnapshot dt = timeService_.now();
-  M5.Display.fillScreen(TFT_BLACK);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
 
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.drawString("IRIS", M5.Display.width() / 2, 72);
+  if (!layoutDrawn_) {
+    drawStaticLayout();
+    layoutDrawn_ = true;
+  }
+
+  drawBattery();
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.fillRect(46, 152, 374, 150, TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
 
   if (!dt.valid) {
     M5.Display.setFont(&fonts::FreeSansBold18pt7b);
@@ -57,6 +62,26 @@ void WatchScreen::draw() {
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(0xBDF7, TFT_BLACK);
   M5.Display.drawString("Tap or A for menu", M5.Display.width() / 2, 392);
+}
+
+void WatchScreen::drawStaticLayout() {
+  M5.Display.fillScreen(TFT_BLACK);
+  M5.Display.setTextDatum(middle_center);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.drawString("IRIS", M5.Display.width() / 2, 72);
+
+  M5.Display.setTextColor(0xBDF7, TFT_BLACK);
+  M5.Display.drawString("Tap or A for menu", M5.Display.width() / 2, 392);
+}
+
+void WatchScreen::drawBattery() {
+  M5.Display.fillRect(328, 58, 92, 28, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextDatum(middle_right);
+  M5.Display.setTextColor(0xBDF7, TFT_BLACK);
+  M5.Display.drawString(battery_.statusText(), 410, 72);
 }
 
 void WatchScreen::handleTouch(int32_t, int32_t) {
