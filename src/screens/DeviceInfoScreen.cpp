@@ -29,7 +29,7 @@ void DeviceInfoScreen::draw() {
     M5.Display.drawString(label, x, y);
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Display.drawString(value, 190, y);
-    y += 34;
+    y += 30;
   };
 
   line("Project", String(config::kProjectName));
@@ -38,6 +38,7 @@ void DeviceInfoScreen::draw() {
   line("CPU", String(ESP.getCpuFreqMHz()) + " MHz");
   line("Flash", String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB");
   line("PSRAM", String(ESP.getPsramSize() / (1024 * 1024)) + " MB");
+  line("Battery", battery_.statusText());
   line("RTC", timeService_.rtcAvailable() ? "Available" : "Unavailable");
   line("WiFi", wifi_.statusText());
   line("MAC", WiFi.macAddress());
