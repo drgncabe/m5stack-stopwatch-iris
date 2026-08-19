@@ -1,13 +1,15 @@
 #pragma once
 
 #include "iris/screens/Screen.h"
+#include "iris/services/BatteryService.h"
 #include "iris/services/TimeService.h"
 
 namespace iris {
 
 class WatchScreen : public Screen {
  public:
-  explicit WatchScreen(TimeService& timeService) : timeService_(timeService) {}
+  WatchScreen(TimeService& timeService, BatteryService& battery)
+      : timeService_(timeService), battery_(battery) {}
 
   void enter() override;
   void update(uint32_t nowMs) override;
@@ -17,8 +19,13 @@ class WatchScreen : public Screen {
   void onButtonB() override;
 
  private:
+  void drawStaticLayout();
+  void drawBattery();
+
   TimeService& timeService_;
+  BatteryService& battery_;
   uint32_t lastDrawMs_ = 0;
+  bool layoutDrawn_ = false;
 };
 
 }  // namespace iris
