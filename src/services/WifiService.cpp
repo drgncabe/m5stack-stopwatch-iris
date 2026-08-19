@@ -1,7 +1,5 @@
 #include "iris/services/WifiService.h"
 
-#include <ESP.h>
-
 #include "iris/AppConfig.h"
 
 namespace iris {
@@ -180,7 +178,7 @@ String WifiService::escapeHtml(const String& value) {
       case '&': escaped += F("&amp;"); break;
       case '<': escaped += F("&lt;"); break;
       case '>': escaped += F("&gt;"); break;
-      case '\"': escaped += F("&quot;"); break;
+      case '"': escaped += F("&quot;"); break;
       case '\'': escaped += F("&#39;"); break;
       default: escaped += value[i]; break;
     }
