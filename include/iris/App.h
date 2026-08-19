@@ -6,6 +6,7 @@
 #include "iris/screens/VolumeScreen.h"
 #include "iris/screens/WatchScreen.h"
 #include "iris/screens/WifiScreen.h"
+#include "iris/services/BatteryService.h"
 #include "iris/services/SettingsStore.h"
 #include "iris/services/TimeService.h"
 #include "iris/services/WifiService.h"
@@ -21,6 +22,7 @@ class App {
 
  private:
   SettingsStore settings_;
+  BatteryService battery_;
   WifiService wifi_;
   TimeService timeService_;
   ScreenManager screenManager_;
