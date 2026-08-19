@@ -16,17 +16,17 @@ constexpr MenuItem kSettingsMenuItems[] = {
     {"Device information", ScreenId::DeviceInfo},
     {"Back to watch", ScreenId::Watch},
 };
-}
+}  // namespace
 
 App::App()
-    : watchScreen_(timeService_),
+    : watchScreen_(timeService_, battery_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0])),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
                           sizeof(kSettingsMenuItems) / sizeof(kSettingsMenuItems[0])),
       volumeScreen_(settings_),
       wifiScreen_(settings_, wifi_),
-      deviceInfoScreen_(wifi_, timeService_) {}
+      deviceInfoScreen_(wifi_, timeService_, battery_) {}
 
 void App::begin() {
   auto cfg = M5.config();
@@ -40,6 +40,7 @@ void App::begin() {
   settings_.begin();
   M5.Speaker.setVolume(settings_.volume());
 
+  battery_.begin();
   wifi_.begin(settings_.wifiEnabled());
   timeService_.begin();
 
@@ -74,6 +75,7 @@ void App::update() {
   }
 
   const uint32_t nowMs = millis();
+  battery_.update(nowMs);
   wifi_.update(nowMs);
   timeService_.update(nowMs, wifi_.isConnected());
   screenManager_.update(nowMs);
