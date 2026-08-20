@@ -1,5 +1,6 @@
 #pragma once
 
+#include "iris/screens/BootloaderScreen.h"
 #include "iris/screens/BackgroundScreen.h"
 #include "iris/screens/DeviceInfoScreen.h"
 #include "iris/screens/MenuScreen.h"
@@ -55,6 +56,8 @@ class App {
   WifiScreen wifiScreen_;
   BackgroundScreen backgroundScreen_;
   PowerScreen powerScreen_;
+  MenuScreen developerMenuScreen_;
+  BootloaderScreen bootloaderScreen_;
   DeviceInfoScreen deviceInfoScreen_;
   bool touchActive_ = false;
   uint32_t lastActivityMs_ = 0;
