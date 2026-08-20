@@ -17,8 +17,14 @@ constexpr MenuItem kSettingsMenuItems[] = {
     {"WiFi", ScreenId::Wifi},
     {"Background", ScreenId::Background},
     {"Power", ScreenId::Power},
+    {"Developer", ScreenId::Developer},
     {"Device information", ScreenId::DeviceInfo},
     {"Back to watch", ScreenId::Watch},
+};
+
+constexpr MenuItem kDeveloperMenuItems[] = {
+    {"Bootloader", ScreenId::Bootloader},
+    {"Back", ScreenId::Settings},
 };
 }  // namespace
 
@@ -32,6 +38,9 @@ App::App()
       wifiScreen_(settings_, wifi_),
       backgroundScreen_(settings_),
       powerScreen_(settings_),
+      developerMenuScreen_("Developer", kDeveloperMenuItems,
+                           sizeof(kDeveloperMenuItems) / sizeof(kDeveloperMenuItems[0]), settings_),
+      bootloaderScreen_(settings_),
       deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
 void App::begin() {
@@ -60,6 +69,8 @@ void App::begin() {
   screenManager_.registerScreen(ScreenId::Wifi, &wifiScreen_);
   screenManager_.registerScreen(ScreenId::Background, &backgroundScreen_);
   screenManager_.registerScreen(ScreenId::Power, &powerScreen_);
+  screenManager_.registerScreen(ScreenId::Developer, &developerMenuScreen_);
+  screenManager_.registerScreen(ScreenId::Bootloader, &bootloaderScreen_);
   screenManager_.registerScreen(ScreenId::DeviceInfo, &deviceInfoScreen_);
 
   screenManager_.show(ScreenId::Watch);
@@ -264,6 +275,8 @@ const char* App::currentScreenName() const {
     case ScreenId::Wifi: return "WiFi";
     case ScreenId::Background: return "Background";
     case ScreenId::Power: return "Power";
+    case ScreenId::Developer: return "Developer";
+    case ScreenId::Bootloader: return "Bootloader";
     case ScreenId::DeviceInfo: return "Device info";
     default: return "Unknown";
   }
