@@ -1,6 +1,7 @@
 #include "iris/App.h"
 
 #include <M5Unified.h>
+#include "iris/AppConfig.h"
 #include "iris/Theme.h"
 
 namespace iris {
@@ -42,6 +43,7 @@ void App::begin() {
 
   settings_.begin();
   M5.Speaker.setVolume(settings_.volume());
+  M5.Display.setBrightness(config::kActiveBrightness);
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
 
   battery_.begin();
@@ -57,6 +59,7 @@ void App::begin() {
   screenManager_.registerScreen(ScreenId::DeviceInfo, &deviceInfoScreen_);
 
   screenManager_.show(ScreenId::Watch);
+  lastActivityMs_ = millis();
 }
 
 void App::update() {
@@ -64,31 +67,58 @@ void App::update() {
   // Keep the original serial messages intact while also routing presses to Iris.
   M5.update();
 
+  const uint32_t nowMs = millis();
+  bool inputHandled = false;
+
   if (M5.BtnA.wasPressed()) {
     Serial.println("BtnA Pressed");
-    screenManager_.onButtonA();
+    if (displayPowerState_ == DisplayPowerState::Sleeping) {
+      wakeDisplay(nowMs);
+    } else {
+      noteActivity(nowMs);
+      screenManager_.onButtonA();
+    }
+    inputHandled = true;
   }
 
   if (M5.BtnB.wasPressed()) {
     Serial.println("BtnB Pressed");
-    screenManager_.onButtonB();
+    if (displayPowerState_ == DisplayPowerState::Sleeping) {
+      wakeDisplay(nowMs);
+    } else {
+      noteActivity(nowMs);
+      screenManager_.onButtonB();
+    }
+    inputHandled = true;
   }
 
   const auto touch = M5.Touch.getDetail();
   if (touch.isPressed()) {
     if (!touchActive_) {
       touchActive_ = true;
-      screenManager_.handleTouch(touch.x, touch.y);
+      if (displayPowerState_ == DisplayPowerState::Sleeping) {
+        wakeDisplay(nowMs);
+      } else {
+        noteActivity(nowMs);
+        screenManager_.handleTouch(touch.x, touch.y);
+      }
+      inputHandled = true;
     }
   } else {
     touchActive_ = false;
   }
 
-  const uint32_t nowMs = millis();
   battery_.update(nowMs);
   wifi_.update(nowMs);
   timeService_.update(nowMs, wifi_.isConnected());
-  screenManager_.update(nowMs);
+
+  if (displayPowerState_ != DisplayPowerState::Sleeping) {
+    screenManager_.update(nowMs);
+  }
+
+  if (!inputHandled) {
+    updateDisplayPower(nowMs);
+  }
 
   delay(5);
 }
@@ -104,6 +134,13 @@ String App::buildControlSnapshot(void* context) {
 }
 
 void App::handleControlCommand(const String& command) {
+  const uint32_t nowMs = millis();
+  if (displayPowerState_ == DisplayPowerState::Sleeping) {
+    wakeDisplay(nowMs);
+  } else {
+    noteActivity(nowMs);
+  }
+
   if (command == "watch") {
     screenManager_.show(ScreenId::Watch);
   } else if (command == "settings") {
@@ -160,6 +197,39 @@ void App::nextBackground() {
   if (screenManager_.currentId() == ScreenId::Watch) {
     screenManager_.show(ScreenId::Watch);
   }
+}
+
+void App::noteActivity(uint32_t nowMs) {
+  lastActivityMs_ = nowMs;
+  if (displayPowerState_ == DisplayPowerState::Dimmed) {
+    displayPowerState_ = DisplayPowerState::Active;
+    M5.Display.setBrightness(config::kActiveBrightness);
+  }
+}
+
+void App::updateDisplayPower(uint32_t nowMs) {
+  const uint32_t idleMs = nowMs - lastActivityMs_;
+
+  if (displayPowerState_ != DisplayPowerState::Sleeping &&
+      idleMs >= config::kDisplaySleepMs) {
+    displayPowerState_ = DisplayPowerState::Sleeping;
+    M5.Display.sleep();
+    return;
+  }
+
+  if (displayPowerState_ == DisplayPowerState::Active &&
+      idleMs >= config::kDisplayDimMs) {
+    displayPowerState_ = DisplayPowerState::Dimmed;
+    M5.Display.setBrightness(config::kDimBrightness);
+  }
+}
+
+void App::wakeDisplay(uint32_t nowMs) {
+  lastActivityMs_ = nowMs;
+  displayPowerState_ = DisplayPowerState::Active;
+  M5.Display.wakeup();
+  M5.Display.setBrightness(config::kActiveBrightness);
+  screenManager_.show(screenManager_.currentId());
 }
 
 const char* App::currentScreenName() const {

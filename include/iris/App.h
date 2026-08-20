@@ -14,6 +14,12 @@
 
 namespace iris {
 
+enum class DisplayPowerState : uint8_t {
+  Active,
+  Dimmed,
+  Sleeping,
+};
+
 class App {
  public:
   App();
@@ -29,6 +35,9 @@ class App {
   String buildControlSnapshot() const;
   void adjustVolume(int delta);
   void nextBackground();
+  void noteActivity(uint32_t nowMs);
+  void updateDisplayPower(uint32_t nowMs);
+  void wakeDisplay(uint32_t nowMs);
   const char* currentScreenName() const;
 
   SettingsStore settings_;
@@ -45,6 +54,8 @@ class App {
   BackgroundScreen backgroundScreen_;
   DeviceInfoScreen deviceInfoScreen_;
   bool touchActive_ = false;
+  uint32_t lastActivityMs_ = 0;
+  DisplayPowerState displayPowerState_ = DisplayPowerState::Active;
 };
 
 }  // namespace iris

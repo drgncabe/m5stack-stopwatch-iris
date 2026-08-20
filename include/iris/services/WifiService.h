@@ -55,6 +55,7 @@ class WifiService {
   bool serverRunning_ = false;
   bool routesConfigured_ = false;
   uint32_t lastConnectAttemptMs_ = 0;
+  uint32_t portalStartedMs_ = 0;
   void* controlContext_ = nullptr;
   ControlCommandHandler commandHandler_ = nullptr;
   ControlSnapshotHandler snapshotHandler_ = nullptr;
