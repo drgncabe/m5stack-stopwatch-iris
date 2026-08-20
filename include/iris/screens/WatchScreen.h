@@ -2,14 +2,15 @@
 
 #include "iris/screens/Screen.h"
 #include "iris/services/BatteryService.h"
+#include "iris/services/SettingsStore.h"
 #include "iris/services/TimeService.h"
 
 namespace iris {
 
 class WatchScreen : public Screen {
  public:
-  WatchScreen(TimeService& timeService, BatteryService& battery)
-      : timeService_(timeService), battery_(battery) {}
+  WatchScreen(TimeService& timeService, BatteryService& battery, SettingsStore& settings)
+      : timeService_(timeService), battery_(battery), settings_(settings) {}
 
   void enter() override;
   void update(uint32_t nowMs) override;
@@ -21,11 +22,20 @@ class WatchScreen : public Screen {
  private:
   void drawStaticLayout();
   void drawBattery();
+  void drawDate(const DateTimeSnapshot& dt);
+  void drawTime(const DateTimeSnapshot& dt);
+  void drawUnsetTime();
 
   TimeService& timeService_;
   BatteryService& battery_;
+  SettingsStore& settings_;
   uint32_t lastDrawMs_ = 0;
   bool layoutDrawn_ = false;
+  bool previousValid_ = false;
+  int previousMinute_ = -1;
+  int previousSecond_ = -1;
+  int previousDay_ = -1;
+  String previousBattery_;
 };
 
 }  // namespace iris

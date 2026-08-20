@@ -2,14 +2,12 @@
 
 #include "iris/screens/Screen.h"
 #include "iris/services/SettingsStore.h"
-#include "iris/services/WifiService.h"
 
 namespace iris {
 
-class WifiScreen : public Screen {
+class BackgroundScreen : public Screen {
  public:
-  WifiScreen(SettingsStore& settings, WifiService& wifi)
-      : settings_(settings), wifi_(wifi) {}
+  explicit BackgroundScreen(SettingsStore& settings) : settings_(settings) {}
 
   void enter() override;
   void update(uint32_t nowMs) override;
@@ -19,15 +17,11 @@ class WifiScreen : public Screen {
   void onButtonB() override;
 
  private:
-  void toggleWifi();
-  void startSetup();
+  void nextBackground();
   void goBack();
-  String snapshot() const;
+  const char* backgroundName() const;
 
   SettingsStore& settings_;
-  WifiService& wifi_;
-  uint32_t lastDrawMs_ = 0;
-  String lastSnapshot_;
 };
 
 }  // namespace iris

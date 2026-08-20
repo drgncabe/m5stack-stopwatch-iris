@@ -7,6 +7,9 @@
 
 namespace iris {
 
+using ControlCommandHandler = void (*)(void* context, const String& command);
+using ControlSnapshotHandler = String (*)(void* context);
+
 class WifiService {
  public:
   WifiService();
@@ -14,6 +17,9 @@ class WifiService {
   void begin(bool enabled);
   void update(uint32_t nowMs);
   void setEnabled(bool enabled);
+  void setControlCallbacks(void* context,
+                           ControlCommandHandler commandHandler,
+                           ControlSnapshotHandler snapshotHandler);
 
   bool isEnabled() const { return enabled_; }
   bool isConnected() const { return WiFi.status() == WL_CONNECTED; }
@@ -30,8 +36,12 @@ class WifiService {
 
  private:
   void connectSaved();
+  void ensureServer();
   void configurePortalRoutes();
-  void handlePortalIndex();
+  void handleControlPanel();
+  void handleControlCommand();
+  void handleDisplaySnapshot();
+  void handleWifiSetup();
   void handlePortalSave();
   static String escapeHtml(const String& value);
 
@@ -42,7 +52,12 @@ class WifiService {
   String portalSsid_;
   bool enabled_ = true;
   bool portalRunning_ = false;
+  bool serverRunning_ = false;
+  bool routesConfigured_ = false;
   uint32_t lastConnectAttemptMs_ = 0;
+  void* controlContext_ = nullptr;
+  ControlCommandHandler commandHandler_ = nullptr;
+  ControlSnapshotHandler snapshotHandler_ = nullptr;
 };
 
 }  // namespace iris

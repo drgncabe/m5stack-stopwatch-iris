@@ -1,5 +1,6 @@
 #pragma once
 
+#include "iris/screens/BackgroundScreen.h"
 #include "iris/screens/DeviceInfoScreen.h"
 #include "iris/screens/MenuScreen.h"
 #include "iris/screens/ScreenManager.h"
@@ -21,6 +22,15 @@ class App {
   void update();
 
  private:
+  static void handleControlCommand(void* context, const String& command);
+  static String buildControlSnapshot(void* context);
+
+  void handleControlCommand(const String& command);
+  String buildControlSnapshot() const;
+  void adjustVolume(int delta);
+  void nextBackground();
+  const char* currentScreenName() const;
+
   SettingsStore settings_;
   BatteryService battery_;
   WifiService wifi_;
@@ -32,7 +42,9 @@ class App {
   MenuScreen settingsMenuScreen_;
   VolumeScreen volumeScreen_;
   WifiScreen wifiScreen_;
+  BackgroundScreen backgroundScreen_;
   DeviceInfoScreen deviceInfoScreen_;
+  bool touchActive_ = false;
 };
 
 }  // namespace iris
