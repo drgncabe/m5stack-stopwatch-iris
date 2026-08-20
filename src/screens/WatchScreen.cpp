@@ -1,6 +1,7 @@
 #include "iris/screens/WatchScreen.h"
 
 #include <M5Unified.h>
+#include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
 
 namespace iris {
@@ -37,14 +38,15 @@ void WatchScreen::draw() {
 
   drawBattery();
 
+  const Theme theme = currentTheme(settings_);
   if (!dt.valid) {
     if (previousValid_) {
-      M5.Display.fillRect(46, 152, 374, 150, backgroundColor());
+      M5.Display.fillRect(46, 152, 374, 150, theme.background);
     }
     drawUnsetTime();
   } else {
     if (!previousValid_) {
-      M5.Display.fillRect(46, 152, 374, 150, backgroundColor());
+      M5.Display.fillRect(46, 152, 374, 150, theme.background);
       previousMinute_ = -1;
       previousSecond_ = -1;
       previousDay_ = -1;
@@ -52,10 +54,10 @@ void WatchScreen::draw() {
     if (dt.hour * 100 + dt.minute != previousMinute_) {
       drawTime(dt);
     } else if (dt.second != previousSecond_) {
-      M5.Display.fillRect(326, 184, 64, 42, backgroundColor());
+      M5.Display.fillRect(326, 184, 64, 42, theme.background);
       M5.Display.setFont(&fonts::FreeSans12pt7b);
       M5.Display.setTextDatum(middle_center);
-      M5.Display.setTextColor(accentColor(), backgroundColor());
+      M5.Display.setTextColor(theme.accent, theme.background);
       char secondsText[8];
       snprintf(secondsText, sizeof(secondsText), ":%02d", dt.second);
       M5.Display.drawString(secondsText, 350, 206);
@@ -75,14 +77,15 @@ void WatchScreen::draw() {
 }
 
 void WatchScreen::drawStaticLayout() {
-  M5.Display.fillScreen(backgroundColor());
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillScreen(theme.background);
   M5.Display.setTextDatum(middle_center);
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(TFT_WHITE, backgroundColor());
+  M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.drawString("IRIS", M5.Display.width() / 2, 72);
 
-  M5.Display.setTextColor(accentColor(), backgroundColor());
+  M5.Display.setTextColor(theme.accent, theme.background);
   M5.Display.drawString("Tap or A for menu", M5.Display.width() / 2, 392);
 }
 
@@ -90,16 +93,19 @@ void WatchScreen::drawBattery() {
   const String batteryText = battery_.statusText();
   if (batteryText == previousBattery_) return;
 
-  M5.Display.fillRect(300, 58, 120, 28, backgroundColor());
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillRoundRect(171, 20, 124, 34, 12, theme.panel);
+  M5.Display.drawRoundRect(171, 20, 124, 34, 12, theme.accent);
   M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextDatum(middle_right);
-  M5.Display.setTextColor(accentColor(), backgroundColor());
-  M5.Display.drawString(batteryText, 410, 72);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(theme.foreground, theme.panel);
+  M5.Display.drawString(batteryText, M5.Display.width() / 2, 37);
   previousBattery_ = batteryText;
 }
 
 void WatchScreen::drawTime(const DateTimeSnapshot& dt) {
-  M5.Display.fillRect(74, 170, 300, 70, backgroundColor());
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillRect(74, 170, 300, 70, theme.background);
   M5.Display.setTextDatum(middle_center);
 
   char timeText[16];
@@ -108,11 +114,11 @@ void WatchScreen::drawTime(const DateTimeSnapshot& dt) {
   snprintf(secondsText, sizeof(secondsText), ":%02d", dt.second);
 
   M5.Display.setFont(&fonts::FreeSansBold24pt7b);
-  M5.Display.setTextColor(TFT_WHITE, backgroundColor());
+  M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.drawString(timeText, M5.Display.width() / 2 - 12, 198);
 
   M5.Display.setFont(&fonts::FreeSans12pt7b);
-  M5.Display.setTextColor(accentColor(), backgroundColor());
+  M5.Display.setTextColor(theme.accent, theme.background);
   M5.Display.drawString(secondsText, 350, 206);
 }
 
@@ -121,41 +127,23 @@ void WatchScreen::drawDate(const DateTimeSnapshot& dt) {
   snprintf(dateText, sizeof(dateText), "%s, %02d/%02d/%04d",
            kWeekDays[dt.weekDay % 7], dt.month, dt.day, dt.year);
 
-  M5.Display.fillRect(50, 248, 366, 44, backgroundColor());
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillRect(50, 248, 366, 44, theme.background);
   M5.Display.setFont(&fonts::FreeSans12pt7b);
   M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(TFT_WHITE, backgroundColor());
+  M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.drawString(dateText, M5.Display.width() / 2, 272);
 }
 
 void WatchScreen::drawUnsetTime() {
+  const Theme theme = currentTheme(settings_);
   M5.Display.setTextDatum(middle_center);
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
-  M5.Display.setTextColor(TFT_WHITE, backgroundColor());
+  M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.drawString("Time not set", M5.Display.width() / 2, 205);
   M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(accentColor(), backgroundColor());
+  M5.Display.setTextColor(theme.accent, theme.background);
   M5.Display.drawString("Configure WiFi to sync", M5.Display.width() / 2, 250);
-}
-
-uint16_t WatchScreen::backgroundColor() const {
-  switch (settings_.watchBackground() % 5) {
-    case 1: return 0x0010;
-    case 2: return 0x0188;
-    case 3: return 0x2008;
-    case 4: return 0x2104;
-    default: return TFT_BLACK;
-  }
-}
-
-uint16_t WatchScreen::accentColor() const {
-  switch (settings_.watchBackground() % 5) {
-    case 1: return 0x867F;
-    case 2: return 0xB7E0;
-    case 3: return 0xFBBF;
-    case 4: return 0xD6BA;
-    default: return 0xBDF7;
-  }
 }
 
 void WatchScreen::handleTouch(int32_t, int32_t) {

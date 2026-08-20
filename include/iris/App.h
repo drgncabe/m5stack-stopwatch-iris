@@ -30,7 +30,6 @@ class App {
   void adjustVolume(int delta);
   void nextBackground();
   const char* currentScreenName() const;
-  const char* backgroundName() const;
 
   SettingsStore settings_;
   BatteryService battery_;
@@ -45,6 +44,7 @@ class App {
   WifiScreen wifiScreen_;
   BackgroundScreen backgroundScreen_;
   DeviceInfoScreen deviceInfoScreen_;
+  bool touchActive_ = false;
 };
 
 }  // namespace iris

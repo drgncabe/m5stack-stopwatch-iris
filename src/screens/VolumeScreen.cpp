@@ -1,6 +1,7 @@
 #include "iris/screens/VolumeScreen.h"
 
 #include <M5Unified.h>
+#include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
 
 namespace iris {
@@ -10,9 +11,10 @@ void VolumeScreen::update(uint32_t) {}
 
 void VolumeScreen::draw() {
   const int volume = settings_.volume();
-  M5.Display.fillScreen(TFT_BLACK);
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillScreen(theme.background);
   M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.drawString("Volume", M5.Display.width() / 2, 62);
 
@@ -21,18 +23,19 @@ void VolumeScreen::draw() {
   M5.Display.setFont(&fonts::FreeSansBold24pt7b);
   M5.Display.drawString(value, M5.Display.width() / 2, 190);
 
-  M5.Display.fillRoundRect(78, 265, 130, 70, 18, 0x2104);
-  M5.Display.fillRoundRect(258, 265, 130, 70, 18, 0x2104);
+  M5.Display.fillRoundRect(78, 265, 130, 70, 18, theme.button);
+  M5.Display.fillRoundRect(258, 265, 130, 70, 18, theme.button);
+  M5.Display.setTextColor(theme.foreground, theme.button);
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.drawString("-", 143, 300);
   M5.Display.drawString("+", 323, 300);
 
-  M5.Display.fillRoundRect(138, 362, 190, 50, 16, 0x2104);
+  M5.Display.fillRoundRect(138, 362, 190, 50, 16, theme.button);
   M5.Display.setFont(&fonts::FreeSans12pt7b);
   M5.Display.drawString("Back", M5.Display.width() / 2, 387);
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(0xBDF7, TFT_BLACK);
+  M5.Display.setTextColor(theme.muted, theme.background);
   M5.Display.drawString("A: Down     B: Up", M5.Display.width() / 2, 438);
 }
 

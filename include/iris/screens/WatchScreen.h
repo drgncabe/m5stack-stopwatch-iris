@@ -25,8 +25,6 @@ class WatchScreen : public Screen {
   void drawDate(const DateTimeSnapshot& dt);
   void drawTime(const DateTimeSnapshot& dt);
   void drawUnsetTime();
-  uint16_t backgroundColor() const;
-  uint16_t accentColor() const;
 
   TimeService& timeService_;
   BatteryService& battery_;

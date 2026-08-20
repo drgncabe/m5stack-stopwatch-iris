@@ -1,6 +1,7 @@
 #include "iris/App.h"
 
 #include <M5Unified.h>
+#include "iris/Theme.h"
 
 namespace iris {
 
@@ -22,13 +23,13 @@ constexpr MenuItem kSettingsMenuItems[] = {
 App::App()
     : watchScreen_(timeService_, battery_, settings_),
       mainMenuScreen_("Iris", kMainMenuItems,
-                      sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0])),
+                      sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
-                          sizeof(kSettingsMenuItems) / sizeof(kSettingsMenuItems[0])),
+                          sizeof(kSettingsMenuItems) / sizeof(kSettingsMenuItems[0]), settings_),
       volumeScreen_(settings_),
       wifiScreen_(settings_, wifi_),
       backgroundScreen_(settings_),
-      deviceInfoScreen_(wifi_, timeService_, battery_) {}
+      deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
 void App::begin() {
   auto cfg = M5.config();
@@ -74,8 +75,13 @@ void App::update() {
   }
 
   const auto touch = M5.Touch.getDetail();
-  if (touch.wasClicked()) {
-    screenManager_.handleTouch(touch.x, touch.y);
+  if (touch.isPressed()) {
+    if (!touchActive_) {
+      touchActive_ = true;
+      screenManager_.handleTouch(touch.x, touch.y);
+    }
+  } else {
+    touchActive_ = false;
   }
 
   const uint32_t nowMs = millis();
@@ -137,7 +143,7 @@ String App::buildControlSnapshot() const {
   snapshot += "\nVolume: ";
   snapshot += String((settings_.volume() * 100) / 255);
   snapshot += "%\nBackground: ";
-  snapshot += backgroundName();
+  snapshot += themeName(settings_);
   return snapshot;
 }
 
@@ -166,16 +172,6 @@ const char* App::currentScreenName() const {
     case ScreenId::Background: return "Background";
     case ScreenId::DeviceInfo: return "Device info";
     default: return "Unknown";
-  }
-}
-
-const char* App::backgroundName() const {
-  switch (settings_.watchBackground() % 5) {
-    case 1: return "Midnight";
-    case 2: return "Forest";
-    case 3: return "Plum";
-    case 4: return "Steel";
-    default: return "Black";
   }
 }
 

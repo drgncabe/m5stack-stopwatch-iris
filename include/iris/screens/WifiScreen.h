@@ -22,10 +22,12 @@ class WifiScreen : public Screen {
   void toggleWifi();
   void startSetup();
   void goBack();
+  String snapshot() const;
 
   SettingsStore& settings_;
   WifiService& wifi_;
   uint32_t lastDrawMs_ = 0;
+  String lastSnapshot_;
 };
 
 }  // namespace iris

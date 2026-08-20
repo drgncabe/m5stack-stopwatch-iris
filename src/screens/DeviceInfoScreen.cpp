@@ -5,6 +5,7 @@
 #include <WiFi.h>
 
 #include "iris/AppConfig.h"
+#include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
 
 namespace iris {
@@ -13,9 +14,10 @@ void DeviceInfoScreen::enter() {}
 void DeviceInfoScreen::update(uint32_t) {}
 
 void DeviceInfoScreen::draw() {
-  M5.Display.fillScreen(TFT_BLACK);
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillScreen(theme.background);
   M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.drawString("Device Info", M5.Display.width() / 2, 50);
 
@@ -25,9 +27,9 @@ void DeviceInfoScreen::draw() {
   int y = 96;
   const int x = 72;
   auto line = [&](const String& label, const String& value) {
-    M5.Display.setTextColor(0xBDF7, TFT_BLACK);
+    M5.Display.setTextColor(theme.muted, theme.background);
     M5.Display.drawString(label, x, y);
-    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Display.setTextColor(theme.foreground, theme.background);
     M5.Display.drawString(value, 190, y);
     y += 30;
   };
@@ -44,8 +46,8 @@ void DeviceInfoScreen::draw() {
   line("MAC", WiFi.macAddress());
 
   M5.Display.setTextDatum(middle_center);
-  M5.Display.fillRoundRect(138, 392, 190, 48, 16, 0x2104);
-  M5.Display.setTextColor(TFT_WHITE, 0x2104);
+  M5.Display.fillRoundRect(138, 392, 190, 48, 16, theme.button);
+  M5.Display.setTextColor(theme.foreground, theme.button);
   M5.Display.drawString("Back", M5.Display.width() / 2, 416);
 }
 
