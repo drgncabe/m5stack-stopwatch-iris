@@ -25,7 +25,12 @@ void WifiService::update(uint32_t nowMs) {
     server_.handleClient();
   }
 
-  if (portalRunning_) return;
+  if (portalRunning_) {
+    if (nowMs - portalStartedMs_ >= config::kWifiPortalTimeoutMs) {
+      stopProvisioning();
+    }
+    return;
+  }
   if (!enabled_ || savedSsid_.isEmpty() || isConnected()) return;
 
   if (nowMs - lastConnectAttemptMs_ >= config::kWifiReconnectMs) {
@@ -106,6 +111,7 @@ void WifiService::startProvisioning() {
   WiFi.softAP(portalSsid_.c_str());
   ensureServer();
   portalRunning_ = true;
+  portalStartedMs_ = millis();
 
   Serial.printf("Iris WiFi setup: connect to %s and open http://%s\n",
                 portalSsid_.c_str(), WiFi.softAPIP().toString().c_str());
