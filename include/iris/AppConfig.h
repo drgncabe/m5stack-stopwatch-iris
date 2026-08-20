@@ -20,6 +20,7 @@ constexpr uint8_t kDimBrightness = 18;
 constexpr uint32_t kDisplayDimMs = 20UL * 1000UL;
 constexpr uint32_t kDisplaySleepMs = 90UL * 1000UL;
 constexpr uint32_t kWifiReconnectMs = 15000;
+constexpr uint32_t kWifiOnDemandOffMs = 2UL * 60UL * 1000UL;
 constexpr uint32_t kWifiPortalTimeoutMs = 10UL * 60UL * 1000UL;
 constexpr uint32_t kNtpRetryMs = 30000;
 constexpr uint32_t kNtpResyncMs = 6UL * 60UL * 60UL * 1000UL;

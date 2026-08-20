@@ -3,6 +3,7 @@
 #include "iris/screens/BackgroundScreen.h"
 #include "iris/screens/DeviceInfoScreen.h"
 #include "iris/screens/MenuScreen.h"
+#include "iris/screens/PowerScreen.h"
 #include "iris/screens/ScreenManager.h"
 #include "iris/screens/VolumeScreen.h"
 #include "iris/screens/WatchScreen.h"
@@ -37,6 +38,7 @@ class App {
   void nextBackground();
   void noteActivity(uint32_t nowMs);
   void updateDisplayPower(uint32_t nowMs);
+  void updateWifiPower(uint32_t nowMs);
   void wakeDisplay(uint32_t nowMs);
   const char* currentScreenName() const;
 
@@ -52,9 +54,11 @@ class App {
   VolumeScreen volumeScreen_;
   WifiScreen wifiScreen_;
   BackgroundScreen backgroundScreen_;
+  PowerScreen powerScreen_;
   DeviceInfoScreen deviceInfoScreen_;
   bool touchActive_ = false;
   uint32_t lastActivityMs_ = 0;
+  uint32_t wifiDemandStartedMs_ = 0;
   DisplayPowerState displayPowerState_ = DisplayPowerState::Active;
 };
 

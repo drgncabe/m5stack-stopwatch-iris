@@ -7,8 +7,8 @@
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 64;
-constexpr int kRowStartY = 92;
+constexpr int kRowHeight = 54;
+constexpr int kRowStartY = 86;
 constexpr int kRowLeft = 58;
 constexpr int kRowWidth = 350;
 }  // namespace
