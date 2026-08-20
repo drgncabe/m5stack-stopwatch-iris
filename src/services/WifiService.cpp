@@ -11,6 +11,7 @@ void WifiService::begin(bool enabled) {
   savedSsid_ = prefs_.getString("ssid", "");
   savedPassword_ = prefs_.getString("password", "");
   enabled_ = enabled;
+  configurePortalRoutes();
 
   if (enabled_) {
     connectSaved();
@@ -20,11 +21,11 @@ void WifiService::begin(bool enabled) {
 }
 
 void WifiService::update(uint32_t nowMs) {
-  if (portalRunning_) {
+  if (serverRunning_) {
     server_.handleClient();
-    return;
   }
 
+  if (portalRunning_) return;
   if (!enabled_ || savedSsid_.isEmpty() || isConnected()) return;
 
   if (nowMs - lastConnectAttemptMs_ >= config::kWifiReconnectMs) {
@@ -37,12 +38,24 @@ void WifiService::setEnabled(bool enabled) {
 
   if (!enabled_) {
     stopProvisioning();
+    if (serverRunning_) {
+      server_.stop();
+      serverRunning_ = false;
+    }
     WiFi.disconnect(true, false);
     WiFi.mode(WIFI_OFF);
     return;
   }
 
   connectSaved();
+}
+
+void WifiService::setControlCallbacks(void* context,
+                                      ControlCommandHandler commandHandler,
+                                      ControlSnapshotHandler snapshotHandler) {
+  controlContext_ = context;
+  commandHandler_ = commandHandler;
+  snapshotHandler_ = snapshotHandler;
 }
 
 String WifiService::ssid() const {
@@ -75,6 +88,7 @@ void WifiService::connectSaved() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(savedSsid_.c_str(), savedPassword_.c_str());
+  ensureServer();
   lastConnectAttemptMs_ = millis();
   Serial.printf("Iris WiFi: connecting to %s\n", savedSsid_.c_str());
 }
@@ -90,8 +104,7 @@ void WifiService::startProvisioning() {
 
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(portalSsid_.c_str());
-  configurePortalRoutes();
-  server_.begin();
+  ensureServer();
   portalRunning_ = true;
 
   Serial.printf("Iris WiFi setup: connect to %s and open http://%s\n",
@@ -101,7 +114,6 @@ void WifiService::startProvisioning() {
 void WifiService::stopProvisioning() {
   if (!portalRunning_) return;
 
-  server_.stop();
   WiFi.softAPdisconnect(true);
   portalRunning_ = false;
 
@@ -113,15 +125,63 @@ void WifiService::stopProvisioning() {
 }
 
 void WifiService::configurePortalRoutes() {
-  server_.on("/", HTTP_GET, [this]() { handlePortalIndex(); });
+  if (routesConfigured_) return;
+
+  server_.on("/", HTTP_GET, [this]() { handleControlPanel(); });
+  server_.on("/control", HTTP_GET, [this]() { handleControlCommand(); });
+  server_.on("/display.txt", HTTP_GET, [this]() { handleDisplaySnapshot(); });
+  server_.on("/setup", HTTP_GET, [this]() { handleWifiSetup(); });
   server_.on("/save", HTTP_POST, [this]() { handlePortalSave(); });
   server_.onNotFound([this]() {
     server_.sendHeader("Location", "/", true);
     server_.send(302, "text/plain", "");
   });
+  routesConfigured_ = true;
 }
 
-void WifiService::handlePortalIndex() {
+void WifiService::ensureServer() {
+  configurePortalRoutes();
+  if (serverRunning_) return;
+
+  server_.begin();
+  serverRunning_ = true;
+}
+
+void WifiService::handleControlPanel() {
+  String html;
+  html.reserve(5000);
+  html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
+  html += F("<title>Iris Control</title><style>body{font-family:system-ui;background:#111;color:#eee;max-width:720px;margin:32px auto;padding:0 18px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}a,button{display:block;text-align:center;text-decoration:none;box-sizing:border-box;width:100%;font-size:16px;padding:13px;margin:0;border-radius:8px;border:1px solid #555;background:#222;color:#fff}section{margin:24px 0;padding-top:8px;border-top:1px solid #333}pre{white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:8px;padding:12px}</style></head><body>");
+  html += F("<h1>Iris Control</h1>");
+  html += F("<section><h2>Display</h2><pre>");
+  html += snapshotHandler_ ? escapeHtml(snapshotHandler_(controlContext_)) : String("No snapshot available");
+  html += F("</pre></section><section><h2>Controls</h2><div class='grid'>");
+  html += F("<a href='/control?cmd=watch'>Watch</a><a href='/control?cmd=settings'>Settings</a>");
+  html += F("<a href='/control?cmd=btn_a'>BtnA</a><a href='/control?cmd=btn_b'>BtnB</a>");
+  html += F("<a href='/control?cmd=vol_down'>Volume -</a><a href='/control?cmd=vol_up'>Volume +</a>");
+  html += F("<a href='/control?cmd=bg_next'>Next background</a><a href='/control?cmd=wifi_toggle'>Toggle WiFi</a>");
+  html += F("</div></section><section><h2>WiFi</h2><div class='grid'>");
+  html += F("<a href='/control?cmd=wifi_setup'>Start setup AP</a><a href='/setup'>Choose network</a>");
+  html += F("</div></section><p><a href='/display.txt'>Plain display snapshot</a></p></body></html>");
+  server_.send(200, "text/html", html);
+}
+
+void WifiService::handleControlCommand() {
+  const String command = server_.arg("cmd");
+  if (commandHandler_ && !command.isEmpty()) {
+    commandHandler_(controlContext_, command);
+  }
+
+  server_.sendHeader("Location", "/", true);
+  server_.send(302, "text/plain", "");
+}
+
+void WifiService::handleDisplaySnapshot() {
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("No snapshot available");
+  server_.send(200, "text/plain", snapshot);
+}
+
+void WifiService::handleWifiSetup() {
   String html;
   html.reserve(5000);
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
