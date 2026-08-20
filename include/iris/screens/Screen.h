@@ -12,6 +12,7 @@ enum class ScreenId : uint8_t {
   Settings,
   Volume,
   Wifi,
+  Background,
   DeviceInfo,
   Count
 };
