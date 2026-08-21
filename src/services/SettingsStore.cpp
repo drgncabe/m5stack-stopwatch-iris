@@ -14,6 +14,7 @@ void SettingsStore::begin() {
   wifiOnDemand_ = prefs_.getBool("wifi_demand", false);
   lowPowerFace_ = prefs_.getBool("low_face", false);
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
+  widgetMask_ = prefs_.getUChar("widgets", kDefaultWidgetMask);
 }
 
 void SettingsStore::setVolume(uint8_t value) {
@@ -29,6 +30,19 @@ void SettingsStore::setWifiEnabled(bool enabled) {
 void SettingsStore::setWatchBackground(uint8_t value) {
   watchBackground_ = value;
   prefs_.putUChar("watch_bg", watchBackground_);
+}
+
+void SettingsStore::setWidgetMask(uint8_t value) {
+  widgetMask_ = value;
+  prefs_.putUChar("widgets", widgetMask_);
+}
+
+void SettingsStore::setWidgetEnabled(uint8_t widget, bool enabled) {
+  if (enabled) {
+    setWidgetMask(widgetMask_ | widget);
+  } else {
+    setWidgetMask(widgetMask_ & ~widget);
+  }
 }
 
 void SettingsStore::setActiveBrightness(uint8_t value) {

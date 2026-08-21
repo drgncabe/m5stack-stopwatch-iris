@@ -19,6 +19,7 @@ void WatchScreen::enter() {
   previousSecond_ = -1;
   previousDay_ = -1;
   previousBattery_ = "";
+  previousWifi_ = "";
 }
 
 void WatchScreen::update(uint32_t nowMs) {
@@ -38,6 +39,7 @@ void WatchScreen::draw() {
   }
 
   drawBattery();
+  drawWifi();
 
   const Theme theme = currentTheme(settings_);
   if (!dt.valid) {
@@ -54,7 +56,8 @@ void WatchScreen::draw() {
     }
     if (dt.hour * 100 + dt.minute != previousMinute_) {
       drawTime(dt);
-    } else if (!settings_.lowPowerFace() && dt.second != previousSecond_) {
+    } else if (!settings_.lowPowerFace() && settings_.widgetEnabled(kWidgetSeconds) &&
+               dt.second != previousSecond_) {
       M5.Display.fillRect(326, 184, 64, 42, theme.background);
       M5.Display.setFont(&fonts::FreeSans12pt7b);
       M5.Display.setTextDatum(middle_center);
@@ -64,8 +67,11 @@ void WatchScreen::draw() {
       M5.Display.drawString(secondsText, 350, 206);
     }
 
-    if (dt.day != previousDay_) {
+    if (settings_.widgetEnabled(kWidgetDate) && dt.day != previousDay_) {
       drawDate(dt);
+    } else if (!settings_.widgetEnabled(kWidgetDate) && previousDay_ != -2) {
+      M5.Display.fillRect(50, 248, 366, 44, theme.background);
+      previousDay_ = -2;
     }
   }
 
@@ -73,7 +79,9 @@ void WatchScreen::draw() {
   if (dt.valid) {
     previousMinute_ = dt.hour * 100 + dt.minute;
     previousSecond_ = dt.second;
-    previousDay_ = dt.day;
+    if (settings_.widgetEnabled(kWidgetDate)) {
+      previousDay_ = dt.day;
+    }
   }
 }
 
@@ -93,6 +101,14 @@ void WatchScreen::drawStaticLayout() {
 }
 
 void WatchScreen::drawBattery() {
+  if (!settings_.widgetEnabled(kWidgetBattery)) {
+    if (previousBattery_ != "") {
+      M5.Display.fillRect(160, 16, 146, 44, settings_.lowPowerFace() ? TFT_BLACK : currentTheme(settings_).background);
+      previousBattery_ = "";
+    }
+    return;
+  }
+
   const String batteryText = battery_.statusText();
   if (batteryText == previousBattery_) return;
 
@@ -116,9 +132,30 @@ void WatchScreen::drawBattery() {
   previousBattery_ = batteryText;
 }
 
+void WatchScreen::drawWifi() {
+  if (!settings_.widgetEnabled(kWidgetWifi) || settings_.lowPowerFace()) {
+    if (previousWifi_ != "") {
+      M5.Display.fillRect(54, 332, 358, 34, currentTheme(settings_).background);
+      previousWifi_ = "";
+    }
+    return;
+  }
+
+  const String wifiText = wifi_.isConnected() ? String("WiFi ") + wifi_.ipAddress() : wifi_.statusText();
+  if (wifiText == previousWifi_) return;
+
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillRect(54, 332, 358, 34, theme.background);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(theme.muted, theme.background);
+  M5.Display.drawString(wifiText, M5.Display.width() / 2, 348);
+  previousWifi_ = wifiText;
+}
+
 void WatchScreen::drawTime(const DateTimeSnapshot& dt) {
   const Theme theme = currentTheme(settings_);
-  const uint16_t bg = settings_.lowPowerFace() ? TFT_BLACK : theme.background;
+  const uint16_t bg = settings_.lowPowerFace() ? TFT_BLACK : theme.timePanel;
   M5.Display.fillRect(60, 165, 350, 84, bg);
   M5.Display.setTextDatum(middle_center);
 
@@ -129,9 +166,12 @@ void WatchScreen::drawTime(const DateTimeSnapshot& dt) {
 
   M5.Display.setFont(&fonts::FreeSansBold24pt7b);
   M5.Display.setTextColor(settings_.lowPowerFace() ? theme.muted : theme.foreground, bg);
-  M5.Display.drawString(timeText, settings_.lowPowerFace() ? M5.Display.width() / 2 : M5.Display.width() / 2 - 12, 198);
+  const int timeX = settings_.widgetEnabled(kWidgetSeconds) && !settings_.lowPowerFace()
+                        ? M5.Display.width() / 2 - 12
+                        : M5.Display.width() / 2;
+  M5.Display.drawString(timeText, timeX, 198);
 
-  if (settings_.lowPowerFace()) return;
+  if (settings_.lowPowerFace() || !settings_.widgetEnabled(kWidgetSeconds)) return;
 
   M5.Display.setFont(&fonts::FreeSans12pt7b);
   M5.Display.setTextColor(theme.accent, bg);

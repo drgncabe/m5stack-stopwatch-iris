@@ -18,7 +18,7 @@ constexpr MenuItem kMainMenuItems[] = {
 constexpr MenuItem kSettingsMenuItems[] = {
     {"Volume", ScreenId::Volume},
     {"WiFi", ScreenId::Wifi},
-    {"Background", ScreenId::Background},
+    {"Theme & widgets", ScreenId::Background},
     {"Power", ScreenId::Power},
     {"Developer", ScreenId::Developer},
     {"Device information", ScreenId::DeviceInfo},
@@ -32,7 +32,7 @@ constexpr MenuItem kDeveloperMenuItems[] = {
 }  // namespace
 
 App::App()
-    : watchScreen_(timeService_, battery_, settings_),
+    : watchScreen_(timeService_, battery_, wifi_, settings_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
@@ -209,7 +209,7 @@ void App::handleControlCommand(const String& command) {
     wifiDemandStartedMs_ = nowMs;
     wifi_.startProvisioning();
   } else if (command == "bg_next") {
-    nextBackground();
+    nextTheme();
   }
 }
 
@@ -226,8 +226,14 @@ String App::buildControlSnapshot() const {
   snapshot += wifi_.ipAddress();
   snapshot += "\nVolume: ";
   snapshot += String((settings_.volume() * 100) / 255);
-  snapshot += "%\nBackground: ";
+  snapshot += "%\nTheme: ";
   snapshot += themeName(settings_);
+  snapshot += "\nWidgets: ";
+  snapshot += settings_.widgetEnabled(kWidgetBattery) ? "Battery " : "";
+  snapshot += settings_.widgetEnabled(kWidgetDate) ? "Date " : "";
+  snapshot += settings_.widgetEnabled(kWidgetSeconds) ? "Seconds " : "";
+  snapshot += settings_.widgetEnabled(kWidgetWifi) ? "WiFi" : "";
+  if (settings_.widgetMask() == 0) snapshot += "None";
   return snapshot;
 }
 
@@ -239,8 +245,8 @@ void App::adjustVolume(int delta) {
   if (next > 0) M5.Speaker.tone(2800, 30);
 }
 
-void App::nextBackground() {
-  settings_.setWatchBackground((settings_.watchBackground() + 1) % 5);
+void App::nextTheme() {
+  settings_.setThemeId((settings_.themeId() + 1) % kThemeCount);
   if (screenManager_.currentId() == ScreenId::Watch) {
     screenManager_.show(ScreenId::Watch);
   }
@@ -308,7 +314,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Settings: return "Settings";
     case ScreenId::Volume: return "Volume";
     case ScreenId::Wifi: return "WiFi";
-    case ScreenId::Background: return "Background";
+    case ScreenId::Background: return "Theme & widgets";
     case ScreenId::Power: return "Power";
     case ScreenId::Developer: return "Developer";
     case ScreenId::Bootloader: return "Bootloader";

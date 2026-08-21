@@ -165,7 +165,7 @@ void WifiService::handleControlPanel() {
   html += F("<a href='/control?cmd=watch'>Watch</a><a href='/control?cmd=settings'>Settings</a>");
   html += F("<a href='/control?cmd=btn_a'>BtnA</a><a href='/control?cmd=btn_b'>BtnB</a>");
   html += F("<a href='/control?cmd=vol_down'>Volume -</a><a href='/control?cmd=vol_up'>Volume +</a>");
-  html += F("<a href='/control?cmd=bg_next'>Next background</a><a href='/control?cmd=wifi_toggle'>Toggle WiFi</a>");
+  html += F("<a href='/control?cmd=bg_next'>Next theme</a><a href='/control?cmd=wifi_toggle'>Toggle WiFi</a>");
   html += F("</div></section><section><h2>WiFi</h2><div class='grid'>");
   html += F("<a href='/control?cmd=wifi_setup'>Start setup AP</a><a href='/setup'>Choose network</a>");
   html += F("</div></section><p><a href='/display.txt'>Plain display snapshot</a></p></body></html>");
