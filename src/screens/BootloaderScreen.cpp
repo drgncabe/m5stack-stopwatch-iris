@@ -9,6 +9,8 @@
 namespace iris {
 
 namespace {
+constexpr uint8_t kM5Pm1SysCmdReg = 0x0C;
+constexpr uint8_t kM5Pm1DownloadModeCmd = 0xA3;
 constexpr int kCancelX = 58;
 constexpr int kConfirmX = 248;
 constexpr int kButtonY = 314;
@@ -74,6 +76,14 @@ void BootloaderScreen::rebootToBootloader() {
   rebooting_ = true;
   draw();
   delay(300);
+
+  if (M5.Power.getType() == m5::Power_Class::pmic_m5pm1 &&
+      M5.Power.M5pm1.writeRegister8(kM5Pm1SysCmdReg, kM5Pm1DownloadModeCmd)) {
+    while (true) {
+      delay(1000);
+    }
+  }
+
   usb_persist_restart(RESTART_BOOTLOADER);
 }
 
