@@ -29,6 +29,7 @@ class Screen {
   virtual void enter() = 0;
   virtual void update(uint32_t nowMs) = 0;
   virtual void draw() = 0;
+  virtual void previewTouch(int32_t x, int32_t y) {}
   virtual void handleTouch(int32_t x, int32_t y) = 0;
   virtual void onButtonA() {}
   virtual void onButtonB() {}
