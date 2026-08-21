@@ -9,6 +9,12 @@ namespace iris {
 namespace {
 constexpr uint32_t kMenuReturnTimeoutMs = 30000;
 constexpr int32_t kTouchMoveTolerance = 18;
+constexpr uint16_t kMinDimSeconds = 5;
+constexpr uint16_t kMaxDimSeconds = 120;
+constexpr uint16_t kMinSleepSeconds = 0;
+constexpr uint16_t kMaxSleepSeconds = 600;
+constexpr uint16_t kMinTouchDelayMs = 50;
+constexpr uint16_t kMaxTouchDelayMs = 500;
 
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
@@ -198,6 +204,28 @@ void App::handleControlCommand(const String& command) {
     adjustVolume(-16);
   } else if (command == "vol_up") {
     adjustVolume(16);
+  } else if (command == "bright_down") {
+    adjustBrightness(-16);
+  } else if (command == "bright_up") {
+    adjustBrightness(16);
+  } else if (command == "dim_down") {
+    adjustDimTimeout(-5);
+  } else if (command == "dim_up") {
+    adjustDimTimeout(5);
+  } else if (command == "sleep_down") {
+    adjustSleepTimeout(-15);
+  } else if (command == "sleep_up") {
+    adjustSleepTimeout(15);
+  } else if (command == "touch_down") {
+    adjustTouchDelay(-25);
+  } else if (command == "touch_up") {
+    adjustTouchDelay(25);
+  } else if (command == "low_face_toggle") {
+    settings_.setLowPowerFace(!settings_.lowPowerFace());
+    showWatchIfActive();
+  } else if (command == "wifi_demand_toggle") {
+    settings_.setWifiOnDemand(!settings_.wifiOnDemand());
+    if (settings_.wifiOnDemand() && wifi_.isEnabled()) wifiDemandStartedMs_ = nowMs;
   } else if (command == "wifi_toggle") {
     const bool enabled = !wifi_.isEnabled();
     settings_.setWifiEnabled(enabled);
@@ -215,13 +243,21 @@ void App::handleControlCommand(const String& command) {
 
 String App::buildControlSnapshot() const {
   String snapshot;
-  snapshot.reserve(240);
+  snapshot.reserve(520);
   snapshot += "Screen: ";
   snapshot += currentScreenName();
+  snapshot += "\nDisplay power: ";
+  switch (displayPowerState_) {
+    case DisplayPowerState::Active: snapshot += "Active"; break;
+    case DisplayPowerState::Dimmed: snapshot += "Dimmed"; break;
+    case DisplayPowerState::Sleeping: snapshot += "Sleeping"; break;
+  }
   snapshot += "\nBattery: ";
   snapshot += battery_.statusText();
   snapshot += "\nWiFi: ";
   snapshot += wifi_.statusText();
+  snapshot += "\nSSID: ";
+  snapshot += wifi_.ssid();
   snapshot += "\nIP: ";
   snapshot += wifi_.ipAddress();
   snapshot += "\nVolume: ";

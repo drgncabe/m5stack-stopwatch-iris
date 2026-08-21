@@ -20,7 +20,7 @@ Note: This project was created for specific needs I have, for expediency this wa
 - Settings for volume, WiFi, theme/widgets, power behavior, and touch delay
 - WiFi client mode with saved credentials
 - WiFi setup access point for provisioning
-- Web control panel while WiFi is active
+- Web control panel with navigation, theme/widget, power, volume, and WiFi controls while WiFi is active
 - Display dim and sleep timeouts for battery savings
 - Low-power clock face option
 - Developer menu with bootloader/download-mode entry
