@@ -33,6 +33,9 @@ class SettingsStore {
   bool lowPowerFace() const { return lowPowerFace_; }
   void setLowPowerFace(bool enabled);
 
+  uint16_t touchDelayMs() const { return touchDelayMs_; }
+  void setTouchDelayMs(uint16_t value);
+
  private:
   Preferences prefs_;
   uint8_t volume_ = 96;
@@ -43,6 +46,7 @@ class SettingsStore {
   uint16_t sleepTimeoutSeconds_ = 90;
   bool wifiOnDemand_ = false;
   bool lowPowerFace_ = false;
+  uint16_t touchDelayMs_ = 150;
 };
 
 }  // namespace iris
