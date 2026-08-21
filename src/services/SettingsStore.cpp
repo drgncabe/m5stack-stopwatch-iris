@@ -15,6 +15,11 @@ void SettingsStore::begin() {
   lowPowerFace_ = prefs_.getBool("low_face", false);
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
   widgetMask_ = prefs_.getUChar("widgets", kDefaultWidgetMask);
+  complicationId_ = prefs_.getUChar("comp_id", kComplicationUptime) % kComplicationCount;
+  if ((widgetMask_ & kWidgetComplication) == 0 || complicationId_ == kComplicationNone) {
+    complicationId_ = kComplicationNone;
+    widgetMask_ &= ~kWidgetComplication;
+  }
 }
 
 void SettingsStore::setVolume(uint8_t value) {
@@ -43,6 +48,12 @@ void SettingsStore::setWidgetEnabled(uint8_t widget, bool enabled) {
   } else {
     setWidgetMask(widgetMask_ & ~widget);
   }
+}
+
+void SettingsStore::setComplicationId(uint8_t value) {
+  complicationId_ = value % kComplicationCount;
+  prefs_.putUChar("comp_id", complicationId_);
+  setWidgetEnabled(kWidgetComplication, complicationId_ != kComplicationNone);
 }
 
 void SettingsStore::setActiveBrightness(uint8_t value) {

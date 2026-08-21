@@ -12,7 +12,7 @@ constexpr int kRowStartY = 84;
 constexpr int kRowLeft = 42;
 constexpr int kRowWidth = 382;
 constexpr int kRowRectHeight = 40;
-constexpr size_t kItemCount = 6;
+constexpr size_t kItemCount = 7;
 }  // namespace
 
 void BackgroundScreen::enter() {
@@ -67,6 +67,7 @@ void BackgroundScreen::activateSelected() {
     case 2: toggleWidget(kWidgetDate); break;
     case 3: toggleWidget(kWidgetSeconds); break;
     case 4: toggleWidget(kWidgetWifi); break;
+    case 5: nextComplication(); break;
     default: goBack(); return;
   }
   drawRow(selected_, true);
@@ -115,6 +116,10 @@ void BackgroundScreen::toggleWidget(uint8_t widget) {
   settings_.setWidgetEnabled(widget, !settings_.widgetEnabled(widget));
 }
 
+void BackgroundScreen::nextComplication() {
+  settings_.setComplicationId((settings_.complicationId() + 1) % kComplicationCount);
+}
+
 void BackgroundScreen::goBack() {
   if (manager_) manager_->show(ScreenId::Settings);
 }
@@ -126,6 +131,7 @@ const char* BackgroundScreen::rowLabel(size_t index) const {
     case 2: return "Date";
     case 3: return "Seconds";
     case 4: return "WiFi";
+    case 5: return "Complication";
     default: return "Back";
   }
 }
@@ -137,6 +143,8 @@ String BackgroundScreen::rowValue(size_t index) const {
     case 2: return settings_.widgetEnabled(kWidgetDate) ? "On" : "Off";
     case 3: return settings_.widgetEnabled(kWidgetSeconds) ? "On" : "Off";
     case 4: return settings_.widgetEnabled(kWidgetWifi) ? "On" : "Off";
+    case 5:
+      return settings_.widgetEnabled(kWidgetComplication) ? complicationName(settings_.complicationId()) : "Off";
     default: return "";
   }
 }

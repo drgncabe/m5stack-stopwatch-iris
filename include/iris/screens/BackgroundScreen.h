@@ -24,6 +24,7 @@ class BackgroundScreen : public Screen {
   int rowAt(int32_t x, int32_t y) const;
   void nextTheme();
   void toggleWidget(uint8_t widget);
+  void nextComplication();
   void goBack();
   const char* rowLabel(size_t index) const;
   String rowValue(size_t index) const;

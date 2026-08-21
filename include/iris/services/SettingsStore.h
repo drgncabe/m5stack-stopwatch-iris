@@ -9,7 +9,19 @@ constexpr uint8_t kWidgetBattery = 1 << 0;
 constexpr uint8_t kWidgetDate = 1 << 1;
 constexpr uint8_t kWidgetSeconds = 1 << 2;
 constexpr uint8_t kWidgetWifi = 1 << 3;
-constexpr uint8_t kDefaultWidgetMask = kWidgetBattery | kWidgetDate | kWidgetSeconds;
+constexpr uint8_t kWidgetComplication = 1 << 4;
+constexpr uint8_t kDefaultWidgetMask = kWidgetBattery | kWidgetDate | kWidgetSeconds | kWidgetComplication;
+
+constexpr uint8_t kComplicationNone = 0;
+constexpr uint8_t kComplicationUptime = 1;
+constexpr uint8_t kComplicationCount = 2;
+
+inline const char* complicationName(uint8_t id) {
+  switch (id % kComplicationCount) {
+    case kComplicationUptime: return "Uptime";
+    default: return "Off";
+  }
+}
 
 class SettingsStore {
  public:
@@ -30,6 +42,9 @@ class SettingsStore {
   void setWidgetMask(uint8_t value);
   bool widgetEnabled(uint8_t widget) const { return (widgetMask_ & widget) != 0; }
   void setWidgetEnabled(uint8_t widget, bool enabled);
+
+  uint8_t complicationId() const { return complicationId_; }
+  void setComplicationId(uint8_t value);
 
   uint8_t activeBrightness() const { return activeBrightness_; }
   void setActiveBrightness(uint8_t value);
@@ -61,6 +76,7 @@ class SettingsStore {
   bool lowPowerFace_ = false;
   uint16_t touchDelayMs_ = 150;
   uint8_t widgetMask_ = kDefaultWidgetMask;
+  uint8_t complicationId_ = kComplicationUptime;
 };
 
 }  // namespace iris
