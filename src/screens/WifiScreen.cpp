@@ -30,7 +30,9 @@ void WifiScreen::update(uint32_t nowMs) {
     lastDrawMs_ = nowMs;
     const String current = snapshot();
     if (current != lastSnapshot_) {
-      draw();
+      drawStatus();
+      drawControls(highlightedAction_);
+      lastSnapshot_ = current;
     }
   }
 }
@@ -43,22 +45,7 @@ void WifiScreen::draw() {
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.drawString("WiFi", M5.Display.width() / 2, 52);
 
-  M5.Display.setFont(&fonts::FreeSans12pt7b);
-  M5.Display.drawString(wifi_.statusText(), M5.Display.width() / 2, 112);
-
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(theme.muted, theme.background);
-  const String network = wifi_.ssid().isEmpty() ? String("No saved network") : wifi_.ssid();
-  M5.Display.drawString(network, M5.Display.width() / 2, 148);
-  M5.Display.drawString(wifi_.ipAddress(), M5.Display.width() / 2, 178);
-
-  if (wifi_.isProvisioning()) {
-    M5.Display.setTextColor(theme.foreground, theme.background);
-    M5.Display.drawString("Connect phone to:", M5.Display.width() / 2, 218);
-    M5.Display.drawString(wifi_.portalSsid(), M5.Display.width() / 2, 244);
-    M5.Display.drawString("Open 192.168.4.1", M5.Display.width() / 2, 270);
-  }
-
+  drawStatus();
   drawControls(highlightedAction_);
 
   M5.Display.setTextColor(theme.muted, theme.background);
@@ -99,7 +86,9 @@ void WifiScreen::toggleWifi() {
   const bool enabled = !wifi_.isEnabled();
   settings_.setWifiEnabled(enabled);
   wifi_.setEnabled(enabled);
-  draw();
+  drawStatus();
+  drawControls(highlightedAction_);
+  lastSnapshot_ = snapshot();
 }
 
 void WifiScreen::startSetup() {
@@ -108,11 +97,35 @@ void WifiScreen::startSetup() {
     wifi_.setEnabled(true);
   }
   wifi_.startProvisioning();
-  draw();
+  drawStatus();
+  drawControls(highlightedAction_);
+  lastSnapshot_ = snapshot();
 }
 
 void WifiScreen::goBack() {
   if (manager_) manager_->show(ScreenId::Settings);
+}
+
+void WifiScreen::drawStatus() {
+  const Theme theme = currentTheme(settings_);
+  M5.Display.fillRect(34, 88, 398, 198, theme.background);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setFont(&fonts::FreeSans12pt7b);
+  M5.Display.setTextColor(theme.foreground, theme.background);
+  M5.Display.drawString(wifi_.statusText(), M5.Display.width() / 2, 112);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextColor(theme.muted, theme.background);
+  const String network = wifi_.ssid().isEmpty() ? String("No saved network") : wifi_.ssid();
+  M5.Display.drawString(network, M5.Display.width() / 2, 148);
+  M5.Display.drawString(wifi_.ipAddress(), M5.Display.width() / 2, 178);
+
+  if (wifi_.isProvisioning()) {
+    M5.Display.setTextColor(theme.foreground, theme.background);
+    M5.Display.drawString("Connect phone to:", M5.Display.width() / 2, 218);
+    M5.Display.drawString(wifi_.portalSsid(), M5.Display.width() / 2, 244);
+    M5.Display.drawString("Open 192.168.4.1", M5.Display.width() / 2, 270);
+  }
 }
 
 void WifiScreen::drawControls(TouchAction highlighted) {
