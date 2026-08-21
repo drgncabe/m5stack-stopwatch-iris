@@ -23,9 +23,11 @@ class PowerScreen : public Screen {
   void cycleBrightness();
   void cycleDimTimeout();
   void cycleSleepTimeout();
+  void cycleTouchDelay();
   const char* brightnessName() const;
   const char* dimTimeoutName() const;
   const char* sleepTimeoutName() const;
+  const char* touchDelayName() const;
   void goBack();
 
   SettingsStore& settings_;

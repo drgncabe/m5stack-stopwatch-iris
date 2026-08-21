@@ -7,6 +7,9 @@
 namespace iris {
 
 namespace {
+constexpr uint32_t kMenuReturnTimeoutMs = 30000;
+constexpr int32_t kTouchMoveTolerance = 18;
+
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
     {"Settings", ScreenId::Settings},
@@ -111,16 +114,42 @@ void App::update() {
   if (touch.isPressed()) {
     if (!touchActive_) {
       touchActive_ = true;
+      touchPreviewed_ = false;
+      touchHandled_ = false;
+      touchStartX_ = touch.x;
+      touchStartY_ = touch.y;
+      touchStartMs_ = nowMs;
       if (displayPowerState_ == DisplayPowerState::Sleeping) {
         wakeDisplay(nowMs);
+        touchHandled_ = true;
       } else {
         noteActivity(nowMs);
-        screenManager_.handleTouch(touch.x, touch.y);
+        screenManager_.previewTouch(touch.x, touch.y);
+        touchPreviewed_ = true;
       }
       inputHandled = true;
+    } else if (!touchHandled_) {
+      const bool movedTooFar = abs(touch.x - touchStartX_) > kTouchMoveTolerance ||
+                               abs(touch.y - touchStartY_) > kTouchMoveTolerance;
+      if (!movedTooFar && nowMs - touchStartMs_ >= settings_.touchDelayMs()) {
+        screenManager_.handleTouch(touchStartX_, touchStartY_);
+        touchHandled_ = true;
+        inputHandled = true;
+      } else if (movedTooFar && touchPreviewed_) {
+        touchStartX_ = touch.x;
+        touchStartY_ = touch.y;
+        touchStartMs_ = nowMs;
+        screenManager_.previewTouch(touch.x, touch.y);
+      }
     }
   } else {
+    if (touchActive_ && !touchHandled_ && touchPreviewed_) {
+      screenManager_.handleTouch(touchStartX_, touchStartY_);
+      inputHandled = true;
+    }
     touchActive_ = false;
+    touchPreviewed_ = false;
+    touchHandled_ = false;
   }
 
   battery_.update(nowMs);
@@ -227,6 +256,12 @@ void App::noteActivity(uint32_t nowMs) {
 
 void App::updateDisplayPower(uint32_t nowMs) {
   const uint32_t idleMs = nowMs - lastActivityMs_;
+
+  if (screenManager_.currentId() != ScreenId::Watch && idleMs >= kMenuReturnTimeoutMs) {
+    screenManager_.show(ScreenId::Watch);
+    lastActivityMs_ = nowMs;
+    return;
+  }
 
   const uint16_t sleepSeconds = settings_.sleepTimeoutSeconds();
   if (sleepSeconds > 0 &&

@@ -13,6 +13,7 @@ void SettingsStore::begin() {
   sleepTimeoutSeconds_ = prefs_.getUShort("sleep_sec", config::kDisplaySleepMs / 1000UL);
   wifiOnDemand_ = prefs_.getBool("wifi_demand", false);
   lowPowerFace_ = prefs_.getBool("low_face", false);
+  touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
 }
 
 void SettingsStore::setVolume(uint8_t value) {
@@ -53,6 +54,11 @@ void SettingsStore::setWifiOnDemand(bool enabled) {
 void SettingsStore::setLowPowerFace(bool enabled) {
   lowPowerFace_ = enabled;
   prefs_.putBool("low_face", lowPowerFace_);
+}
+
+void SettingsStore::setTouchDelayMs(uint16_t value) {
+  touchDelayMs_ = value;
+  prefs_.putUShort("touch_ms", touchDelayMs_);
 }
 
 }  // namespace iris
