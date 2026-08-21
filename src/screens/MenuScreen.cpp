@@ -12,7 +12,7 @@ constexpr int kRowStartY = 76;
 constexpr int kRowLeft = 58;
 constexpr int kRowWidth = 350;
 constexpr int kRowRectHeight = 40;
-constexpr int kRowHitPaddingX = 18;
+constexpr int kRowHitPaddingX = 42;
 }  // namespace
 
 MenuScreen::MenuScreen(const char* title, const MenuItem* items, size_t itemCount,
@@ -97,12 +97,15 @@ void MenuScreen::drawRow(size_t index, bool selected) {
 
 int MenuScreen::rowAt(int32_t x, int32_t y) const {
   if (x < kRowLeft - kRowHitPaddingX || x > kRowLeft + kRowWidth + kRowHitPaddingX) return -1;
-  for (size_t i = 0; i < itemCount_; ++i) {
-    const int rowY = kRowStartY + static_cast<int>(i) * kRowHeight;
-    const int nextRowY = rowY + kRowHeight;
-    if (y >= rowY - 3 && y < nextRowY - 2) return static_cast<int>(i);
-  }
-  return -1;
+  if (itemCount_ == 0) return -1;
+
+  const int firstBandTop = kRowStartY - 10;
+  const int lastBandBottom = kRowStartY + static_cast<int>(itemCount_) * kRowHeight + 10;
+  if (y < firstBandTop || y > lastBandBottom) return -1;
+
+  int row = (y - kRowStartY + (kRowHeight / 2)) / kRowHeight;
+  row = constrain(row, 0, static_cast<int>(itemCount_) - 1);
+  return row;
 }
 
 }  // namespace iris
