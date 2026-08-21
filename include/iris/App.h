@@ -10,6 +10,7 @@
 #include "iris/screens/WatchScreen.h"
 #include "iris/screens/WifiScreen.h"
 #include "iris/services/BatteryService.h"
+#include "iris/services/OrientationService.h"
 #include "iris/services/SettingsStore.h"
 #include "iris/services/TimeService.h"
 #include "iris/services/WifiService.h"
@@ -42,6 +43,7 @@ class App {
   void adjustTouchDelay(int delta);
   void nextTheme();
   void nextComplication();
+  void resetTouch();
   void showWatchIfActive();
   void noteActivity(uint32_t nowMs);
   void updateDisplayPower(uint32_t nowMs);
@@ -51,6 +53,7 @@ class App {
 
   SettingsStore settings_;
   BatteryService battery_;
+  OrientationService orientation_;
   WifiService wifi_;
   TimeService timeService_;
   ScreenManager screenManager_;

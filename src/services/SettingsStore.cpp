@@ -13,6 +13,7 @@ void SettingsStore::begin() {
   sleepTimeoutSeconds_ = prefs_.getUShort("sleep_sec", config::kDisplaySleepMs / 1000UL);
   wifiOnDemand_ = prefs_.getBool("wifi_demand", false);
   lowPowerFace_ = prefs_.getBool("low_face", false);
+  autoRotate_ = prefs_.getBool("auto_rotate", true);
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
   widgetMask_ = prefs_.getUChar("widgets", kDefaultWidgetMask);
   complicationId_ = prefs_.getUChar("comp_id", kComplicationUptime) % kComplicationCount;
@@ -79,6 +80,11 @@ void SettingsStore::setWifiOnDemand(bool enabled) {
 void SettingsStore::setLowPowerFace(bool enabled) {
   lowPowerFace_ = enabled;
   prefs_.putBool("low_face", lowPowerFace_);
+}
+
+void SettingsStore::setAutoRotate(bool enabled) {
+  autoRotate_ = enabled;
+  prefs_.putBool("auto_rotate", autoRotate_);
 }
 
 void SettingsStore::setTouchDelayMs(uint16_t value) {

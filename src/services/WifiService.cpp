@@ -179,7 +179,8 @@ void WifiService::handleControlPanel() {
   html += F("<a href='/control?cmd=dim_down'>Dim sooner</a><a href='/control?cmd=dim_up'>Dim later</a>");
   html += F("<a href='/control?cmd=sleep_down'>Sleep sooner</a><a href='/control?cmd=sleep_up'>Sleep later</a>");
   html += F("<a href='/control?cmd=touch_down'>Touch delay -</a><a href='/control?cmd=touch_up'>Touch delay +</a>");
-  html += F("<a href='/control?cmd=low_face_toggle'>Toggle low-power face</a><a href='/control?cmd=wifi_demand_toggle'>Toggle WiFi on demand</a>");
+  html += F("<a href='/control?cmd=low_face_toggle'>Toggle low-power face</a><a href='/control?cmd=auto_rotate_toggle'>Toggle auto rotate</a>");
+  html += F("<a href='/control?cmd=wifi_demand_toggle'>Toggle WiFi on demand</a>");
   html += F("</div></section><section><h2>WiFi</h2><div class='grid'>");
   html += F("<a href='/control?cmd=wifi_toggle'>Toggle WiFi</a><a href='/control?cmd=wifi_setup'>Start setup AP</a><a href='/setup'>Choose network</a><a href='/display.txt'>Plain snapshot</a>");
   html += F("</div></section></body></html>");

@@ -67,6 +67,7 @@ void App::begin() {
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
 
   battery_.begin();
+  orientation_.begin();
   wifi_.begin(settings_.wifiEnabled());
   wifiDemandStartedMs_ = millis();
   timeService_.begin();
@@ -93,6 +94,12 @@ void App::update() {
 
   const uint32_t nowMs = millis();
   bool inputHandled = false;
+
+  if (displayPowerState_ != DisplayPowerState::Sleeping &&
+      orientation_.update(nowMs, settings_.autoRotate())) {
+    resetTouch();
+    screenManager_.redraw();
+  }
 
   if (M5.BtnA.wasPressed()) {
     Serial.println("BtnA Pressed");
@@ -223,6 +230,8 @@ void App::handleControlCommand(const String& command) {
   } else if (command == "low_face_toggle") {
     settings_.setLowPowerFace(!settings_.lowPowerFace());
     showWatchIfActive();
+  } else if (command == "auto_rotate_toggle") {
+    settings_.setAutoRotate(!settings_.autoRotate());
   } else if (command == "wifi_demand_toggle") {
     settings_.setWifiOnDemand(!settings_.wifiOnDemand());
     if (settings_.wifiOnDemand() && wifi_.isEnabled()) wifiDemandStartedMs_ = nowMs;
@@ -306,6 +315,10 @@ String App::buildControlSnapshot() const {
   snapshot += settings_.sleepTimeoutSeconds() == 0 ? String("Off") : String(settings_.sleepTimeoutSeconds()) + "s";
   snapshot += "\nLow-power face: ";
   snapshot += settings_.lowPowerFace() ? "On" : "Off";
+  snapshot += "\nAuto rotate: ";
+  snapshot += settings_.autoRotate() ? orientation_.statusText() : "Off";
+  snapshot += " r";
+  snapshot += String(orientation_.rotation());
   snapshot += "\nWiFi on demand: ";
   snapshot += settings_.wifiOnDemand() ? "On" : "Off";
   snapshot += "\nTouch delay: ";
@@ -357,6 +370,12 @@ void App::nextTheme() {
 void App::nextComplication() {
   settings_.setComplicationId((settings_.complicationId() + 1) % kComplicationCount);
   showWatchIfActive();
+}
+
+void App::resetTouch() {
+  touchActive_ = false;
+  touchPreviewed_ = false;
+  touchHandled_ = false;
 }
 
 void App::showWatchIfActive() {

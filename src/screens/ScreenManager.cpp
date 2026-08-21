@@ -24,6 +24,12 @@ void ScreenManager::show(ScreenId id) {
   current_->draw();
 }
 
+void ScreenManager::redraw() {
+  if (!current_) return;
+  current_->enter();
+  current_->draw();
+}
+
 void ScreenManager::update(uint32_t nowMs) {
   if (current_) current_->update(nowMs);
 }
