@@ -7,10 +7,11 @@
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 64;
-constexpr int kRowStartY = 92;
+constexpr int kRowHeight = 46;
+constexpr int kRowStartY = 76;
 constexpr int kRowLeft = 58;
 constexpr int kRowWidth = 350;
+constexpr int kRowRectHeight = 40;
 }  // namespace
 
 MenuScreen::MenuScreen(const char* title, const MenuItem* items, size_t itemCount,
@@ -37,7 +38,7 @@ void MenuScreen::draw() {
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString("A: Next     B: Select", M5.Display.width() / 2, 414);
+  M5.Display.drawString("A: Next     B: Select", M5.Display.width() / 2, 426);
 }
 
 void MenuScreen::handleTouch(int32_t x, int32_t y) {
@@ -76,19 +77,19 @@ void MenuScreen::drawRow(size_t index, bool selected) {
   const uint16_t fill = selected ? theme.selected : theme.background;
   const uint16_t border = selected ? theme.foreground : theme.panel;
 
-  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, 50, 16, fill);
-  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, 50, 16, border);
+  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 14, fill);
+  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 14, border);
   M5.Display.setTextDatum(middle_center);
   M5.Display.setFont(&fonts::FreeSans12pt7b);
   M5.Display.setTextColor(theme.foreground, fill);
-  M5.Display.drawString(items_[index].label, M5.Display.width() / 2, y + 25);
+  M5.Display.drawString(items_[index].label, M5.Display.width() / 2, y + (kRowRectHeight / 2));
 }
 
 int MenuScreen::rowAt(int32_t x, int32_t y) const {
   if (x < kRowLeft || x > kRowLeft + kRowWidth) return -1;
   for (size_t i = 0; i < itemCount_; ++i) {
     const int rowY = kRowStartY + static_cast<int>(i) * kRowHeight;
-    if (y >= rowY && y <= rowY + 50) return static_cast<int>(i);
+    if (y >= rowY && y <= rowY + kRowRectHeight) return static_cast<int>(i);
   }
   return -1;
 }

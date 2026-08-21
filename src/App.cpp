@@ -16,8 +16,15 @@ constexpr MenuItem kSettingsMenuItems[] = {
     {"Volume", ScreenId::Volume},
     {"WiFi", ScreenId::Wifi},
     {"Background", ScreenId::Background},
+    {"Power", ScreenId::Power},
+    {"Developer", ScreenId::Developer},
     {"Device information", ScreenId::DeviceInfo},
     {"Back to watch", ScreenId::Watch},
+};
+
+constexpr MenuItem kDeveloperMenuItems[] = {
+    {"Bootloader", ScreenId::Bootloader},
+    {"Back", ScreenId::Settings},
 };
 }  // namespace
 
@@ -30,6 +37,10 @@ App::App()
       volumeScreen_(settings_),
       wifiScreen_(settings_, wifi_),
       backgroundScreen_(settings_),
+      powerScreen_(settings_),
+      developerMenuScreen_("Developer", kDeveloperMenuItems,
+                           sizeof(kDeveloperMenuItems) / sizeof(kDeveloperMenuItems[0]), settings_),
+      bootloaderScreen_(settings_),
       deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
 void App::begin() {
@@ -43,11 +54,12 @@ void App::begin() {
 
   settings_.begin();
   M5.Speaker.setVolume(settings_.volume());
-  M5.Display.setBrightness(config::kActiveBrightness);
+  M5.Display.setBrightness(settings_.activeBrightness());
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
 
   battery_.begin();
   wifi_.begin(settings_.wifiEnabled());
+  wifiDemandStartedMs_ = millis();
   timeService_.begin();
 
   screenManager_.registerScreen(ScreenId::Watch, &watchScreen_);
@@ -56,6 +68,9 @@ void App::begin() {
   screenManager_.registerScreen(ScreenId::Volume, &volumeScreen_);
   screenManager_.registerScreen(ScreenId::Wifi, &wifiScreen_);
   screenManager_.registerScreen(ScreenId::Background, &backgroundScreen_);
+  screenManager_.registerScreen(ScreenId::Power, &powerScreen_);
+  screenManager_.registerScreen(ScreenId::Developer, &developerMenuScreen_);
+  screenManager_.registerScreen(ScreenId::Bootloader, &bootloaderScreen_);
   screenManager_.registerScreen(ScreenId::DeviceInfo, &deviceInfoScreen_);
 
   screenManager_.show(ScreenId::Watch);
@@ -111,6 +126,7 @@ void App::update() {
   battery_.update(nowMs);
   wifi_.update(nowMs);
   timeService_.update(nowMs, wifi_.isConnected());
+  updateWifiPower(nowMs);
 
   if (displayPowerState_ != DisplayPowerState::Sleeping) {
     screenManager_.update(nowMs);
@@ -157,9 +173,11 @@ void App::handleControlCommand(const String& command) {
     const bool enabled = !wifi_.isEnabled();
     settings_.setWifiEnabled(enabled);
     wifi_.setEnabled(enabled);
+    if (enabled) wifiDemandStartedMs_ = nowMs;
   } else if (command == "wifi_setup") {
     settings_.setWifiEnabled(true);
     wifi_.setEnabled(true);
+    wifiDemandStartedMs_ = nowMs;
     wifi_.startProvisioning();
   } else if (command == "bg_next") {
     nextBackground();
@@ -203,24 +221,40 @@ void App::noteActivity(uint32_t nowMs) {
   lastActivityMs_ = nowMs;
   if (displayPowerState_ == DisplayPowerState::Dimmed) {
     displayPowerState_ = DisplayPowerState::Active;
-    M5.Display.setBrightness(config::kActiveBrightness);
+    M5.Display.setBrightness(settings_.activeBrightness());
   }
 }
 
 void App::updateDisplayPower(uint32_t nowMs) {
   const uint32_t idleMs = nowMs - lastActivityMs_;
 
-  if (displayPowerState_ != DisplayPowerState::Sleeping &&
-      idleMs >= config::kDisplaySleepMs) {
+  const uint16_t sleepSeconds = settings_.sleepTimeoutSeconds();
+  if (sleepSeconds > 0 &&
+      displayPowerState_ != DisplayPowerState::Sleeping &&
+      idleMs >= static_cast<uint32_t>(sleepSeconds) * 1000UL) {
     displayPowerState_ = DisplayPowerState::Sleeping;
     M5.Display.sleep();
     return;
   }
 
   if (displayPowerState_ == DisplayPowerState::Active &&
-      idleMs >= config::kDisplayDimMs) {
+      idleMs >= static_cast<uint32_t>(settings_.dimTimeoutSeconds()) * 1000UL) {
     displayPowerState_ = DisplayPowerState::Dimmed;
     M5.Display.setBrightness(config::kDimBrightness);
+  }
+}
+
+void App::updateWifiPower(uint32_t nowMs) {
+  if (!settings_.wifiOnDemand() || !wifi_.isEnabled()) return;
+  if (wifi_.isProvisioning()) {
+    wifiDemandStartedMs_ = nowMs;
+    return;
+  }
+
+  const bool synced = timeService_.ntpSynchronized();
+  const bool expired = nowMs - wifiDemandStartedMs_ >= config::kWifiOnDemandOffMs;
+  if (synced || expired) {
+    wifi_.setEnabled(false);
   }
 }
 
@@ -228,7 +262,7 @@ void App::wakeDisplay(uint32_t nowMs) {
   lastActivityMs_ = nowMs;
   displayPowerState_ = DisplayPowerState::Active;
   M5.Display.wakeup();
-  M5.Display.setBrightness(config::kActiveBrightness);
+  M5.Display.setBrightness(settings_.activeBrightness());
   screenManager_.show(screenManager_.currentId());
 }
 
@@ -240,6 +274,9 @@ const char* App::currentScreenName() const {
     case ScreenId::Volume: return "Volume";
     case ScreenId::Wifi: return "WiFi";
     case ScreenId::Background: return "Background";
+    case ScreenId::Power: return "Power";
+    case ScreenId::Developer: return "Developer";
+    case ScreenId::Bootloader: return "Bootloader";
     case ScreenId::DeviceInfo: return "Device info";
     default: return "Unknown";
   }
