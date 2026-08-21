@@ -2,7 +2,7 @@
 
 Iris is an experimental smartwatch-style firmware for the M5Stack StopWatch. It provides a clock face, themed menus, WiFi setup, battery status, power-saving controls, a small web control panel, and developer tools for entering bootloader/download mode without relying on the hardware button sequence.
 
-Note: This project was created for specific needs I have and utilized AI assistance. I am reviewing code along with doing hands-on testing on real hardware, but I mainly built this for rapid prototyping and making my stopwatch a useful multi-tool. 
+Note: This project was created for specific needs I have, for expediency this was written with AI. It originally started with me coding but I quickly slowed things down. I am reviewing code along with doing hands-on testing on real hardware, but I mainly built this for rapid prototyping and making my stopwatch a useful multi-tool. Sorry for the AI slop, but sometimes it's useful AI slop. 
 
 ## Hardware
 
