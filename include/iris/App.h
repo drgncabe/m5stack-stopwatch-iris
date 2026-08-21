@@ -12,6 +12,7 @@
 #include "iris/services/BatteryService.h"
 #include "iris/services/OrientationService.h"
 #include "iris/services/SettingsStore.h"
+#include "iris/services/StatusLightService.h"
 #include "iris/services/TimeService.h"
 #include "iris/services/WifiService.h"
 
@@ -41,6 +42,7 @@ class App {
   void adjustDimTimeout(int delta);
   void adjustSleepTimeout(int delta);
   void adjustTouchDelay(int delta);
+  void setIndicatorLight(bool enabled);
   void nextTheme();
   void nextComplication();
   void resetTouch();
@@ -54,6 +56,7 @@ class App {
   SettingsStore settings_;
   BatteryService battery_;
   OrientationService orientation_;
+  StatusLightService statusLight_;
   WifiService wifi_;
   TimeService timeService_;
   ScreenManager screenManager_;
