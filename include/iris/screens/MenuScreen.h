@@ -27,17 +27,19 @@ class MenuScreen : public Screen {
  private:
   void drawRow(size_t index, bool selected);
   void selectRow(size_t row);
+  void scrollSelection(int direction);
   void activateSelected();
   void startSelectionHaptic();
   void stopSelectionHaptic();
-  int rowAt(int32_t x, int32_t y) const;
 
   const char* title_;
   const MenuItem* items_;
   size_t itemCount_;
   SettingsStore& settings_;
   size_t selected_ = 0;
-  bool touchMovedSelection_ = false;
+  bool touchGestureActive_ = false;
+  int32_t lastTouchY_ = 0;
+  int32_t scrollRemainder_ = 0;
   bool hapticActive_ = false;
   uint32_t hapticOffMs_ = 0;
 };
