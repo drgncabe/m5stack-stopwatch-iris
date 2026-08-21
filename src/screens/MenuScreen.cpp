@@ -12,6 +12,7 @@ constexpr int kRowStartY = 76;
 constexpr int kRowLeft = 58;
 constexpr int kRowWidth = 350;
 constexpr int kRowRectHeight = 40;
+constexpr int kRowHitPaddingX = 18;
 }  // namespace
 
 MenuScreen::MenuScreen(const char* title, const MenuItem* items, size_t itemCount,
@@ -41,15 +42,16 @@ void MenuScreen::draw() {
   M5.Display.drawString("A: Next     B: Select", M5.Display.width() / 2, 426);
 }
 
+void MenuScreen::previewTouch(int32_t x, int32_t y) {
+  const int row = rowAt(x, y);
+  if (row < 0) return;
+  selectRow(static_cast<size_t>(row));
+}
+
 void MenuScreen::handleTouch(int32_t x, int32_t y) {
   const int row = rowAt(x, y);
   if (row < 0) return;
-  if (static_cast<size_t>(row) != selected_) {
-    const size_t previous = selected_;
-    selected_ = static_cast<size_t>(row);
-    drawRow(previous, false);
-    drawRow(selected_, true);
-  }
+  selectRow(static_cast<size_t>(row));
   activateSelected();
 }
 
@@ -70,6 +72,14 @@ void MenuScreen::activateSelected() {
   manager_->show(items_[selected_].target);
 }
 
+void MenuScreen::selectRow(size_t row) {
+  if (row >= itemCount_ || row == selected_) return;
+  const size_t previous = selected_;
+  selected_ = row;
+  drawRow(previous, false);
+  drawRow(selected_, true);
+}
+
 void MenuScreen::drawRow(size_t index, bool selected) {
   if (index >= itemCount_) return;
   const Theme theme = currentTheme(settings_);
@@ -86,10 +96,11 @@ void MenuScreen::drawRow(size_t index, bool selected) {
 }
 
 int MenuScreen::rowAt(int32_t x, int32_t y) const {
-  if (x < kRowLeft || x > kRowLeft + kRowWidth) return -1;
+  if (x < kRowLeft - kRowHitPaddingX || x > kRowLeft + kRowWidth + kRowHitPaddingX) return -1;
   for (size_t i = 0; i < itemCount_; ++i) {
     const int rowY = kRowStartY + static_cast<int>(i) * kRowHeight;
-    if (y >= rowY && y <= rowY + kRowRectHeight) return static_cast<int>(i);
+    const int nextRowY = rowY + kRowHeight;
+    if (y >= rowY - 3 && y < nextRowY - 2) return static_cast<int>(i);
   }
   return -1;
 }
