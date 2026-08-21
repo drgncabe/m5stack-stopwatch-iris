@@ -13,8 +13,8 @@ constexpr int kRowHeight = 52;
 constexpr int kRowLeft = 52;
 constexpr int kRowWidth = 362;
 constexpr int kRowRectHeight = 44;
-constexpr int kRowHitPaddingX = 34;
 constexpr int kVisiblePaddingRows = 5;
+constexpr int kTouchScrollStepPx = 42;
 constexpr uint32_t kHapticPulseMs = 14;
 }  // namespace
 
@@ -24,7 +24,9 @@ MenuScreen::MenuScreen(const char* title, const MenuItem* items, size_t itemCoun
 
 void MenuScreen::enter() {
   selected_ = 0;
-  touchMovedSelection_ = false;
+  touchGestureActive_ = false;
+  lastTouchY_ = 0;
+  scrollRemainder_ = 0;
   stopSelectionHaptic();
 }
 
@@ -48,24 +50,46 @@ void MenuScreen::draw() {
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString("A: Next     B: Select", M5.Display.width() / 2, 426);
+  M5.Display.drawString("Drag: Scroll     Hold: Select", M5.Display.width() / 2, 426);
 }
 
 void MenuScreen::previewTouch(int32_t x, int32_t y) {
-  const int row = rowAt(x, y);
-  if (row < 0) return;
-  if (static_cast<size_t>(row) != selected_) touchMovedSelection_ = true;
-  selectRow(static_cast<size_t>(row));
+  (void)x;
+  if (itemCount_ == 0) return;
+
+  if (!touchGestureActive_) {
+    touchGestureActive_ = true;
+    lastTouchY_ = y;
+    scrollRemainder_ = 0;
+    return;
+  }
+
+  const int32_t deltaY = y - lastTouchY_;
+  lastTouchY_ = y;
+  scrollRemainder_ += deltaY;
+
+  while (scrollRemainder_ <= -kTouchScrollStepPx) {
+    scrollSelection(1);
+    scrollRemainder_ += kTouchScrollStepPx;
+  }
+
+  while (scrollRemainder_ >= kTouchScrollStepPx) {
+    scrollSelection(-1);
+    scrollRemainder_ -= kTouchScrollStepPx;
+  }
 }
 
 void MenuScreen::handleTouch(int32_t x, int32_t y) {
-  const int row = rowAt(x, y);
-  if (row < 0) return;
-  selectRow(static_cast<size_t>(row));
-  if (touchMovedSelection_) {
-    touchMovedSelection_ = false;
+  (void)x;
+  (void)y;
+  const bool touchIsStillPressed = M5.Touch.getDetail().isPressed();
+  touchGestureActive_ = false;
+  scrollRemainder_ = 0;
+
+  if (!touchIsStillPressed) {
     return;
   }
+
   activateSelected();
 }
 
@@ -88,6 +112,13 @@ void MenuScreen::selectRow(size_t row) {
   selected_ = row;
   draw();
   startSelectionHaptic();
+}
+
+void MenuScreen::scrollSelection(int direction) {
+  if (itemCount_ == 0) return;
+  const int next = constrain(static_cast<int>(selected_) + direction, 0,
+                             static_cast<int>(itemCount_) - 1);
+  selectRow(static_cast<size_t>(next));
 }
 
 void MenuScreen::drawRow(size_t index, bool selected) {
@@ -113,17 +144,6 @@ void MenuScreen::drawRow(size_t index, bool selected) {
   M5.Display.setFont(selected ? &fonts::FreeSansBold12pt7b : &fonts::FreeSans12pt7b);
   M5.Display.setTextColor(text, fill);
   M5.Display.drawString(items_[index].label, M5.Display.width() / 2, y + (kRowRectHeight / 2));
-}
-
-int MenuScreen::rowAt(int32_t x, int32_t y) const {
-  if (x < kRowLeft - kRowHitPaddingX || x > kRowLeft + kRowWidth + kRowHitPaddingX) return -1;
-  if (itemCount_ == 0) return -1;
-
-  if (y < 76 || y > 404) return -1;
-
-  int row = static_cast<int>(selected_) + (y - kListCenterY + (kRowHeight / 2)) / kRowHeight;
-  row = constrain(row, 0, static_cast<int>(itemCount_) - 1);
-  return row;
 }
 
 void MenuScreen::startSelectionHaptic() {

@@ -3,6 +3,7 @@
 #include "iris/screens/BootloaderScreen.h"
 #include "iris/screens/BackgroundScreen.h"
 #include "iris/screens/DeviceInfoScreen.h"
+#include "iris/screens/FidgetScreens.h"
 #include "iris/screens/MenuScreen.h"
 #include "iris/screens/PowerScreen.h"
 #include "iris/screens/ScreenManager.h"
@@ -68,6 +69,11 @@ class App {
   WifiScreen wifiScreen_;
   BackgroundScreen backgroundScreen_;
   PowerScreen powerScreen_;
+  MenuScreen fidgetsMenuScreen_;
+  WheelFidgetScreen wheelFidgetScreen_;
+  PoppersFidgetScreen poppersFidgetScreen_;
+  SpinnerFidgetScreen spinnerFidgetScreen_;
+  GravityBallFidgetScreen gravityBallFidgetScreen_;
   MenuScreen developerMenuScreen_;
   BootloaderScreen bootloaderScreen_;
   DeviceInfoScreen deviceInfoScreen_;
