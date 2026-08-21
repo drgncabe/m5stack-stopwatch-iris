@@ -43,23 +43,21 @@ void PowerScreen::draw() {
   M5.Display.drawString("A: Next     B: Change", M5.Display.width() / 2, 438);
 }
 
+void PowerScreen::previewTouch(int32_t x, int32_t y) {
+  const int row = rowAt(x, y);
+  if (row < 0) return;
+  selectRow(static_cast<size_t>(row));
+}
+
 void PowerScreen::handleTouch(int32_t x, int32_t y) {
   const int row = rowAt(x, y);
   if (row < 0) return;
-  if (static_cast<size_t>(row) != selected_) {
-    const size_t previous = selected_;
-    selected_ = static_cast<size_t>(row);
-    drawRow(previous, false);
-    drawRow(selected_, true);
-  }
+  selectRow(static_cast<size_t>(row));
   activateSelected();
 }
 
 void PowerScreen::onButtonA() {
-  const size_t previous = selected_;
-  selected_ = (selected_ + 1) % kItemCount;
-  drawRow(previous, false);
-  drawRow(selected_, true);
+  selectRow((selected_ + 1) % kItemCount);
 }
 
 void PowerScreen::onButtonB() {
@@ -76,7 +74,15 @@ void PowerScreen::activateSelected() {
     case 5: cycleTouchDelay(); break;
     default: goBack(); return;
   }
-  draw();
+  drawRow(selected_, true);
+}
+
+void PowerScreen::selectRow(size_t index) {
+  if (index >= kItemCount || index == selected_) return;
+  const size_t previous = selected_;
+  selected_ = index;
+  drawRow(previous, false);
+  drawRow(selected_, true);
 }
 
 void PowerScreen::drawRow(size_t index, bool selected) {
