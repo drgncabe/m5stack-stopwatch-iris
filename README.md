@@ -104,3 +104,7 @@ Iris is early firmware. It is usable for testing, but APIs, menus, themes, and s
 ## AI Disclosure
 
 This firmware and README were created with substantial AI assistance, with device behavior validated manually on real M5Stack StopWatch hardware.
+
+## License
+
+Iris is released under the MIT License. See [LICENSE](LICENSE) for details.
