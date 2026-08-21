@@ -28,6 +28,10 @@ void ScreenManager::update(uint32_t nowMs) {
   if (current_) current_->update(nowMs);
 }
 
+void ScreenManager::previewTouch(int32_t x, int32_t y) {
+  if (current_) current_->previewTouch(x, y);
+}
+
 void ScreenManager::handleTouch(int32_t x, int32_t y) {
   if (current_) current_->handleTouch(x, y);
 }
