@@ -41,6 +41,7 @@ class App {
   void adjustSleepTimeout(int delta);
   void adjustTouchDelay(int delta);
   void nextTheme();
+  void nextComplication();
   void showWatchIfActive();
   void noteActivity(uint32_t nowMs);
   void updateDisplayPower(uint32_t nowMs);
