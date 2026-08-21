@@ -64,6 +64,9 @@ class SettingsStore {
   bool autoRotate() const { return autoRotate_; }
   void setAutoRotate(bool enabled);
 
+  bool indicatorLightEnabled() const { return indicatorLightEnabled_; }
+  void setIndicatorLightEnabled(bool enabled);
+
   uint16_t touchDelayMs() const { return touchDelayMs_; }
   void setTouchDelayMs(uint16_t value);
 
@@ -78,6 +81,7 @@ class SettingsStore {
   bool wifiOnDemand_ = false;
   bool lowPowerFace_ = false;
   bool autoRotate_ = true;
+  bool indicatorLightEnabled_ = false;
   uint16_t touchDelayMs_ = 150;
   uint8_t widgetMask_ = kDefaultWidgetMask;
   uint8_t complicationId_ = kComplicationUptime;
