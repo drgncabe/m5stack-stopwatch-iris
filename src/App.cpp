@@ -238,6 +238,22 @@ void App::handleControlCommand(const String& command) {
     wifi_.startProvisioning();
   } else if (command == "bg_next") {
     nextTheme();
+  } else if (command.startsWith("theme_")) {
+    const int themeId = command.substring(6).toInt();
+    settings_.setThemeId(constrain(themeId, 0, kThemeCount - 1));
+    showWatchIfActive();
+  } else if (command == "widget_battery_toggle") {
+    settings_.setWidgetEnabled(kWidgetBattery, !settings_.widgetEnabled(kWidgetBattery));
+    showWatchIfActive();
+  } else if (command == "widget_date_toggle") {
+    settings_.setWidgetEnabled(kWidgetDate, !settings_.widgetEnabled(kWidgetDate));
+    showWatchIfActive();
+  } else if (command == "widget_seconds_toggle") {
+    settings_.setWidgetEnabled(kWidgetSeconds, !settings_.widgetEnabled(kWidgetSeconds));
+    showWatchIfActive();
+  } else if (command == "widget_wifi_toggle") {
+    settings_.setWidgetEnabled(kWidgetWifi, !settings_.widgetEnabled(kWidgetWifi));
+    showWatchIfActive();
   }
 }
 
@@ -270,6 +286,21 @@ String App::buildControlSnapshot() const {
   snapshot += settings_.widgetEnabled(kWidgetSeconds) ? "Seconds " : "";
   snapshot += settings_.widgetEnabled(kWidgetWifi) ? "WiFi" : "";
   if (settings_.widgetMask() == 0) snapshot += "None";
+  snapshot += "\nBrightness: ";
+  snapshot += String(settings_.activeBrightness());
+  snapshot += "/255";
+  snapshot += "\nDim timeout: ";
+  snapshot += String(settings_.dimTimeoutSeconds());
+  snapshot += "s";
+  snapshot += "\nSleep timeout: ";
+  snapshot += settings_.sleepTimeoutSeconds() == 0 ? String("Off") : String(settings_.sleepTimeoutSeconds()) + "s";
+  snapshot += "\nLow-power face: ";
+  snapshot += settings_.lowPowerFace() ? "On" : "Off";
+  snapshot += "\nWiFi on demand: ";
+  snapshot += settings_.wifiOnDemand() ? "On" : "Off";
+  snapshot += "\nTouch delay: ";
+  snapshot += String(settings_.touchDelayMs());
+  snapshot += "ms";
   return snapshot;
 }
 
@@ -281,8 +312,39 @@ void App::adjustVolume(int delta) {
   if (next > 0) M5.Speaker.tone(2800, 30);
 }
 
+void App::adjustBrightness(int delta) {
+  int next = static_cast<int>(settings_.activeBrightness()) + delta;
+  next = constrain(next, 16, 255);
+  settings_.setActiveBrightness(static_cast<uint8_t>(next));
+  if (displayPowerState_ == DisplayPowerState::Active) {
+    M5.Display.setBrightness(static_cast<uint8_t>(next));
+  }
+}
+
+void App::adjustDimTimeout(int delta) {
+  int next = static_cast<int>(settings_.dimTimeoutSeconds()) + delta;
+  next = constrain(next, kMinDimSeconds, kMaxDimSeconds);
+  settings_.setDimTimeoutSeconds(static_cast<uint16_t>(next));
+}
+
+void App::adjustSleepTimeout(int delta) {
+  int next = static_cast<int>(settings_.sleepTimeoutSeconds()) + delta;
+  next = constrain(next, kMinSleepSeconds, kMaxSleepSeconds);
+  settings_.setSleepTimeoutSeconds(static_cast<uint16_t>(next));
+}
+
+void App::adjustTouchDelay(int delta) {
+  int next = static_cast<int>(settings_.touchDelayMs()) + delta;
+  next = constrain(next, kMinTouchDelayMs, kMaxTouchDelayMs);
+  settings_.setTouchDelayMs(static_cast<uint16_t>(next));
+}
+
 void App::nextTheme() {
   settings_.setThemeId((settings_.themeId() + 1) % kThemeCount);
+  showWatchIfActive();
+}
+
+void App::showWatchIfActive() {
   if (screenManager_.currentId() == ScreenId::Watch) {
     screenManager_.show(ScreenId::Watch);
   }
