@@ -26,6 +26,7 @@ class MenuScreen : public Screen {
 
  private:
   void drawRow(size_t index, bool selected);
+  void drawScrollBar();
   void selectRow(size_t row);
   void scrollSelection(int direction);
   void activateSelected();
@@ -38,6 +39,7 @@ class MenuScreen : public Screen {
   SettingsStore& settings_;
   size_t selected_ = 0;
   bool touchGestureActive_ = false;
+  bool draggedSinceTouch_ = false;
   int32_t lastTouchY_ = 0;
   int32_t scrollRemainder_ = 0;
   bool hapticActive_ = false;
