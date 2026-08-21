@@ -154,21 +154,34 @@ void WifiService::ensureServer() {
 }
 
 void WifiService::handleControlPanel() {
+  const String snapshot = snapshotHandler_ ? escapeHtml(snapshotHandler_(controlContext_)) : String("No snapshot available");
   String html;
-  html.reserve(5000);
+  html.reserve(7800);
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
-  html += F("<title>Iris Control</title><style>body{font-family:system-ui;background:#111;color:#eee;max-width:720px;margin:32px auto;padding:0 18px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}a,button{display:block;text-align:center;text-decoration:none;box-sizing:border-box;width:100%;font-size:16px;padding:13px;margin:0;border-radius:8px;border:1px solid #555;background:#222;color:#fff}section{margin:24px 0;padding-top:8px;border-top:1px solid #333}pre{white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:8px;padding:12px}</style></head><body>");
+  html += F("<meta http-equiv='refresh' content='10'><title>Iris Control</title><style>body{font-family:system-ui;background:#111;color:#eee;max-width:820px;margin:28px auto;padding:0 18px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}a,button{display:block;text-align:center;text-decoration:none;box-sizing:border-box;width:100%;font-size:16px;padding:13px;margin:0;border-radius:8px;border:1px solid #555;background:#222;color:#fff}.on{border-color:#9ee493;background:#18321d}.warn{border-color:#f0c36a;background:#33250f}section{margin:24px 0;padding-top:8px;border-top:1px solid #333}pre{white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:8px;padding:12px;line-height:1.35}.hint{color:#aaa;font-size:14px}</style></head><body>");
   html += F("<h1>Iris Control</h1>");
   html += F("<section><h2>Display</h2><pre>");
-  html += snapshotHandler_ ? escapeHtml(snapshotHandler_(controlContext_)) : String("No snapshot available");
-  html += F("</pre></section><section><h2>Controls</h2><div class='grid'>");
+  html += snapshot;
+  html += F("</pre><p class='hint'>This is a live text snapshot that refreshes every 10 seconds. Framebuffer image capture is still a later experiment.</p></section><section><h2>Navigation</h2><div class='grid'>");
   html += F("<a href='/control?cmd=watch'>Watch</a><a href='/control?cmd=settings'>Settings</a>");
   html += F("<a href='/control?cmd=btn_a'>BtnA</a><a href='/control?cmd=btn_b'>BtnB</a>");
+  html += F("</div></section><section><h2>Volume</h2><div class='grid'>");
   html += F("<a href='/control?cmd=vol_down'>Volume -</a><a href='/control?cmd=vol_up'>Volume +</a>");
-  html += F("<a href='/control?cmd=bg_next'>Next background</a><a href='/control?cmd=wifi_toggle'>Toggle WiFi</a>");
+  html += F("</div></section><section><h2>Themes</h2><div class='grid three'>");
+  html += F("<a href='/control?cmd=theme_0'>Black</a><a href='/control?cmd=theme_1'>Midnight</a><a href='/control?cmd=theme_2'>Forest</a>");
+  html += F("<a href='/control?cmd=theme_3'>Plum</a><a href='/control?cmd=theme_4'>Steel</a><a href='/control?cmd=bg_next'>Next theme</a>");
+  html += F("</div></section><section><h2>Widgets</h2><div class='grid'>");
+  html += F("<a href='/control?cmd=widget_battery_toggle'>Toggle battery</a><a href='/control?cmd=widget_date_toggle'>Toggle date</a>");
+  html += F("<a href='/control?cmd=widget_seconds_toggle'>Toggle seconds</a><a href='/control?cmd=widget_wifi_toggle'>Toggle WiFi widget</a>");
+  html += F("</div></section><section><h2>Power</h2><div class='grid'>");
+  html += F("<a href='/control?cmd=bright_down'>Brightness -</a><a href='/control?cmd=bright_up'>Brightness +</a>");
+  html += F("<a href='/control?cmd=dim_down'>Dim sooner</a><a href='/control?cmd=dim_up'>Dim later</a>");
+  html += F("<a href='/control?cmd=sleep_down'>Sleep sooner</a><a href='/control?cmd=sleep_up'>Sleep later</a>");
+  html += F("<a href='/control?cmd=touch_down'>Touch delay -</a><a href='/control?cmd=touch_up'>Touch delay +</a>");
+  html += F("<a href='/control?cmd=low_face_toggle'>Toggle low-power face</a><a href='/control?cmd=wifi_demand_toggle'>Toggle WiFi on demand</a>");
   html += F("</div></section><section><h2>WiFi</h2><div class='grid'>");
-  html += F("<a href='/control?cmd=wifi_setup'>Start setup AP</a><a href='/setup'>Choose network</a>");
-  html += F("</div></section><p><a href='/display.txt'>Plain display snapshot</a></p></body></html>");
+  html += F("<a href='/control?cmd=wifi_toggle'>Toggle WiFi</a><a href='/control?cmd=wifi_setup'>Start setup AP</a><a href='/setup'>Choose network</a><a href='/display.txt'>Plain snapshot</a>");
+  html += F("</div></section></body></html>");
   server_.send(200, "text/html", html);
 }
 
