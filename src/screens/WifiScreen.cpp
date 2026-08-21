@@ -6,9 +6,23 @@
 
 namespace iris {
 
+namespace {
+constexpr int kToggleX = 55;
+constexpr int kSetupX = 241;
+constexpr int kTopButtonY = 302;
+constexpr int kTopButtonWidth = 170;
+constexpr int kTopButtonHeight = 58;
+constexpr int kBackX = 118;
+constexpr int kBackY = 374;
+constexpr int kBackWidth = 230;
+constexpr int kBackHeight = 56;
+constexpr int kHitPad = 14;
+}  // namespace
+
 void WifiScreen::enter() {
   lastDrawMs_ = 0;
   lastSnapshot_ = "";
+  highlightedAction_ = TouchAction::None;
 }
 
 void WifiScreen::update(uint32_t nowMs) {
@@ -45,27 +59,36 @@ void WifiScreen::draw() {
     M5.Display.drawString("Open 192.168.4.1", M5.Display.width() / 2, 270);
   }
 
-  M5.Display.fillRoundRect(55, 302, 170, 58, 16, theme.button);
-  M5.Display.fillRoundRect(241, 302, 170, 58, 16, theme.button);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(theme.foreground, theme.button);
-  M5.Display.drawString(wifi_.isEnabled() ? "Disable" : "Enable", 140, 331);
-  M5.Display.drawString("Setup", 326, 331);
-
-  M5.Display.fillRoundRect(138, 378, 190, 48, 16, theme.button);
-  M5.Display.drawString("Back", M5.Display.width() / 2, 402);
+  drawControls(highlightedAction_);
 
   M5.Display.setTextColor(theme.muted, theme.background);
   M5.Display.drawString("A: Toggle   B: Setup", M5.Display.width() / 2, 446);
   lastSnapshot_ = snapshot();
 }
 
+void WifiScreen::previewTouch(int32_t x, int32_t y) {
+  const TouchAction action = actionAt(x, y);
+  if (action == highlightedAction_) return;
+  highlightedAction_ = action;
+  drawControls(highlightedAction_);
+}
+
 void WifiScreen::handleTouch(int32_t x, int32_t y) {
-  if (y >= 292 && y <= 370) {
-    if (x >= 45 && x <= 230) toggleWifi();
-    if (x >= 235 && x <= 420) startSetup();
-  } else if (y >= 370 && y <= 435 && x >= 115 && x <= 350) {
-    goBack();
+  const TouchAction action = actionAt(x, y);
+  highlightedAction_ = TouchAction::None;
+  switch (action) {
+    case TouchAction::Toggle:
+      toggleWifi();
+      break;
+    case TouchAction::Setup:
+      startSetup();
+      break;
+    case TouchAction::Back:
+      goBack();
+      break;
+    default:
+      drawControls(highlightedAction_);
+      break;
   }
 }
 
@@ -90,6 +113,42 @@ void WifiScreen::startSetup() {
 
 void WifiScreen::goBack() {
   if (manager_) manager_->show(ScreenId::Settings);
+}
+
+void WifiScreen::drawControls(TouchAction highlighted) {
+  drawButton(kToggleX, kTopButtonY, kTopButtonWidth, kTopButtonHeight,
+             wifi_.isEnabled() ? "Disable" : "Enable", highlighted == TouchAction::Toggle);
+  drawButton(kSetupX, kTopButtonY, kTopButtonWidth, kTopButtonHeight, "Setup",
+             highlighted == TouchAction::Setup);
+  drawButton(kBackX, kBackY, kBackWidth, kBackHeight, "Back", highlighted == TouchAction::Back);
+}
+
+void WifiScreen::drawButton(int x, int y, int w, int h, const char* label, bool highlighted) {
+  const Theme theme = currentTheme(settings_);
+  const uint16_t fill = highlighted ? theme.selected : theme.button;
+  const uint16_t border = highlighted ? theme.foreground : theme.panel;
+  M5.Display.fillRoundRect(x, y, w, h, 16, fill);
+  M5.Display.drawRoundRect(x, y, w, h, 16, border);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextColor(theme.foreground, fill);
+  M5.Display.drawString(label, x + (w / 2), y + (h / 2));
+}
+
+WifiScreen::TouchAction WifiScreen::actionAt(int32_t x, int32_t y) const {
+  if (y >= kTopButtonY - kHitPad && y <= kTopButtonY + kTopButtonHeight + kHitPad) {
+    if (x >= kToggleX - kHitPad && x <= kToggleX + kTopButtonWidth + kHitPad) {
+      return TouchAction::Toggle;
+    }
+    if (x >= kSetupX - kHitPad && x <= kSetupX + kTopButtonWidth + kHitPad) {
+      return TouchAction::Setup;
+    }
+  }
+  if (x >= kBackX - kHitPad && x <= kBackX + kBackWidth + kHitPad &&
+      y >= kBackY - kHitPad && y <= kBackY + kBackHeight + kHitPad) {
+    return TouchAction::Back;
+  }
+  return TouchAction::None;
 }
 
 String WifiScreen::snapshot() const {
