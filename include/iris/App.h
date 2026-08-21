@@ -60,6 +60,11 @@ class App {
   BootloaderScreen bootloaderScreen_;
   DeviceInfoScreen deviceInfoScreen_;
   bool touchActive_ = false;
+  bool touchPreviewed_ = false;
+  bool touchHandled_ = false;
+  int32_t touchStartX_ = 0;
+  int32_t touchStartY_ = 0;
+  uint32_t touchStartMs_ = 0;
   uint32_t lastActivityMs_ = 0;
   uint32_t wifiDemandStartedMs_ = 0;
   DisplayPowerState displayPowerState_ = DisplayPowerState::Active;
