@@ -11,6 +11,7 @@ class ScreenManager {
 
   void registerScreen(ScreenId id, Screen* screen);
   void show(ScreenId id);
+  void redraw();
   void update(uint32_t nowMs);
   void previewTouch(int32_t x, int32_t y);
   void handleTouch(int32_t x, int32_t y);
