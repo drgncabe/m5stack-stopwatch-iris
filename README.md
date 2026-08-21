@@ -6,7 +6,7 @@ Note: This project was created for specific needs I have and utilized AI assista
 
 ## Hardware
 
-<img width="1200" height="1200" alt="image" src="https://github.com/user-attachments/assets/1f85d0ce-9610-452b-96bc-19f333b0e489" />
+<img width="300" height="300" alt="image" src="https://github.com/user-attachments/assets/1f85d0ce-9610-452b-96bc-19f333b0e489" />
 
 - M5Stack StopWatch C152 (https://docs.m5stack.com/en/core/StopWatch)
 - ESP32-S3
