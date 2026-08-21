@@ -12,12 +12,14 @@ class PowerScreen : public Screen {
   void enter() override;
   void update(uint32_t nowMs) override;
   void draw() override;
+  void previewTouch(int32_t x, int32_t y) override;
   void handleTouch(int32_t x, int32_t y) override;
   void onButtonA() override;
   void onButtonB() override;
 
  private:
   void activateSelected();
+  void selectRow(size_t index);
   void drawRow(size_t index, bool selected);
   int rowAt(int32_t x, int32_t y) const;
   void cycleBrightness();
