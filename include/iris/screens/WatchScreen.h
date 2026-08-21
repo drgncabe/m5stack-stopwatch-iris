@@ -25,9 +25,11 @@ class WatchScreen : public Screen {
   void drawStaticLayout();
   void drawBattery();
   void drawWifi();
+  void drawComplication(uint32_t nowMs);
   void drawDate(const DateTimeSnapshot& dt);
   void drawTime(const DateTimeSnapshot& dt);
   void drawUnsetTime();
+  String complicationText(uint32_t nowMs) const;
 
   TimeService& timeService_;
   BatteryService& battery_;
@@ -41,6 +43,7 @@ class WatchScreen : public Screen {
   int previousDay_ = -1;
   String previousBattery_;
   String previousWifi_;
+  String previousComplication_;
 };
 
 }  // namespace iris
