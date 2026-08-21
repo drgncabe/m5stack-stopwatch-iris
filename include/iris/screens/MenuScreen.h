@@ -28,6 +28,8 @@ class MenuScreen : public Screen {
   void drawRow(size_t index, bool selected);
   void selectRow(size_t row);
   void activateSelected();
+  void startSelectionHaptic();
+  void stopSelectionHaptic();
   int rowAt(int32_t x, int32_t y) const;
 
   const char* title_;
@@ -35,6 +37,9 @@ class MenuScreen : public Screen {
   size_t itemCount_;
   SettingsStore& settings_;
   size_t selected_ = 0;
+  bool touchMovedSelection_ = false;
+  bool hapticActive_ = false;
+  uint32_t hapticOffMs_ = 0;
 };
 
 }  // namespace iris

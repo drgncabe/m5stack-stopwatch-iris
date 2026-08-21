@@ -64,6 +64,7 @@ void App::begin() {
   settings_.begin();
   M5.Speaker.setVolume(settings_.volume());
   M5.Display.setBrightness(settings_.activeBrightness());
+  statusLight_.begin(settings_.indicatorLightEnabled());
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
 
   battery_.begin();
@@ -232,6 +233,8 @@ void App::handleControlCommand(const String& command) {
     showWatchIfActive();
   } else if (command == "auto_rotate_toggle") {
     settings_.setAutoRotate(!settings_.autoRotate());
+  } else if (command == "indicator_toggle") {
+    setIndicatorLight(!settings_.indicatorLightEnabled());
   } else if (command == "wifi_demand_toggle") {
     settings_.setWifiOnDemand(!settings_.wifiOnDemand());
     if (settings_.wifiOnDemand() && wifi_.isEnabled()) wifiDemandStartedMs_ = nowMs;
@@ -319,6 +322,8 @@ String App::buildControlSnapshot() const {
   snapshot += settings_.autoRotate() ? orientation_.statusText() : "Off";
   snapshot += " r";
   snapshot += String(orientation_.rotation());
+  snapshot += "\nIndicator light: ";
+  snapshot += settings_.indicatorLightEnabled() ? "On" : "Off";
   snapshot += "\nWiFi on demand: ";
   snapshot += settings_.wifiOnDemand() ? "On" : "Off";
   snapshot += "\nTouch delay: ";
@@ -360,6 +365,11 @@ void App::adjustTouchDelay(int delta) {
   int next = static_cast<int>(settings_.touchDelayMs()) + delta;
   next = constrain(next, kMinTouchDelayMs, kMaxTouchDelayMs);
   settings_.setTouchDelayMs(static_cast<uint16_t>(next));
+}
+
+void App::setIndicatorLight(bool enabled) {
+  settings_.setIndicatorLightEnabled(enabled);
+  statusLight_.setEnabled(enabled);
 }
 
 void App::nextTheme() {

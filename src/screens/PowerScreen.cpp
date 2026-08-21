@@ -12,7 +12,7 @@ constexpr int kRowStartY = 76;
 constexpr int kRowLeft = 42;
 constexpr int kRowWidth = 382;
 constexpr int kRowRectHeight = 36;
-constexpr size_t kItemCount = 8;
+constexpr size_t kItemCount = 9;
 
 constexpr uint8_t kBrightnessValues[] = {48, 96, 160};
 constexpr uint16_t kDimTimeoutValues[] = {10, 20, 45, 120};
@@ -72,7 +72,8 @@ void PowerScreen::activateSelected() {
     case 3: settings_.setWifiOnDemand(!settings_.wifiOnDemand()); break;
     case 4: settings_.setLowPowerFace(!settings_.lowPowerFace()); break;
     case 5: settings_.setAutoRotate(!settings_.autoRotate()); break;
-    case 6: cycleTouchDelay(); break;
+    case 6: settings_.setIndicatorLightEnabled(!settings_.indicatorLightEnabled()); applyIndicatorLight(); break;
+    case 7: cycleTouchDelay(); break;
     default: goBack(); return;
   }
   drawRow(selected_, true);
@@ -121,6 +122,10 @@ void PowerScreen::drawRow(size_t index, bool selected) {
       value = settings_.autoRotate() ? "On" : "Off";
       break;
     case 6:
+      label = "Indicator light";
+      value = settings_.indicatorLightEnabled() ? "On" : "Off";
+      break;
+    case 7:
       label = "Touch delay";
       value = touchDelayName();
       break;
@@ -193,6 +198,17 @@ void PowerScreen::cycleTouchDelay() {
     }
   }
   settings_.setTouchDelayMs(next);
+}
+
+void PowerScreen::applyIndicatorLight() {
+  if (!M5.Led.isEnabled()) return;
+  if (settings_.indicatorLightEnabled()) {
+    M5.Led.setBrightness(64);
+    M5.Led.setAllColor(0, 40, 0);
+  } else {
+    M5.Led.setAllColor(0, 0, 0);
+  }
+  M5.Led.display();
 }
 
 const char* PowerScreen::brightnessName() const {
