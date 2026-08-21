@@ -7,7 +7,6 @@
 namespace iris {
 
 namespace {
-constexpr uint32_t kTouchCommitDelayMs = 95;
 constexpr uint32_t kMenuReturnTimeoutMs = 30000;
 constexpr int32_t kTouchMoveTolerance = 18;
 
@@ -132,7 +131,7 @@ void App::update() {
     } else if (!touchHandled_) {
       const bool movedTooFar = abs(touch.x - touchStartX_) > kTouchMoveTolerance ||
                                abs(touch.y - touchStartY_) > kTouchMoveTolerance;
-      if (!movedTooFar && nowMs - touchStartMs_ >= kTouchCommitDelayMs) {
+      if (!movedTooFar && nowMs - touchStartMs_ >= settings_.touchDelayMs()) {
         screenManager_.handleTouch(touchStartX_, touchStartY_);
         touchHandled_ = true;
         inputHandled = true;
