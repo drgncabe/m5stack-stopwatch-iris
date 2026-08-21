@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <M5Unified.h>
 
 #include "iris/screens/Screen.h"
 #include "iris/services/SettingsStore.h"
@@ -26,12 +27,15 @@ class FidgetScreenBase : public Screen {
   void requestDraw() { dirty_ = true; }
   void drawChrome();
   void pulseHaptic(uint8_t strength = 82, uint32_t durationMs = 12);
+  M5Canvas& canvas() { return canvas_; }
 
   SettingsStore& settings_;
   const char* title_;
   bool dirty_ = true;
   uint32_t lastUpdateMs_ = 0;
   uint32_t lastDrawMs_ = 0;
+  M5Canvas canvas_;
+  bool canvasReady_ = false;
 
  private:
   void updateHaptic(uint32_t nowMs);
@@ -89,6 +93,7 @@ class PoppersFidgetScreen : public FidgetScreenBase {
 
   static constexpr size_t kBallCount = 9;
   Ball balls_[kBallCount]{};
+  uint32_t lastPopAttemptMs_ = 0;
 };
 
 class SpinnerFidgetScreen : public FidgetScreenBase {
