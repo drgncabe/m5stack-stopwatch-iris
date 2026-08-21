@@ -5,6 +5,12 @@
 
 namespace iris {
 
+constexpr uint8_t kWidgetBattery = 1 << 0;
+constexpr uint8_t kWidgetDate = 1 << 1;
+constexpr uint8_t kWidgetSeconds = 1 << 2;
+constexpr uint8_t kWidgetWifi = 1 << 3;
+constexpr uint8_t kDefaultWidgetMask = kWidgetBattery | kWidgetDate | kWidgetSeconds;
+
 class SettingsStore {
  public:
   void begin();
@@ -17,6 +23,13 @@ class SettingsStore {
 
   uint8_t watchBackground() const { return watchBackground_; }
   void setWatchBackground(uint8_t value);
+  uint8_t themeId() const { return watchBackground_; }
+  void setThemeId(uint8_t value) { setWatchBackground(value); }
+
+  uint8_t widgetMask() const { return widgetMask_; }
+  void setWidgetMask(uint8_t value);
+  bool widgetEnabled(uint8_t widget) const { return (widgetMask_ & widget) != 0; }
+  void setWidgetEnabled(uint8_t widget, bool enabled);
 
   uint8_t activeBrightness() const { return activeBrightness_; }
   void setActiveBrightness(uint8_t value);
@@ -47,6 +60,7 @@ class SettingsStore {
   bool wifiOnDemand_ = false;
   bool lowPowerFace_ = false;
   uint16_t touchDelayMs_ = 150;
+  uint8_t widgetMask_ = kDefaultWidgetMask;
 };
 
 }  // namespace iris
