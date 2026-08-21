@@ -9,6 +9,12 @@ namespace iris {
 namespace {
 constexpr uint32_t kMenuReturnTimeoutMs = 30000;
 constexpr int32_t kTouchMoveTolerance = 18;
+constexpr uint16_t kMinDimSeconds = 5;
+constexpr uint16_t kMaxDimSeconds = 120;
+constexpr uint16_t kMinSleepSeconds = 0;
+constexpr uint16_t kMaxSleepSeconds = 600;
+constexpr uint16_t kMinTouchDelayMs = 50;
+constexpr uint16_t kMaxTouchDelayMs = 500;
 
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
@@ -18,7 +24,7 @@ constexpr MenuItem kMainMenuItems[] = {
 constexpr MenuItem kSettingsMenuItems[] = {
     {"Volume", ScreenId::Volume},
     {"WiFi", ScreenId::Wifi},
-    {"Background", ScreenId::Background},
+    {"Theme & widgets", ScreenId::Background},
     {"Power", ScreenId::Power},
     {"Developer", ScreenId::Developer},
     {"Device information", ScreenId::DeviceInfo},
@@ -32,7 +38,7 @@ constexpr MenuItem kDeveloperMenuItems[] = {
 }  // namespace
 
 App::App()
-    : watchScreen_(timeService_, battery_, settings_),
+    : watchScreen_(timeService_, battery_, wifi_, settings_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
@@ -198,6 +204,28 @@ void App::handleControlCommand(const String& command) {
     adjustVolume(-16);
   } else if (command == "vol_up") {
     adjustVolume(16);
+  } else if (command == "bright_down") {
+    adjustBrightness(-16);
+  } else if (command == "bright_up") {
+    adjustBrightness(16);
+  } else if (command == "dim_down") {
+    adjustDimTimeout(-5);
+  } else if (command == "dim_up") {
+    adjustDimTimeout(5);
+  } else if (command == "sleep_down") {
+    adjustSleepTimeout(-15);
+  } else if (command == "sleep_up") {
+    adjustSleepTimeout(15);
+  } else if (command == "touch_down") {
+    adjustTouchDelay(-25);
+  } else if (command == "touch_up") {
+    adjustTouchDelay(25);
+  } else if (command == "low_face_toggle") {
+    settings_.setLowPowerFace(!settings_.lowPowerFace());
+    showWatchIfActive();
+  } else if (command == "wifi_demand_toggle") {
+    settings_.setWifiOnDemand(!settings_.wifiOnDemand());
+    if (settings_.wifiOnDemand() && wifi_.isEnabled()) wifiDemandStartedMs_ = nowMs;
   } else if (command == "wifi_toggle") {
     const bool enabled = !wifi_.isEnabled();
     settings_.setWifiEnabled(enabled);
@@ -209,25 +237,70 @@ void App::handleControlCommand(const String& command) {
     wifiDemandStartedMs_ = nowMs;
     wifi_.startProvisioning();
   } else if (command == "bg_next") {
-    nextBackground();
+    nextTheme();
+  } else if (command.startsWith("theme_")) {
+    const int themeId = command.substring(6).toInt();
+    settings_.setThemeId(constrain(themeId, 0, kThemeCount - 1));
+    showWatchIfActive();
+  } else if (command == "widget_battery_toggle") {
+    settings_.setWidgetEnabled(kWidgetBattery, !settings_.widgetEnabled(kWidgetBattery));
+    showWatchIfActive();
+  } else if (command == "widget_date_toggle") {
+    settings_.setWidgetEnabled(kWidgetDate, !settings_.widgetEnabled(kWidgetDate));
+    showWatchIfActive();
+  } else if (command == "widget_seconds_toggle") {
+    settings_.setWidgetEnabled(kWidgetSeconds, !settings_.widgetEnabled(kWidgetSeconds));
+    showWatchIfActive();
+  } else if (command == "widget_wifi_toggle") {
+    settings_.setWidgetEnabled(kWidgetWifi, !settings_.widgetEnabled(kWidgetWifi));
+    showWatchIfActive();
   }
 }
 
 String App::buildControlSnapshot() const {
   String snapshot;
-  snapshot.reserve(240);
+  snapshot.reserve(520);
   snapshot += "Screen: ";
   snapshot += currentScreenName();
+  snapshot += "\nDisplay power: ";
+  switch (displayPowerState_) {
+    case DisplayPowerState::Active: snapshot += "Active"; break;
+    case DisplayPowerState::Dimmed: snapshot += "Dimmed"; break;
+    case DisplayPowerState::Sleeping: snapshot += "Sleeping"; break;
+  }
   snapshot += "\nBattery: ";
   snapshot += battery_.statusText();
   snapshot += "\nWiFi: ";
   snapshot += wifi_.statusText();
+  snapshot += "\nSSID: ";
+  snapshot += wifi_.ssid();
   snapshot += "\nIP: ";
   snapshot += wifi_.ipAddress();
   snapshot += "\nVolume: ";
   snapshot += String((settings_.volume() * 100) / 255);
-  snapshot += "%\nBackground: ";
+  snapshot += "%\nTheme: ";
   snapshot += themeName(settings_);
+  snapshot += "\nWidgets: ";
+  snapshot += settings_.widgetEnabled(kWidgetBattery) ? "Battery " : "";
+  snapshot += settings_.widgetEnabled(kWidgetDate) ? "Date " : "";
+  snapshot += settings_.widgetEnabled(kWidgetSeconds) ? "Seconds " : "";
+  snapshot += settings_.widgetEnabled(kWidgetWifi) ? "WiFi" : "";
+  if (settings_.widgetMask() == 0) snapshot += "None";
+  snapshot += "\nBrightness: ";
+  snapshot += String(settings_.activeBrightness());
+  snapshot += "/255";
+  snapshot += "\nDim timeout: ";
+  snapshot += String(settings_.dimTimeoutSeconds());
+  snapshot += "s";
+  snapshot += "\nSleep timeout: ";
+  snapshot += settings_.sleepTimeoutSeconds() == 0 ? String("Off") : String(settings_.sleepTimeoutSeconds()) + "s";
+  snapshot += "\nLow-power face: ";
+  snapshot += settings_.lowPowerFace() ? "On" : "Off";
+  snapshot += "\nWiFi on demand: ";
+  snapshot += settings_.wifiOnDemand() ? "On" : "Off";
+  snapshot += "\nTouch delay: ";
+  snapshot += String(settings_.touchDelayMs());
+  snapshot += "ms";
   return snapshot;
 }
 
@@ -239,8 +312,39 @@ void App::adjustVolume(int delta) {
   if (next > 0) M5.Speaker.tone(2800, 30);
 }
 
-void App::nextBackground() {
-  settings_.setWatchBackground((settings_.watchBackground() + 1) % 5);
+void App::adjustBrightness(int delta) {
+  int next = static_cast<int>(settings_.activeBrightness()) + delta;
+  next = constrain(next, 16, 255);
+  settings_.setActiveBrightness(static_cast<uint8_t>(next));
+  if (displayPowerState_ == DisplayPowerState::Active) {
+    M5.Display.setBrightness(static_cast<uint8_t>(next));
+  }
+}
+
+void App::adjustDimTimeout(int delta) {
+  int next = static_cast<int>(settings_.dimTimeoutSeconds()) + delta;
+  next = constrain(next, kMinDimSeconds, kMaxDimSeconds);
+  settings_.setDimTimeoutSeconds(static_cast<uint16_t>(next));
+}
+
+void App::adjustSleepTimeout(int delta) {
+  int next = static_cast<int>(settings_.sleepTimeoutSeconds()) + delta;
+  next = constrain(next, kMinSleepSeconds, kMaxSleepSeconds);
+  settings_.setSleepTimeoutSeconds(static_cast<uint16_t>(next));
+}
+
+void App::adjustTouchDelay(int delta) {
+  int next = static_cast<int>(settings_.touchDelayMs()) + delta;
+  next = constrain(next, kMinTouchDelayMs, kMaxTouchDelayMs);
+  settings_.setTouchDelayMs(static_cast<uint16_t>(next));
+}
+
+void App::nextTheme() {
+  settings_.setThemeId((settings_.themeId() + 1) % kThemeCount);
+  showWatchIfActive();
+}
+
+void App::showWatchIfActive() {
   if (screenManager_.currentId() == ScreenId::Watch) {
     screenManager_.show(ScreenId::Watch);
   }
@@ -308,7 +412,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Settings: return "Settings";
     case ScreenId::Volume: return "Volume";
     case ScreenId::Wifi: return "WiFi";
-    case ScreenId::Background: return "Background";
+    case ScreenId::Background: return "Theme & widgets";
     case ScreenId::Power: return "Power";
     case ScreenId::Developer: return "Developer";
     case ScreenId::Bootloader: return "Bootloader";
