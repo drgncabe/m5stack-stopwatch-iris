@@ -19,12 +19,14 @@ class MenuScreen : public Screen {
   void enter() override;
   void update(uint32_t nowMs) override;
   void draw() override;
+  void previewTouch(int32_t x, int32_t y) override;
   void handleTouch(int32_t x, int32_t y) override;
   void onButtonA() override;
   void onButtonB() override;
 
  private:
   void drawRow(size_t index, bool selected);
+  void selectRow(size_t row);
   void activateSelected();
   int rowAt(int32_t x, int32_t y) const;
 
