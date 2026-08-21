@@ -36,7 +36,7 @@ class App {
   void handleControlCommand(const String& command);
   String buildControlSnapshot() const;
   void adjustVolume(int delta);
-  void nextBackground();
+  void nextTheme();
   void noteActivity(uint32_t nowMs);
   void updateDisplayPower(uint32_t nowMs);
   void updateWifiPower(uint32_t nowMs);
