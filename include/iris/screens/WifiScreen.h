@@ -30,6 +30,7 @@ class WifiScreen : public Screen {
   void toggleWifi();
   void startSetup();
   void goBack();
+  void drawStatus();
   void drawControls(TouchAction highlighted);
   void drawButton(int x, int y, int w, int h, const char* label, bool highlighted);
   TouchAction actionAt(int32_t x, int32_t y) const;

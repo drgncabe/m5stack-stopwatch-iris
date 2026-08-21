@@ -18,6 +18,7 @@ class VolumeScreen : public Screen {
 
  private:
   void changeVolume(int delta);
+  void drawVolumeValue();
   void goBack();
 
   SettingsStore& settings_;

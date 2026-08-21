@@ -59,14 +59,17 @@ void BackgroundScreen::onButtonB() { activateSelected(); }
 
 void BackgroundScreen::activateSelected() {
   switch (selected_) {
-    case 0: nextTheme(); break;
+    case 0:
+      nextTheme();
+      draw();
+      return;
     case 1: toggleWidget(kWidgetBattery); break;
     case 2: toggleWidget(kWidgetDate); break;
     case 3: toggleWidget(kWidgetSeconds); break;
     case 4: toggleWidget(kWidgetWifi); break;
     default: goBack(); return;
   }
-  draw();
+  drawRow(selected_, true);
 }
 
 void BackgroundScreen::selectRow(size_t index) {
