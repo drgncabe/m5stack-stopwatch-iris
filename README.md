@@ -49,9 +49,9 @@ Credentials are stored locally on the StopWatch using ESP32 non-volatile storage
 
 ## Web Control Panel
 
-When WiFi is active, Iris runs a lightweight web control panel on the device. The panel exposes navigation, volume, WiFi setup, theme/widget controls, power controls, touch delay controls, and a text snapshot of the current device state.
+When WiFi is active, Iris runs a lightweight web control panel on the device. The panel exposes common display actions, volume controls, WiFi setup, theme cycling, and a text snapshot of the current device state.
 
-The display snapshot is currently text-based and auto-refreshes in the browser. A rendered image/framebuffer snapshot is planned for a later phase.
+The display snapshot is currently text-based. A rendered image/framebuffer snapshot is planned for a later phase.
 
 ## Themes And Widgets
 
