@@ -7,15 +7,17 @@
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 54;
-constexpr int kRowStartY = 88;
+constexpr int kRowHeight = 47;
+constexpr int kRowStartY = 78;
 constexpr int kRowLeft = 42;
 constexpr int kRowWidth = 382;
-constexpr size_t kItemCount = 6;
+constexpr int kRowRectHeight = 40;
+constexpr size_t kItemCount = 7;
 
 constexpr uint8_t kBrightnessValues[] = {48, 96, 160};
 constexpr uint16_t kDimTimeoutValues[] = {10, 20, 45, 120};
 constexpr uint16_t kSleepTimeoutValues[] = {30, 90, 180, 300, 0};
+constexpr uint16_t kTouchDelayValues[] = {95, 150, 225, 300};
 }  // namespace
 
 void PowerScreen::enter() {
@@ -71,6 +73,7 @@ void PowerScreen::activateSelected() {
     case 2: cycleSleepTimeout(); break;
     case 3: settings_.setWifiOnDemand(!settings_.wifiOnDemand()); break;
     case 4: settings_.setLowPowerFace(!settings_.lowPowerFace()); break;
+    case 5: cycleTouchDelay(); break;
     default: goBack(); return;
   }
   draw();
@@ -106,28 +109,32 @@ void PowerScreen::drawRow(size_t index, bool selected) {
       label = "Low-power face";
       value = settings_.lowPowerFace() ? "On" : "Off";
       break;
+    case 5:
+      label = "Touch delay";
+      value = touchDelayName();
+      break;
     default:
       label = "Back";
       value = "";
       break;
   }
 
-  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, 44, 14, fill);
-  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, 44, 14, border);
+  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 14, fill);
+  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 14, border);
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.foreground, fill);
   M5.Display.setTextDatum(middle_left);
-  M5.Display.drawString(label, kRowLeft + 18, y + 22);
+  M5.Display.drawString(label, kRowLeft + 18, y + (kRowRectHeight / 2));
   M5.Display.setTextDatum(middle_right);
   M5.Display.setTextColor(theme.muted, fill);
-  M5.Display.drawString(value, kRowLeft + kRowWidth - 18, y + 22);
+  M5.Display.drawString(value, kRowLeft + kRowWidth - 18, y + (kRowRectHeight / 2));
 }
 
 int PowerScreen::rowAt(int32_t x, int32_t y) const {
   if (x < kRowLeft || x > kRowLeft + kRowWidth) return -1;
   for (size_t i = 0; i < kItemCount; ++i) {
     const int rowY = kRowStartY + static_cast<int>(i) * kRowHeight;
-    if (y >= rowY && y <= rowY + 44) return static_cast<int>(i);
+    if (y >= rowY - 3 && y <= rowY + kRowRectHeight + 3) return static_cast<int>(i);
   }
   return -1;
 }
@@ -166,6 +173,17 @@ void PowerScreen::cycleSleepTimeout() {
   settings_.setSleepTimeoutSeconds(next);
 }
 
+void PowerScreen::cycleTouchDelay() {
+  uint16_t next = kTouchDelayValues[0];
+  for (size_t i = 0; i < sizeof(kTouchDelayValues) / sizeof(kTouchDelayValues[0]); ++i) {
+    if (settings_.touchDelayMs() == kTouchDelayValues[i]) {
+      next = kTouchDelayValues[(i + 1) % (sizeof(kTouchDelayValues) / sizeof(kTouchDelayValues[0]))];
+      break;
+    }
+  }
+  settings_.setTouchDelayMs(next);
+}
+
 const char* PowerScreen::brightnessName() const {
   if (settings_.activeBrightness() <= 48) return "Low";
   if (settings_.activeBrightness() <= 96) return "Med";
@@ -189,6 +207,13 @@ const char* PowerScreen::sleepTimeoutName() const {
     case 300: return "5m";
     default: return "90s";
   }
+}
+
+const char* PowerScreen::touchDelayName() const {
+  if (settings_.touchDelayMs() <= 95) return "Fast";
+  if (settings_.touchDelayMs() <= 150) return "Normal";
+  if (settings_.touchDelayMs() <= 225) return "Calm";
+  return "Slow";
 }
 
 void PowerScreen::goBack() {
