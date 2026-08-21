@@ -2,7 +2,7 @@
 
 Iris is an experimental smartwatch-style firmware for the M5Stack StopWatch. It provides a clock face, themed menus, WiFi setup, battery status, power-saving controls, a small web control panel, and developer tools for entering bootloader/download mode without relying on the hardware button sequence.
 
-Note: This project was created for specific needs I have, for expediency this was written with AI. It originally started with me coding but I quickly slowed things down. I am reviewing code along with doing hands-on testing on real hardware, but I mainly built this for rapid prototyping and making my stopwatch a useful multi-tool. Sorry for the AI slop, but sometimes it's useful AI slop. 
+Note: This project was created for specific needs I have, for expediency this was written with AI. It originally started with me coding but I quickly slowed things down. I am reviewing code along with doing hands-on testing on real hardware, but I mainly built this for rapid prototyping and making my stopwatch a useful multi-tool. Sorry for the AI slop, but sometimes it's useful AI slop.
 
 ## Hardware
 
@@ -15,12 +15,12 @@ Note: This project was created for specific needs I have, for expediency this wa
 
 ## Current Features
 
-- Clock view with time, date, battery status, and configurable backgrounds
+- Clock view with time, date, battery status, named themes, and configurable widgets
 - Modular screen/menu system for adding future apps
-- Settings for volume, WiFi, background/theme, power behavior, and touch delay
+- Settings for volume, WiFi, theme/widgets, power behavior, and touch delay
 - WiFi client mode with saved credentials
 - WiFi setup access point for provisioning
-- Web control panel while WiFi is active
+- Web control panel with navigation, theme/widget, power, volume, and WiFi controls while WiFi is active
 - Display dim and sleep timeouts for battery savings
 - Low-power clock face option
 - Developer menu with bootloader/download-mode entry
@@ -49,7 +49,20 @@ Credentials are stored locally on the StopWatch using ESP32 non-volatile storage
 
 ## Web Control Panel
 
-When WiFi is active, Iris runs a lightweight web control panel on the device. The panel exposes common display actions, volume controls, WiFi setup, and a text snapshot of the current device state.
+When WiFi is active, Iris runs a lightweight web control panel on the device. The panel exposes navigation, volume, WiFi setup, theme/widget controls, power controls, touch delay controls, and a text snapshot of the current device state.
+
+The display snapshot is currently text-based and auto-refreshes in the browser. A rendered image/framebuffer snapshot is planned for a later phase.
+
+## Themes And Widgets
+
+`Settings > Theme & widgets` lets you cycle through built-in themes and choose which clock face widgets are visible:
+
+- Battery
+- Date
+- Seconds
+- WiFi status
+
+Theme selection currently reuses the original background storage key so existing test devices keep their saved visual style.
 
 ## Developer Menu
 
