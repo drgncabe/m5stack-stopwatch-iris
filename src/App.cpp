@@ -254,6 +254,8 @@ void App::handleControlCommand(const String& command) {
   } else if (command == "widget_wifi_toggle") {
     settings_.setWidgetEnabled(kWidgetWifi, !settings_.widgetEnabled(kWidgetWifi));
     showWatchIfActive();
+  } else if (command == "complication_next") {
+    nextComplication();
   }
 }
 
@@ -280,12 +282,20 @@ String App::buildControlSnapshot() const {
   snapshot += String((settings_.volume() * 100) / 255);
   snapshot += "%\nTheme: ";
   snapshot += themeName(settings_);
+  snapshot += "\nFace layout: ";
+  snapshot += watchLayoutName(currentTheme(settings_).layout);
   snapshot += "\nWidgets: ";
+  const bool hasFaceWidget = settings_.widgetEnabled(kWidgetBattery) ||
+                             settings_.widgetEnabled(kWidgetDate) ||
+                             settings_.widgetEnabled(kWidgetSeconds) ||
+                             settings_.widgetEnabled(kWidgetWifi);
   snapshot += settings_.widgetEnabled(kWidgetBattery) ? "Battery " : "";
   snapshot += settings_.widgetEnabled(kWidgetDate) ? "Date " : "";
   snapshot += settings_.widgetEnabled(kWidgetSeconds) ? "Seconds " : "";
   snapshot += settings_.widgetEnabled(kWidgetWifi) ? "WiFi" : "";
-  if (settings_.widgetMask() == 0) snapshot += "None";
+  if (!hasFaceWidget) snapshot += "None";
+  snapshot += "\nComplication: ";
+  snapshot += settings_.widgetEnabled(kWidgetComplication) ? complicationName(settings_.complicationId()) : "Off";
   snapshot += "\nBrightness: ";
   snapshot += String(settings_.activeBrightness());
   snapshot += "/255";
@@ -341,6 +351,11 @@ void App::adjustTouchDelay(int delta) {
 
 void App::nextTheme() {
   settings_.setThemeId((settings_.themeId() + 1) % kThemeCount);
+  showWatchIfActive();
+}
+
+void App::nextComplication() {
+  settings_.setComplicationId((settings_.complicationId() + 1) % kComplicationCount);
   showWatchIfActive();
 }
 
