@@ -18,6 +18,7 @@ constexpr uint16_t kMaxTouchDelayMs = 500;
 
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
+    {"Fidgets", ScreenId::Fidgets},
     {"Settings", ScreenId::Settings},
 };
 
@@ -35,6 +36,21 @@ constexpr MenuItem kDeveloperMenuItems[] = {
     {"Bootloader", ScreenId::Bootloader},
     {"Back", ScreenId::Settings},
 };
+
+constexpr MenuItem kFidgetsMenuItems[] = {
+    {"Wheel", ScreenId::FidgetWheel},
+    {"Poppers", ScreenId::FidgetPoppers},
+    {"Kaleidoscope", ScreenId::FidgetSpinner},
+    {"Gravity ball", ScreenId::FidgetGravityBall},
+    {"Back", ScreenId::MainMenu},
+};
+
+bool isFidgetScreen(ScreenId id) {
+  return id == ScreenId::FidgetWheel ||
+         id == ScreenId::FidgetPoppers ||
+         id == ScreenId::FidgetSpinner ||
+         id == ScreenId::FidgetGravityBall;
+}
 }  // namespace
 
 App::App()
@@ -47,6 +63,12 @@ App::App()
       wifiScreen_(settings_, wifi_),
       backgroundScreen_(settings_),
       powerScreen_(settings_),
+      fidgetsMenuScreen_("Fidgets", kFidgetsMenuItems,
+                         sizeof(kFidgetsMenuItems) / sizeof(kFidgetsMenuItems[0]), settings_),
+      wheelFidgetScreen_(settings_),
+      poppersFidgetScreen_(settings_),
+      spinnerFidgetScreen_(settings_),
+      gravityBallFidgetScreen_(settings_),
       developerMenuScreen_("Developer", kDeveloperMenuItems,
                            sizeof(kDeveloperMenuItems) / sizeof(kDeveloperMenuItems[0]), settings_),
       bootloaderScreen_(settings_),
@@ -80,6 +102,11 @@ void App::begin() {
   screenManager_.registerScreen(ScreenId::Wifi, &wifiScreen_);
   screenManager_.registerScreen(ScreenId::Background, &backgroundScreen_);
   screenManager_.registerScreen(ScreenId::Power, &powerScreen_);
+  screenManager_.registerScreen(ScreenId::Fidgets, &fidgetsMenuScreen_);
+  screenManager_.registerScreen(ScreenId::FidgetWheel, &wheelFidgetScreen_);
+  screenManager_.registerScreen(ScreenId::FidgetPoppers, &poppersFidgetScreen_);
+  screenManager_.registerScreen(ScreenId::FidgetSpinner, &spinnerFidgetScreen_);
+  screenManager_.registerScreen(ScreenId::FidgetGravityBall, &gravityBallFidgetScreen_);
   screenManager_.registerScreen(ScreenId::Developer, &developerMenuScreen_);
   screenManager_.registerScreen(ScreenId::Bootloader, &bootloaderScreen_);
   screenManager_.registerScreen(ScreenId::DeviceInfo, &deviceInfoScreen_);
@@ -405,7 +432,8 @@ void App::noteActivity(uint32_t nowMs) {
 void App::updateDisplayPower(uint32_t nowMs) {
   const uint32_t idleMs = nowMs - lastActivityMs_;
 
-  if (screenManager_.currentId() != ScreenId::Watch && idleMs >= kMenuReturnTimeoutMs) {
+  const ScreenId current = screenManager_.currentId();
+  if (current != ScreenId::Watch && !isFidgetScreen(current) && idleMs >= kMenuReturnTimeoutMs) {
     screenManager_.show(ScreenId::Watch);
     lastActivityMs_ = nowMs;
     return;
@@ -458,6 +486,11 @@ const char* App::currentScreenName() const {
     case ScreenId::Wifi: return "WiFi";
     case ScreenId::Background: return "Theme & widgets";
     case ScreenId::Power: return "Power";
+    case ScreenId::Fidgets: return "Fidgets";
+    case ScreenId::FidgetWheel: return "Fidget wheel";
+    case ScreenId::FidgetPoppers: return "Fidget poppers";
+    case ScreenId::FidgetSpinner: return "Fidget kaleidoscope";
+    case ScreenId::FidgetGravityBall: return "Fidget gravity ball";
     case ScreenId::Developer: return "Developer";
     case ScreenId::Bootloader: return "Bootloader";
     case ScreenId::DeviceInfo: return "Device info";
