@@ -32,6 +32,7 @@ class FidgetScreenBase : public Screen {
   SettingsStore& settings_;
   const char* title_;
   bool dirty_ = true;
+  bool chromeDirty_ = true;
   uint32_t lastUpdateMs_ = 0;
   uint32_t lastDrawMs_ = 0;
   M5Canvas canvas_;

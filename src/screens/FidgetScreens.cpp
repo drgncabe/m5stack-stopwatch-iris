@@ -15,7 +15,7 @@ constexpr int kPlayTop = 62;
 constexpr int kPlayBottom = 410;
 constexpr int kPlayLeft = 24;
 constexpr int kPlayRight = 442;
-constexpr uint32_t kFrameMs = 33;
+constexpr uint32_t kFrameMs = 66;
 
 float clampFloat(float value, float low, float high) {
   if (value < low) return low;
@@ -35,7 +35,7 @@ float distanceSquared(float ax, float ay, float bx, float by) {
   return dx * dx + dy * dy;
 }
 
-void readGravity(float* gx, float* gy) {
+void readGravity(const SettingsStore& settings, float* gx, float* gy) {
   *gx = 0.0f;
   *gy = 260.0f;
   if (!M5.Imu.isEnabled()) return;
@@ -45,6 +45,9 @@ void readGravity(float* gx, float* gy) {
   float ay = 0.0f;
   float az = 0.0f;
   if (!M5.Imu.getAccel(&ax, &ay, &az)) return;
+  ax += settings.accelOffsetX();
+  ay += settings.accelOffsetY();
+  az += settings.accelOffsetZ();
 
   const float rawX = ax * 360.0f;
   const float rawY = -ay * 360.0f;
@@ -77,12 +80,14 @@ void FidgetScreenBase::enter() {
   lastUpdateMs_ = millis();
   lastDrawMs_ = 0;
   dirty_ = true;
+  chromeDirty_ = true;
   M5.Power.setVibration(0);
   if (!canvas_.getBuffer()) {
     canvas_.setPsram(true);
     canvas_.setColorDepth(16);
     canvasReady_ = canvas_.createSprite(M5.Display.width(), M5.Display.height()) != nullptr;
   }
+  M5.Display.fillScreen(currentTheme(settings_).background);
   reset();
 }
 
@@ -102,9 +107,10 @@ void FidgetScreenBase::update(uint32_t nowMs) {
 void FidgetScreenBase::draw() {
   const Theme theme = currentTheme(settings_);
   canvas().fillScreen(theme.background);
-  drawChrome();
+  chromeDirty_ = false;
   drawFidget();
   canvas().pushSprite(0, 0);
+  drawChrome();
 }
 
 void FidgetScreenBase::onButtonA() {
@@ -119,14 +125,14 @@ void FidgetScreenBase::onButtonB() {
 
 void FidgetScreenBase::drawChrome() {
   const Theme theme = currentTheme(settings_);
-  canvas().setTextDatum(middle_center);
-  canvas().setFont(&fonts::FreeSansBold12pt7b);
-  canvas().setTextColor(theme.foreground, theme.background);
-  canvas().drawString(title_, canvas().width() / 2, 34);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  M5.Display.setTextColor(theme.foreground, theme.background);
+  M5.Display.drawString(title_, M5.Display.width() / 2, 34);
 
-  canvas().setFont(&fonts::FreeSans9pt7b);
-  canvas().setTextColor(theme.muted, theme.background);
-  canvas().drawString("A/B: Back", canvas().width() / 2, 432);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextColor(theme.muted, theme.background);
+  M5.Display.drawString("A/B: Back", M5.Display.width() / 2, 432);
 }
 
 void FidgetScreenBase::pulseHaptic(uint8_t strength, uint32_t durationMs) {
@@ -233,7 +239,7 @@ void PoppersFidgetScreen::handleTouch(int32_t x, int32_t y) {
 void PoppersFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
   float gx = 0.0f;
   float gy = 0.0f;
-  readGravity(&gx, &gy);
+  readGravity(settings_, &gx, &gy);
 
   for (size_t i = 0; i < kBallCount; ++i) {
     Ball& ball = balls_[i];
@@ -396,7 +402,7 @@ void GravityBallFidgetScreen::handleTouch(int32_t x, int32_t y) {
 void GravityBallFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
   float gx = 0.0f;
   float gy = 0.0f;
-  readGravity(&gx, &gy);
+  readGravity(settings_, &gx, &gy);
 
   vx_ += gx * dt;
   vy_ += gy * dt;

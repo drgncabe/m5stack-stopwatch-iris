@@ -20,6 +20,7 @@ enum class ScreenId : uint8_t {
   FidgetSpinner,
   FidgetGravityBall,
   Developer,
+  AxisCalibration,
   Bootloader,
   DeviceInfo,
   Count

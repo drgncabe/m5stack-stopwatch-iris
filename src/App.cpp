@@ -15,6 +15,7 @@ constexpr uint16_t kMinSleepSeconds = 0;
 constexpr uint16_t kMaxSleepSeconds = 600;
 constexpr uint16_t kMinTouchDelayMs = 50;
 constexpr uint16_t kMaxTouchDelayMs = 500;
+constexpr uint16_t kMenuTouchDelayMs = 300;
 
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
@@ -33,6 +34,7 @@ constexpr MenuItem kSettingsMenuItems[] = {
 };
 
 constexpr MenuItem kDeveloperMenuItems[] = {
+    {"Axis calibration", ScreenId::AxisCalibration},
     {"Bootloader", ScreenId::Bootloader},
     {"Back", ScreenId::Settings},
 };
@@ -50,6 +52,13 @@ bool isFidgetScreen(ScreenId id) {
          id == ScreenId::FidgetPoppers ||
          id == ScreenId::FidgetSpinner ||
          id == ScreenId::FidgetGravityBall;
+}
+
+bool isMenuScreen(ScreenId id) {
+  return id == ScreenId::MainMenu ||
+         id == ScreenId::Settings ||
+         id == ScreenId::Fidgets ||
+         id == ScreenId::Developer;
 }
 }  // namespace
 
@@ -71,6 +80,7 @@ App::App()
       gravityBallFidgetScreen_(settings_),
       developerMenuScreen_("Developer", kDeveloperMenuItems,
                            sizeof(kDeveloperMenuItems) / sizeof(kDeveloperMenuItems[0]), settings_),
+      axisCalibrationScreen_(settings_),
       bootloaderScreen_(settings_),
       deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
@@ -108,6 +118,7 @@ void App::begin() {
   screenManager_.registerScreen(ScreenId::FidgetSpinner, &spinnerFidgetScreen_);
   screenManager_.registerScreen(ScreenId::FidgetGravityBall, &gravityBallFidgetScreen_);
   screenManager_.registerScreen(ScreenId::Developer, &developerMenuScreen_);
+  screenManager_.registerScreen(ScreenId::AxisCalibration, &axisCalibrationScreen_);
   screenManager_.registerScreen(ScreenId::Bootloader, &bootloaderScreen_);
   screenManager_.registerScreen(ScreenId::DeviceInfo, &deviceInfoScreen_);
 
@@ -124,7 +135,8 @@ void App::update() {
   bool inputHandled = false;
 
   if (displayPowerState_ != DisplayPowerState::Sleeping &&
-      orientation_.update(nowMs, settings_.autoRotate())) {
+      orientation_.update(nowMs, settings_.autoRotate(), settings_.accelOffsetX(),
+                          settings_.accelOffsetY(), settings_.accelOffsetZ())) {
     resetTouch();
     screenManager_.redraw();
   }
@@ -157,6 +169,7 @@ void App::update() {
       touchActive_ = true;
       touchPreviewed_ = false;
       touchHandled_ = false;
+      touchMoved_ = false;
       touchStartX_ = touch.x;
       touchStartY_ = touch.y;
       touchStartMs_ = nowMs;
@@ -172,11 +185,17 @@ void App::update() {
     } else if (!touchHandled_) {
       const bool movedTooFar = abs(touch.x - touchStartX_) > kTouchMoveTolerance ||
                                abs(touch.y - touchStartY_) > kTouchMoveTolerance;
-      if (!movedTooFar && nowMs - touchStartMs_ >= settings_.touchDelayMs()) {
+      const uint16_t configuredDelayMs = settings_.touchDelayMs();
+      const uint16_t touchDelayMs =
+          isMenuScreen(screenManager_.currentId()) && configuredDelayMs < kMenuTouchDelayMs
+              ? kMenuTouchDelayMs
+              : configuredDelayMs;
+      if (!movedTooFar && !touchMoved_ && nowMs - touchStartMs_ >= touchDelayMs) {
         screenManager_.handleTouch(touchStartX_, touchStartY_);
         touchHandled_ = true;
         inputHandled = true;
       } else if (movedTooFar && touchPreviewed_) {
+        touchMoved_ = true;
         touchStartX_ = touch.x;
         touchStartY_ = touch.y;
         touchStartMs_ = nowMs;
@@ -184,13 +203,14 @@ void App::update() {
       }
     }
   } else {
-    if (touchActive_ && !touchHandled_ && touchPreviewed_) {
+    if (touchActive_ && !touchHandled_ && touchPreviewed_ && !touchMoved_) {
       screenManager_.handleTouch(touchStartX_, touchStartY_);
       inputHandled = true;
     }
     touchActive_ = false;
     touchPreviewed_ = false;
     touchHandled_ = false;
+    touchMoved_ = false;
   }
 
   battery_.update(nowMs);
@@ -413,6 +433,7 @@ void App::resetTouch() {
   touchActive_ = false;
   touchPreviewed_ = false;
   touchHandled_ = false;
+  touchMoved_ = false;
 }
 
 void App::showWatchIfActive() {
@@ -492,6 +513,7 @@ const char* App::currentScreenName() const {
     case ScreenId::FidgetSpinner: return "Fidget kaleidoscope";
     case ScreenId::FidgetGravityBall: return "Fidget gravity ball";
     case ScreenId::Developer: return "Developer";
+    case ScreenId::AxisCalibration: return "Axis calibration";
     case ScreenId::Bootloader: return "Bootloader";
     case ScreenId::DeviceInfo: return "Device info";
     default: return "Unknown";

@@ -20,7 +20,8 @@ void OrientationService::begin() {
   lastSampleMs_ = 0;
 }
 
-bool OrientationService::update(uint32_t nowMs, bool enabled) {
+bool OrientationService::update(uint32_t nowMs, bool enabled, float offsetX, float offsetY,
+                                float offsetZ) {
   if (!enabled || !available_) {
     pendingRotation_ = -1;
     pendingSinceMs_ = 0;
@@ -35,6 +36,9 @@ bool OrientationService::update(uint32_t nowMs, bool enabled) {
   float ay = 0.0f;
   float az = 0.0f;
   if (!M5.Imu.getAccel(&ax, &ay, &az)) return false;
+  ax += offsetX;
+  ay += offsetY;
+  az += offsetZ;
 
   const int8_t candidate = candidateRotation(ax, ay, az);
   if (candidate < 0 || candidate == rotation_) {
