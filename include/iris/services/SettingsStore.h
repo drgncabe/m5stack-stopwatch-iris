@@ -70,6 +70,12 @@ class SettingsStore {
   uint16_t touchDelayMs() const { return touchDelayMs_; }
   void setTouchDelayMs(uint16_t value);
 
+  float accelOffsetX() const { return accelOffsetX_; }
+  float accelOffsetY() const { return accelOffsetY_; }
+  float accelOffsetZ() const { return accelOffsetZ_; }
+  void setAccelCalibration(float offsetX, float offsetY, float offsetZ);
+  void resetAccelCalibration();
+
  private:
   Preferences prefs_;
   uint8_t volume_ = 96;
@@ -85,6 +91,9 @@ class SettingsStore {
   uint16_t touchDelayMs_ = 150;
   uint8_t widgetMask_ = kDefaultWidgetMask;
   uint8_t complicationId_ = kComplicationUptime;
+  float accelOffsetX_ = 0.0f;
+  float accelOffsetY_ = 0.0f;
+  float accelOffsetZ_ = 0.0f;
 };
 
 }  // namespace iris
