@@ -142,7 +142,7 @@ void MenuScreen::drawRow(size_t index, bool selected) {
 
   const int distance = abs(offset);
   const uint16_t fill = selected ? theme.selected : theme.background;
-  const uint16_t text = selected ? theme.foreground : (distance > 1 ? theme.muted : theme.foreground);
+  const uint16_t text = theme.foreground;
   const int inset = selected ? -8 : distance * 12;
   const int rowX = kRowLeft + inset;
   const int rowW = kRowWidth - (inset * 2);
