@@ -25,7 +25,7 @@ class MenuScreen : public Screen {
   void onButtonB() override;
 
  private:
-  void drawRow(size_t index, bool selected);
+  void drawRow(size_t index, int relativePosition);
   void drawScrollBar();
   void selectRow(size_t row);
   void scrollSelection(int direction);
