@@ -18,6 +18,9 @@ void SettingsStore::begin() {
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
   widgetMask_ = prefs_.getUChar("widgets", kDefaultWidgetMask);
   complicationId_ = prefs_.getUChar("comp_id", kComplicationUptime) % kComplicationCount;
+  accelOffsetX_ = prefs_.getFloat("accel_x", 0.0f);
+  accelOffsetY_ = prefs_.getFloat("accel_y", 0.0f);
+  accelOffsetZ_ = prefs_.getFloat("accel_z", 0.0f);
   if ((widgetMask_ & kWidgetComplication) == 0 || complicationId_ == kComplicationNone) {
     complicationId_ = kComplicationNone;
     widgetMask_ &= ~kWidgetComplication;
@@ -96,6 +99,19 @@ void SettingsStore::setIndicatorLightEnabled(bool enabled) {
 void SettingsStore::setTouchDelayMs(uint16_t value) {
   touchDelayMs_ = value;
   prefs_.putUShort("touch_ms", touchDelayMs_);
+}
+
+void SettingsStore::setAccelCalibration(float offsetX, float offsetY, float offsetZ) {
+  accelOffsetX_ = offsetX;
+  accelOffsetY_ = offsetY;
+  accelOffsetZ_ = offsetZ;
+  prefs_.putFloat("accel_x", accelOffsetX_);
+  prefs_.putFloat("accel_y", accelOffsetY_);
+  prefs_.putFloat("accel_z", accelOffsetZ_);
+}
+
+void SettingsStore::resetAccelCalibration() {
+  setAccelCalibration(0.0f, 0.0f, 0.0f);
 }
 
 }  // namespace iris
