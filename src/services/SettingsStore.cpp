@@ -18,9 +18,35 @@ void SettingsStore::begin() {
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
   widgetMask_ = prefs_.getUChar("widgets", kDefaultWidgetMask);
   complicationId_ = prefs_.getUChar("comp_id", kComplicationUptime) % kComplicationCount;
-  accelOffsetX_ = prefs_.getFloat("accel_x", 0.0f);
-  accelOffsetY_ = prefs_.getFloat("accel_y", 0.0f);
-  accelOffsetZ_ = prefs_.getFloat("accel_z", 0.0f);
+  imuCalibration_.version = prefs_.getUChar("imu_ver", 0);
+  imuCalibration_.valid = prefs_.getBool("imu_valid", false) &&
+                          imuCalibration_.version == ImuCalibrationData::kVersion;
+  imuCalibration_.calibratedAtMs = prefs_.getULong("imu_when", 0);
+  imuCalibration_.sampleCount = prefs_.getUShort("imu_samples", 0);
+  imuCalibration_.accelOffset.x = prefs_.getFloat("accel_x", 0.0f);
+  imuCalibration_.accelOffset.y = prefs_.getFloat("accel_y", 0.0f);
+  imuCalibration_.accelOffset.z = prefs_.getFloat("accel_z", 0.0f);
+  imuCalibration_.gyroBias.x = prefs_.getFloat("gyro_x", 0.0f);
+  imuCalibration_.gyroBias.y = prefs_.getFloat("gyro_y", 0.0f);
+  imuCalibration_.gyroBias.z = prefs_.getFloat("gyro_z", 0.0f);
+  imuCalibration_.upReference.x = prefs_.getFloat("ref_up_x", 0.0f);
+  imuCalibration_.upReference.y = prefs_.getFloat("ref_up_y", -1.0f);
+  imuCalibration_.upReference.z = prefs_.getFloat("ref_up_z", 0.0f);
+  imuCalibration_.downReference.x = prefs_.getFloat("ref_dn_x", 0.0f);
+  imuCalibration_.downReference.y = prefs_.getFloat("ref_dn_y", 1.0f);
+  imuCalibration_.downReference.z = prefs_.getFloat("ref_dn_z", 0.0f);
+  imuCalibration_.leftReference.x = prefs_.getFloat("ref_lt_x", -1.0f);
+  imuCalibration_.leftReference.y = prefs_.getFloat("ref_lt_y", 0.0f);
+  imuCalibration_.leftReference.z = prefs_.getFloat("ref_lt_z", 0.0f);
+  imuCalibration_.rightReference.x = prefs_.getFloat("ref_rt_x", 1.0f);
+  imuCalibration_.rightReference.y = prefs_.getFloat("ref_rt_y", 0.0f);
+  imuCalibration_.rightReference.z = prefs_.getFloat("ref_rt_z", 0.0f);
+  imuCalibration_.faceUpReference.x = prefs_.getFloat("ref_fu_x", 0.0f);
+  imuCalibration_.faceUpReference.y = prefs_.getFloat("ref_fu_y", 0.0f);
+  imuCalibration_.faceUpReference.z = prefs_.getFloat("ref_fu_z", 1.0f);
+  imuCalibration_.faceDownReference.x = prefs_.getFloat("ref_fd_x", 0.0f);
+  imuCalibration_.faceDownReference.y = prefs_.getFloat("ref_fd_y", 0.0f);
+  imuCalibration_.faceDownReference.z = prefs_.getFloat("ref_fd_z", -1.0f);
   if ((widgetMask_ & kWidgetComplication) == 0 || complicationId_ == kComplicationNone) {
     complicationId_ = kComplicationNone;
     widgetMask_ &= ~kWidgetComplication;
@@ -101,17 +127,66 @@ void SettingsStore::setTouchDelayMs(uint16_t value) {
   prefs_.putUShort("touch_ms", touchDelayMs_);
 }
 
+void SettingsStore::saveImuCalibration(const ImuCalibrationData& data) {
+  imuCalibration_ = data;
+  imuCalibration_.version = ImuCalibrationData::kVersion;
+  imuCalibration_.valid = true;
+  prefs_.putUChar("imu_ver", imuCalibration_.version);
+  prefs_.putBool("imu_valid", imuCalibration_.valid);
+  prefs_.putULong("imu_when", imuCalibration_.calibratedAtMs);
+  prefs_.putUShort("imu_samples", imuCalibration_.sampleCount);
+  prefs_.putFloat("accel_x", imuCalibration_.accelOffset.x);
+  prefs_.putFloat("accel_y", imuCalibration_.accelOffset.y);
+  prefs_.putFloat("accel_z", imuCalibration_.accelOffset.z);
+  prefs_.putFloat("gyro_x", imuCalibration_.gyroBias.x);
+  prefs_.putFloat("gyro_y", imuCalibration_.gyroBias.y);
+  prefs_.putFloat("gyro_z", imuCalibration_.gyroBias.z);
+  prefs_.putFloat("ref_up_x", imuCalibration_.upReference.x);
+  prefs_.putFloat("ref_up_y", imuCalibration_.upReference.y);
+  prefs_.putFloat("ref_up_z", imuCalibration_.upReference.z);
+  prefs_.putFloat("ref_dn_x", imuCalibration_.downReference.x);
+  prefs_.putFloat("ref_dn_y", imuCalibration_.downReference.y);
+  prefs_.putFloat("ref_dn_z", imuCalibration_.downReference.z);
+  prefs_.putFloat("ref_lt_x", imuCalibration_.leftReference.x);
+  prefs_.putFloat("ref_lt_y", imuCalibration_.leftReference.y);
+  prefs_.putFloat("ref_lt_z", imuCalibration_.leftReference.z);
+  prefs_.putFloat("ref_rt_x", imuCalibration_.rightReference.x);
+  prefs_.putFloat("ref_rt_y", imuCalibration_.rightReference.y);
+  prefs_.putFloat("ref_rt_z", imuCalibration_.rightReference.z);
+  prefs_.putFloat("ref_fu_x", imuCalibration_.faceUpReference.x);
+  prefs_.putFloat("ref_fu_y", imuCalibration_.faceUpReference.y);
+  prefs_.putFloat("ref_fu_z", imuCalibration_.faceUpReference.z);
+  prefs_.putFloat("ref_fd_x", imuCalibration_.faceDownReference.x);
+  prefs_.putFloat("ref_fd_y", imuCalibration_.faceDownReference.y);
+  prefs_.putFloat("ref_fd_z", imuCalibration_.faceDownReference.z);
+}
+
+void SettingsStore::clearImuCalibration() {
+  ImuCalibrationData data;
+  imuCalibration_ = data;
+  prefs_.putUChar("imu_ver", ImuCalibrationData::kVersion);
+  prefs_.putBool("imu_valid", false);
+  prefs_.putULong("imu_when", 0);
+  prefs_.putUShort("imu_samples", 0);
+  prefs_.putFloat("accel_x", 0.0f);
+  prefs_.putFloat("accel_y", 0.0f);
+  prefs_.putFloat("accel_z", 0.0f);
+  prefs_.putFloat("gyro_x", 0.0f);
+  prefs_.putFloat("gyro_y", 0.0f);
+  prefs_.putFloat("gyro_z", 0.0f);
+}
+
 void SettingsStore::setAccelCalibration(float offsetX, float offsetY, float offsetZ) {
-  accelOffsetX_ = offsetX;
-  accelOffsetY_ = offsetY;
-  accelOffsetZ_ = offsetZ;
-  prefs_.putFloat("accel_x", accelOffsetX_);
-  prefs_.putFloat("accel_y", accelOffsetY_);
-  prefs_.putFloat("accel_z", accelOffsetZ_);
+  ImuCalibrationData data = imuCalibration_;
+  data.valid = true;
+  data.calibratedAtMs = millis();
+  data.sampleCount = 1;
+  data.accelOffset = {offsetX, offsetY, offsetZ};
+  saveImuCalibration(data);
 }
 
 void SettingsStore::resetAccelCalibration() {
-  setAccelCalibration(0.0f, 0.0f, 0.0f);
+  clearImuCalibration();
 }
 
 }  // namespace iris
