@@ -7,7 +7,8 @@ namespace iris {
 class OrientationService {
  public:
   void begin();
-  bool update(uint32_t nowMs, bool enabled);
+  bool update(uint32_t nowMs, bool enabled, float offsetX = 0.0f, float offsetY = 0.0f,
+              float offsetZ = 0.0f);
 
   bool available() const { return available_; }
   uint8_t rotation() const { return rotation_; }
