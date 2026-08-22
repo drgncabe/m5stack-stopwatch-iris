@@ -46,20 +46,43 @@ void readGravity(float* gx, float* gy) {
   float az = 0.0f;
   if (!M5.Imu.getAccel(&ax, &ay, &az)) return;
 
-  *gx = ax * 360.0f;
-  *gy = -ay * 360.0f;
+  const float rawX = ax * 360.0f;
+  const float rawY = -ay * 360.0f;
+  switch (M5.Display.getRotation() & 3) {
+    case 1:
+      *gx = -rawY;
+      *gy = rawX;
+      break;
+    case 2:
+      *gx = -rawX;
+      *gy = -rawY;
+      break;
+    case 3:
+      *gx = rawY;
+      *gy = -rawX;
+      break;
+    default:
+      *gx = rawX;
+      *gy = rawY;
+      break;
+  }
 }
 
 }  // namespace
 
 FidgetScreenBase::FidgetScreenBase(const char* title, SettingsStore& settings)
-    : settings_(settings), title_(title) {}
+    : settings_(settings), title_(title), canvas_(&M5.Display) {}
 
 void FidgetScreenBase::enter() {
   lastUpdateMs_ = millis();
   lastDrawMs_ = 0;
   dirty_ = true;
   M5.Power.setVibration(0);
+  if (!canvas_.getBuffer()) {
+    canvas_.setPsram(true);
+    canvas_.setColorDepth(16);
+    canvasReady_ = canvas_.createSprite(M5.Display.width(), M5.Display.height()) != nullptr;
+  }
   reset();
 }
 
@@ -78,9 +101,10 @@ void FidgetScreenBase::update(uint32_t nowMs) {
 
 void FidgetScreenBase::draw() {
   const Theme theme = currentTheme(settings_);
-  M5.Display.fillScreen(theme.background);
+  canvas().fillScreen(theme.background);
   drawChrome();
   drawFidget();
+  canvas().pushSprite(0, 0);
 }
 
 void FidgetScreenBase::onButtonA() {
@@ -95,14 +119,14 @@ void FidgetScreenBase::onButtonB() {
 
 void FidgetScreenBase::drawChrome() {
   const Theme theme = currentTheme(settings_);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
-  M5.Display.setTextColor(theme.foreground, theme.background);
-  M5.Display.drawString(title_, M5.Display.width() / 2, 34);
+  canvas().setTextDatum(middle_center);
+  canvas().setFont(&fonts::FreeSansBold12pt7b);
+  canvas().setTextColor(theme.foreground, theme.background);
+  canvas().drawString(title_, canvas().width() / 2, 34);
 
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString("A/B: Back", M5.Display.width() / 2, 432);
+  canvas().setFont(&fonts::FreeSans9pt7b);
+  canvas().setTextColor(theme.muted, theme.background);
+  canvas().drawString("A/B: Back", canvas().width() / 2, 432);
 }
 
 void FidgetScreenBase::pulseHaptic(uint8_t strength, uint32_t durationMs) {
@@ -142,9 +166,9 @@ void WheelFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
 void WheelFidgetScreen::drawFidget() {
   const Theme theme = currentTheme(settings_);
   constexpr int radius = 58;
-  M5.Display.fillCircle(static_cast<int>(x_), static_cast<int>(y_), radius + 8, theme.panel);
-  M5.Display.fillCircle(static_cast<int>(x_), static_cast<int>(y_), radius, theme.button);
-  M5.Display.drawCircle(static_cast<int>(x_), static_cast<int>(y_), radius, theme.foreground);
+  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), radius + 8, theme.panel);
+  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), radius, theme.button);
+  canvas().drawCircle(static_cast<int>(x_), static_cast<int>(y_), radius, theme.foreground);
 
   for (int i = 0; i < 12; ++i) {
     const float a = angle_ + (2.0f * kPi * i / 12.0f);
@@ -152,9 +176,9 @@ void WheelFidgetScreen::drawFidget() {
     const int y1 = static_cast<int>(y_ + sinf(a) * 14.0f);
     const int x2 = static_cast<int>(x_ + cosf(a) * 52.0f);
     const int y2 = static_cast<int>(y_ + sinf(a) * 52.0f);
-    M5.Display.drawLine(x1, y1, x2, y2, theme.foreground);
+    canvas().drawLine(x1, y1, x2, y2, theme.foreground);
   }
-  M5.Display.fillCircle(static_cast<int>(x_), static_cast<int>(y_), 14, theme.accent);
+  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), 14, theme.accent);
 }
 
 void WheelFidgetScreen::moveWheel(int32_t x, int32_t y, bool feedback) {
@@ -179,6 +203,7 @@ PoppersFidgetScreen::PoppersFidgetScreen(SettingsStore& settings)
     : FidgetScreenBase("Poppers", settings) {}
 
 void PoppersFidgetScreen::reset() {
+  lastPopAttemptMs_ = 0;
   constexpr uint16_t colors[] = {0xF81F, 0x07FF, 0xFFE0, 0xFD20, 0x07E0, 0x001F,
                                  0xF800, 0xAFE5, 0xFC9F};
   for (size_t i = 0; i < kBallCount; ++i) {
@@ -202,8 +227,7 @@ void PoppersFidgetScreen::previewTouch(int32_t x, int32_t y) {
 }
 
 void PoppersFidgetScreen::handleTouch(int32_t x, int32_t y) {
-  (void)x;
-  (void)y;
+  popAt(x, y);
 }
 
 void PoppersFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
@@ -255,30 +279,33 @@ void PoppersFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
 
 void PoppersFidgetScreen::drawFidget() {
   const Theme theme = currentTheme(settings_);
-  M5.Display.drawCircle(kScreenCenter, 236, 188, theme.panel);
+  canvas().drawCircle(kScreenCenter, 236, 188, theme.panel);
   for (size_t i = 0; i < kBallCount; ++i) {
     const Ball& ball = balls_[i];
     const int x = static_cast<int>(ball.x);
     const int y = static_cast<int>(ball.y);
     if (ball.popped) {
-      M5.Display.drawCircle(x, y, static_cast<int>(ball.radius + 8), ball.color);
-      M5.Display.drawCircle(x, y, static_cast<int>(ball.radius + 16), theme.muted);
+      canvas().drawCircle(x, y, static_cast<int>(ball.radius + 8), ball.color);
+      canvas().drawCircle(x, y, static_cast<int>(ball.radius + 16), theme.muted);
       continue;
     }
-    M5.Display.fillCircle(x + 4, y + 6, static_cast<int>(ball.radius), theme.panel);
-    M5.Display.fillCircle(x, y, static_cast<int>(ball.radius), ball.color);
-    M5.Display.fillCircle(x - 7, y - 8, 6, 0xFFFF);
+    canvas().fillCircle(x + 4, y + 6, static_cast<int>(ball.radius), theme.panel);
+    canvas().fillCircle(x, y, static_cast<int>(ball.radius), ball.color);
+    canvas().fillCircle(x - 7, y - 8, 6, 0xFFFF);
   }
 }
 
 void PoppersFidgetScreen::popAt(int32_t x, int32_t y) {
+  const uint32_t nowMs = millis();
+  if (nowMs - lastPopAttemptMs_ < 60) return;
+  lastPopAttemptMs_ = nowMs;
   for (size_t i = 0; i < kBallCount; ++i) {
     Ball& ball = balls_[i];
     if (ball.popped) continue;
-    const float hit = ball.radius + 12.0f;
+    const float hit = ball.radius + 24.0f;
     if (distanceSquared(ball.x, ball.y, x, y) <= hit * hit) {
       ball.popped = true;
-      ball.poppedAtMs = millis();
+      ball.poppedAtMs = nowMs;
       pulseHaptic(96, 18);
       requestDraw();
       return;
@@ -332,12 +359,12 @@ void SpinnerFidgetScreen::drawFidget() {
     const int y1 = static_cast<int>(236 + sinf(a1) * radius);
     const int x2 = static_cast<int>(kScreenCenter + cosf(a2) * radius * 0.62f);
     const int y2 = static_cast<int>(236 + sinf(a2) * radius * 0.62f);
-    M5.Display.fillTriangle(kScreenCenter, 236, x1, y1, x2, y2, colors[i % 6]);
+    canvas().fillTriangle(kScreenCenter, 236, x1, y1, x2, y2, colors[i % 6]);
   }
-  M5.Display.fillCircle(kScreenCenter, 236, 42, 0x0000);
-  M5.Display.drawCircle(kScreenCenter, 236, 154, 0xFFFF);
-  M5.Display.drawCircle(kScreenCenter, 236, 88, 0xFFFF);
-  M5.Display.fillCircle(kScreenCenter, 236, 18, 0xFFFF);
+  canvas().fillCircle(kScreenCenter, 236, 42, 0x0000);
+  canvas().drawCircle(kScreenCenter, 236, 154, 0xFFFF);
+  canvas().drawCircle(kScreenCenter, 236, 88, 0xFFFF);
+  canvas().fillCircle(kScreenCenter, 236, 18, 0xFFFF);
 }
 
 float SpinnerFidgetScreen::touchAngle(int32_t x, int32_t y) const {
@@ -401,11 +428,11 @@ void GravityBallFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
 
 void GravityBallFidgetScreen::drawFidget() {
   const Theme theme = currentTheme(settings_);
-  M5.Display.drawCircle(kScreenCenter, 236, 174, theme.panel);
-  M5.Display.drawCircle(kScreenCenter, 236, 175, theme.muted);
-  M5.Display.fillCircle(static_cast<int>(x_ + 6), static_cast<int>(y_ + 8), 26, theme.panel);
-  M5.Display.fillCircle(static_cast<int>(x_), static_cast<int>(y_), 26, theme.accent);
-  M5.Display.fillCircle(static_cast<int>(x_ - 8), static_cast<int>(y_ - 9), 7, 0xFFFF);
+  canvas().drawCircle(kScreenCenter, 236, 174, theme.panel);
+  canvas().drawCircle(kScreenCenter, 236, 175, theme.muted);
+  canvas().fillCircle(static_cast<int>(x_ + 6), static_cast<int>(y_ + 8), 26, theme.panel);
+  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), 26, theme.accent);
+  canvas().fillCircle(static_cast<int>(x_ - 8), static_cast<int>(y_ - 9), 7, 0xFFFF);
 }
 
 }  // namespace iris
