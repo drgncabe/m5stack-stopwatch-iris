@@ -16,6 +16,7 @@ constexpr int kTouchScrollStepPx = 72;
 constexpr int kDragDeadzonePx = 3;
 constexpr int kMaxDragDeltaPx = 24;
 constexpr uint32_t kHapticPulseMs = 14;
+constexpr uint32_t kScrollIndicatorHoldMs = 750;
 
 uint16_t blend565(uint16_t fg, uint16_t bg, uint8_t amount) {
   const uint8_t fr = ((fg >> 11) & 0x1F) << 3;
@@ -41,12 +42,17 @@ void MenuScreen::enter() {
   draggedSinceTouch_ = false;
   lastTouchY_ = 0;
   scrollRemainder_ = 0;
+  scrollIndicatorDrawn_ = false;
+  lastScrollActivityMs_ = 0;
   stopSelectionHaptic();
 }
 
 void MenuScreen::update(uint32_t nowMs) {
   if (hapticActive_ && nowMs >= hapticOffMs_) {
     stopSelectionHaptic();
+  }
+  if (scrollIndicatorDrawn_ && nowMs - lastScrollActivityMs_ > kScrollIndicatorHoldMs) {
+    draw();
   }
 }
 
@@ -63,7 +69,7 @@ void MenuScreen::draw() {
     if (row < 0 || row >= static_cast<int>(itemCount_)) continue;
     drawRow(static_cast<size_t>(row), relative);
   }
-  drawScrollBar();
+  drawScrollBar(millis());
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);
@@ -133,6 +139,7 @@ void MenuScreen::activateSelected() {
 void MenuScreen::selectRow(size_t row) {
   if (row >= itemCount_ || row == selected_) return;
   selected_ = row;
+  lastScrollActivityMs_ = millis();
   draw();
   startSelectionHaptic();
 }
@@ -175,8 +182,12 @@ void MenuScreen::drawRow(size_t index, int relativePosition) {
   M5.Display.drawString(items_[index].label, M5.Display.width() / 2, y);
 }
 
-void MenuScreen::drawScrollBar() {
-  if (itemCount_ <= 1) return;
+void MenuScreen::drawScrollBar(uint32_t nowMs) {
+  if (itemCount_ <= static_cast<size_t>((kVisiblePaddingRows * 2) + 1)) return;
+  if (lastScrollActivityMs_ == 0 || nowMs - lastScrollActivityMs_ > kScrollIndicatorHoldMs) {
+    scrollIndicatorDrawn_ = false;
+    return;
+  }
   const Theme theme = currentTheme(settings_);
   constexpr int trackX = 424;
   constexpr int trackY = 88;
@@ -187,6 +198,7 @@ void MenuScreen::drawScrollBar() {
   const int travel = trackH - thumbH;
   const int thumbY = trackY + (travel * static_cast<int>(selected_)) /
                                   static_cast<int>(itemCount_ - 1);
+  scrollIndicatorDrawn_ = true;
   M5.Display.fillRoundRect(trackX, trackY, trackW, trackH, 3, theme.panel);
   M5.Display.fillRoundRect(trackX - 1, thumbY, trackW + 2, thumbH, 4, theme.accent);
 }

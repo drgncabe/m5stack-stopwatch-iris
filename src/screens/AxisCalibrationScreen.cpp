@@ -10,8 +10,9 @@ namespace iris {
 
 namespace {
 constexpr uint32_t kSampleMs = 25;
-constexpr uint32_t kStableMs = 650;
-constexpr uint16_t kRequiredSamples = 42;
+constexpr uint32_t kSettlingMs = 800;
+constexpr uint32_t kStableMs = 1250;
+constexpr uint16_t kRequiredSamples = 60;
 constexpr float kMaxGyroDps = 7.5f;
 constexpr float kMaxAccelVariance = 0.012f;
 constexpr float kMinGravity = 0.72f;
@@ -42,11 +43,19 @@ void AxisCalibrationScreen::enter() {
   statusText_ = nullptr;
   statusUntilMs_ = 0;
   stableSinceMs_ = 0;
+  stateStartedMs_ = 0;
   lastSampleMs_ = 0;
 }
 
 void AxisCalibrationScreen::update(uint32_t nowMs) {
-  if (mode_ == Mode::Capture) {
+  if (mode_ == Mode::Settling && nowMs - stateStartedMs_ >= kSettlingMs) {
+    mode_ = Mode::WaitingForStability;
+    stateStartedMs_ = nowMs;
+    statusText_ = "Hold still";
+    draw();
+    return;
+  }
+  if (mode_ == Mode::WaitingForStability || mode_ == Mode::Sampling) {
     updateCapture(nowMs);
     return;
   }
@@ -65,8 +74,14 @@ void AxisCalibrationScreen::draw() {
   M5.Display.drawString("IMU Calibration", M5.Display.width() / 2, 42);
 
   switch (mode_) {
-    case Mode::Capture:
+    case Mode::Instructions:
+    case Mode::Settling:
+    case Mode::WaitingForStability:
+    case Mode::Sampling:
       drawCapture(theme);
+      break;
+    case Mode::PoseComplete:
+      drawPoseComplete(theme);
       break;
     case Mode::Complete:
       drawComplete(theme);
@@ -94,6 +109,16 @@ void AxisCalibrationScreen::handleTouch(int32_t x, int32_t y) {
     } else if (y >= 402 && y <= 446) {
       goBack();
     }
+    return;
+  }
+
+  if (mode_ == Mode::Instructions) {
+    beginPoseSettling();
+    return;
+  }
+
+  if (mode_ == Mode::PoseComplete) {
+    advanceAfterPose();
     return;
   }
 
@@ -127,8 +152,13 @@ void AxisCalibrationScreen::handleTouch(int32_t x, int32_t y) {
 }
 
 void AxisCalibrationScreen::onButtonA() {
-  if (mode_ == Mode::Capture || mode_ == Mode::ClearConfirm || mode_ == Mode::Complete ||
-      mode_ == Mode::Saved) {
+  if (mode_ == Mode::PoseComplete) {
+    retryCurrentPose();
+    return;
+  }
+  if (mode_ == Mode::Instructions || mode_ == Mode::Settling ||
+      mode_ == Mode::WaitingForStability || mode_ == Mode::Sampling ||
+      mode_ == Mode::ClearConfirm || mode_ == Mode::Complete || mode_ == Mode::Saved) {
     mode_ = Mode::Summary;
     draw();
     return;
@@ -151,7 +181,14 @@ void AxisCalibrationScreen::onButtonB() {
       mode_ = Mode::Summary;
       draw();
       break;
-    case Mode::Capture:
+    case Mode::PoseComplete:
+      mode_ = Mode::Summary;
+      draw();
+      break;
+    case Mode::Instructions:
+    case Mode::Settling:
+    case Mode::WaitingForStability:
+    case Mode::Sampling:
     default:
       break;
   }
@@ -164,11 +201,40 @@ void AxisCalibrationScreen::startCalibration() {
   pendingCalibration_.sampleCount = 0;
   pendingCalibration_.gyroBias = {0.0f, 0.0f, 0.0f};
   poseIndex_ = 0;
-  samples_ = {};
+  resetSamples();
   stableSinceMs_ = 0;
   statusText_ = nullptr;
   lastSampleMs_ = 0;
-  mode_ = Mode::Capture;
+  capturedSamples_ = 0;
+  beginPoseInstructions();
+}
+
+void AxisCalibrationScreen::beginPoseInstructions() {
+  resetSamples();
+  stableSinceMs_ = 0;
+  lastSampleMs_ = 0;
+  statusText_ = "Touch to start";
+  stateStartedMs_ = millis();
+  mode_ = Mode::Instructions;
+  draw();
+}
+
+void AxisCalibrationScreen::beginPoseSettling() {
+  resetSamples();
+  stableSinceMs_ = 0;
+  lastSampleMs_ = 0;
+  statusText_ = "Settling...";
+  stateStartedMs_ = millis();
+  mode_ = Mode::Settling;
+  draw();
+}
+
+void AxisCalibrationScreen::beginSampling(uint32_t nowMs) {
+  resetSamples();
+  stableSinceMs_ = nowMs;
+  stateStartedMs_ = nowMs;
+  statusText_ = "Sampling";
+  mode_ = Mode::Sampling;
   draw();
 }
 
@@ -189,30 +255,29 @@ void AxisCalibrationScreen::updateCapture(uint32_t nowMs) {
   lastAccel_ = accel;
   lastGyro_ = gyro;
   if (!isStable(accel, gyro)) {
-    samples_ = {};
+    resetSamples();
     stableSinceMs_ = 0;
-    statusText_ = "Hold still";
+    statusText_ = mode_ == Mode::Sampling ? "Movement detected" : "Hold still";
+    mode_ = Mode::WaitingForStability;
     draw();
     return;
   }
 
   if (stableSinceMs_ == 0) stableSinceMs_ = nowMs;
-  samples_.accelSum.x += accel.x;
-  samples_.accelSum.y += accel.y;
-  samples_.accelSum.z += accel.z;
-  samples_.accelSquareSum.x += accel.x * accel.x;
-  samples_.accelSquareSum.y += accel.y * accel.y;
-  samples_.accelSquareSum.z += accel.z * accel.z;
-  samples_.gyroSum.x += gyro.x;
-  samples_.gyroSum.y += gyro.y;
-  samples_.gyroSum.z += gyro.z;
-  samples_.count++;
+  if (mode_ == Mode::WaitingForStability) {
+    statusText_ = nowMs - stableSinceMs_ >= kStableMs ? "Stable" : "Stabilizing...";
+    draw();
+    if (nowMs - stableSinceMs_ >= kStableMs) {
+      beginSampling(nowMs);
+    }
+    return;
+  }
 
-  statusText_ = samples_.count >= kRequiredSamples ? "Sampling" : "Stable";
+  addSample(accel, gyro);
+  statusText_ = "Sampling";
   draw();
 
-  if (nowMs - stableSinceMs_ >= kStableMs && samples_.count >= kRequiredSamples &&
-      accelVariance() <= kMaxAccelVariance) {
+  if (samples_.count >= kRequiredSamples && accelVariance() <= kMaxAccelVariance) {
     completePose();
   }
 }
@@ -220,29 +285,43 @@ void AxisCalibrationScreen::updateCapture(uint32_t nowMs) {
 void AxisCalibrationScreen::completePose() {
   const Vec3 reference = meanAccel();
   const Vec3 gyro = meanGyro();
-  assignPoseReference(poseIndex_, reference);
-  pendingCalibration_.gyroBias.x += gyro.x;
-  pendingCalibration_.gyroBias.y += gyro.y;
-  pendingCalibration_.gyroBias.z += gyro.z;
-  pendingCalibration_.sampleCount += samples_.count;
+  capturedAccel_ = reference;
+  capturedGyro_ = gyro;
+  capturedSamples_ = samples_.count;
   pulse(88, 18);
 
-  poseIndex_++;
-  samples_ = {};
+  resetSamples();
   stableSinceMs_ = 0;
   statusText_ = "Captured";
-  statusUntilMs_ = millis() + 450;
+  stateStartedMs_ = millis();
+  mode_ = Mode::PoseComplete;
+  draw();
+}
 
+void AxisCalibrationScreen::retryCurrentPose() {
+  beginPoseInstructions();
+}
+
+void AxisCalibrationScreen::advanceAfterPose() {
+  assignPoseReference(poseIndex_, capturedAccel_);
+  pendingCalibration_.gyroBias.x += capturedGyro_.x;
+  pendingCalibration_.gyroBias.y += capturedGyro_.y;
+  pendingCalibration_.gyroBias.z += capturedGyro_.z;
+  pendingCalibration_.sampleCount += capturedSamples_;
+  poseIndex_++;
   if (poseIndex_ >= sizeof(kPoses) / sizeof(kPoses[0])) {
-    pendingCalibration_.gyroBias.x /= static_cast<float>(poseIndex_);
-    pendingCalibration_.gyroBias.y /= static_cast<float>(poseIndex_);
-    pendingCalibration_.gyroBias.z /= static_cast<float>(poseIndex_);
+    const float poseCount = static_cast<float>(sizeof(kPoses) / sizeof(kPoses[0]));
+    pendingCalibration_.gyroBias.x /= poseCount;
+    pendingCalibration_.gyroBias.y /= poseCount;
+    pendingCalibration_.gyroBias.z /= poseCount;
     pendingCalibration_.accelOffset =
         subtract(pendingCalibration_.upReference, kPoses[0].expected);
     pendingCalibration_.calibratedAtMs = millis();
     mode_ = Mode::Complete;
+    draw();
+    return;
   }
-  draw();
+  beginPoseInstructions();
 }
 
 void AxisCalibrationScreen::saveCalibration() {
@@ -306,15 +385,52 @@ void AxisCalibrationScreen::drawCapture(const Theme& theme) {
 
   M5.Display.setFont(&fonts::FreeSansBold12pt7b);
   M5.Display.setTextColor(theme.foreground, theme.background);
-  M5.Display.drawString(statusText_ ? statusText_ : "Waiting for stability",
-                        M5.Display.width() / 2, 252);
+  const char* stateText = statusText_ ? statusText_ : "Waiting for stability";
+  M5.Display.drawString(stateText, M5.Display.width() / 2, 252);
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString(formatVec(lastAccel_), M5.Display.width() / 2, 294);
-  M5.Display.drawString(String(samples_.count) + "/" + String(kRequiredSamples) + " samples",
-                        M5.Display.width() / 2, 326);
+  if (mode_ == Mode::Instructions) {
+    M5.Display.drawString("Position the device, then touch.", M5.Display.width() / 2, 294);
+    M5.Display.drawString("Sampling starts after a short pause.", M5.Display.width() / 2, 326);
+  } else if (mode_ == Mode::Settling) {
+    M5.Display.drawString("Release the screen.", M5.Display.width() / 2, 294);
+    M5.Display.drawString("Then hold Iris still.", M5.Display.width() / 2, 326);
+  } else if (mode_ == Mode::WaitingForStability) {
+    const uint32_t stableMs = stableSinceMs_ == 0 ? 0 : millis() - stableSinceMs_;
+    M5.Display.drawString(formatVec(lastAccel_), M5.Display.width() / 2, 294);
+    M5.Display.drawString(String("Stable ") + String(min(stableMs, kStableMs)) + "/" +
+                              String(kStableMs) + " ms",
+                          M5.Display.width() / 2, 326);
+  } else {
+    M5.Display.drawString(formatVec(lastAccel_), M5.Display.width() / 2, 294);
+    M5.Display.drawString(String(samples_.count) + "/" + String(kRequiredSamples) + " samples",
+                          M5.Display.width() / 2, 326);
+  }
   M5.Display.drawString("A: Cancel", M5.Display.width() / 2, 414);
+}
+
+void AxisCalibrationScreen::drawPoseComplete(const Theme& theme) {
+  const Pose& pose = kPoses[poseIndex_];
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  M5.Display.setTextColor(theme.foreground, theme.background);
+  M5.Display.drawString(String(pose.name) + " complete", M5.Display.width() / 2, 94);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextColor(theme.muted, theme.background);
+  M5.Display.drawString(String(capturedSamples_) + " samples captured",
+                        M5.Display.width() / 2, 132);
+  M5.Display.setTextColor(theme.foreground, theme.background);
+  M5.Display.drawString("Accel", M5.Display.width() / 2, 174);
+  M5.Display.setTextColor(theme.muted, theme.background);
+  M5.Display.drawString(formatVec(capturedAccel_), M5.Display.width() / 2, 202);
+  M5.Display.setTextColor(theme.foreground, theme.background);
+  M5.Display.drawString("Gyro", M5.Display.width() / 2, 244);
+  M5.Display.setTextColor(theme.muted, theme.background);
+  M5.Display.drawString(formatVec(capturedGyro_), M5.Display.width() / 2, 272);
+  M5.Display.drawString("Touch: Continue", M5.Display.width() / 2, 326);
+  M5.Display.drawString("A: Retry   B: Cancel", M5.Display.width() / 2, 414);
 }
 
 void AxisCalibrationScreen::drawComplete(const Theme& theme) {
@@ -417,6 +533,23 @@ float AxisCalibrationScreen::accelVariance() const {
   const float vy = (samples_.accelSquareSum.y / count) - (mean.y * mean.y);
   const float vz = (samples_.accelSquareSum.z / count) - (mean.z * mean.z);
   return max(0.0f, vx + vy + vz);
+}
+
+void AxisCalibrationScreen::resetSamples() {
+  samples_ = {};
+}
+
+void AxisCalibrationScreen::addSample(const Vec3& accel, const Vec3& gyro) {
+  samples_.accelSum.x += accel.x;
+  samples_.accelSum.y += accel.y;
+  samples_.accelSum.z += accel.z;
+  samples_.accelSquareSum.x += accel.x * accel.x;
+  samples_.accelSquareSum.y += accel.y * accel.y;
+  samples_.accelSquareSum.z += accel.z * accel.z;
+  samples_.gyroSum.x += gyro.x;
+  samples_.gyroSum.y += gyro.y;
+  samples_.gyroSum.z += gyro.z;
+  samples_.count++;
 }
 
 void AxisCalibrationScreen::assignPoseReference(size_t pose, const Vec3& reference) {
