@@ -136,6 +136,7 @@ void App::begin() {
   registerServices();
   registerScreens();
   registerApps();
+  appManager_.begin();
 
   appManager_.launch("system.watch");
 }
@@ -197,6 +198,7 @@ void App::update() {
       wakeDisplay(nowMs);
     } else {
       noteActivity(nowMs);
+      appManager_.onButtonA();
       screenManager_.onButtonA();
     }
     inputHandled = true;
@@ -208,6 +210,7 @@ void App::update() {
       wakeDisplay(nowMs);
     } else {
       noteActivity(nowMs);
+      appManager_.onButtonB();
       screenManager_.onButtonB();
     }
     inputHandled = true;
@@ -241,6 +244,7 @@ void App::update() {
               ? kMenuTouchDelayMs
               : configuredDelayMs;
       if (!movedTooFar && !touchMoved_ && nowMs - touchStartMs_ >= touchDelayMs) {
+        appManager_.onTouch(touchStartX_, touchStartY_);
         screenManager_.handleTouch(touchStartX_, touchStartY_);
         touchHandled_ = true;
         inputHandled = true;
@@ -254,6 +258,7 @@ void App::update() {
     }
   } else {
     if (touchActive_ && !touchHandled_ && touchPreviewed_ && !touchMoved_) {
+      appManager_.onTouch(touchStartX_, touchStartY_);
       screenManager_.handleTouch(touchStartX_, touchStartY_);
       inputHandled = true;
     }
@@ -272,6 +277,8 @@ void App::update() {
   if (power_.state() != DisplayPowerState::Sleeping) {
     screenManager_.update(nowMs);
   }
+  appManager_.syncToCurrentScreen();
+  appManager_.update(nowMs);
 
   if (!inputHandled) {
     updateDisplayPower(nowMs);
@@ -414,6 +421,8 @@ String App::buildControlSnapshot() const {
   snapshot += currentApp ? currentApp->id : "unknown";
   snapshot += "\nApp kind: ";
   snapshot += currentApp ? appKindName(currentApp->kind) : "Unknown";
+  snapshot += "\nApp state: ";
+  snapshot += appManager_.currentStateName();
   snapshot += "\nRegistered apps: ";
   snapshot += String(appManager_.count());
   snapshot += "\nServices: ";

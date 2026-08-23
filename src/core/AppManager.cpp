@@ -9,25 +9,81 @@ AppManager::AppManager(ScreenManager& screens) : screens_(screens) {}
 bool AppManager::registerApp(const AppDescriptor& app) {
   if (!app.id || !app.name || count_ >= kMaxApps || findById(app.id)) return false;
   apps_[count_] = app;
+  states_[count_] = AppLifecycleState::Registered;
+  begun_[count_] = false;
   count_++;
   return true;
 }
 
+bool AppManager::begin() {
+  bool ok = true;
+  for (size_t i = 0; i < count_; ++i) {
+    if (!ensureAppBegun(i)) ok = false;
+  }
+  return ok;
+}
+
 bool AppManager::launch(const char* id) {
-  const AppDescriptor* app = findById(id);
-  if (!app) return false;
-  current_ = app;
-  screens_.show(app->screen);
-  return true;
+  const size_t index = findIndexById(id);
+  if (index == kNoApp) return false;
+  return activateIndex(index, true);
 }
 
 bool AppManager::switchTo(ScreenId screen) {
-  const AppDescriptor* app = findByScreen(screen);
-  if (app) {
-    current_ = app;
+  const size_t index = findIndexByScreen(screen);
+  if (index == kNoApp) {
+    screens_.show(screen);
+    return false;
   }
-  screens_.show(screen);
-  return app != nullptr;
+  return activateIndex(index, true);
+}
+
+bool AppManager::syncToCurrentScreen() {
+  const size_t index = findIndexByScreen(screens_.currentId());
+  if (index == kNoApp || index == currentIndex_) return index != kNoApp;
+  return activateIndex(index, false);
+}
+
+bool AppManager::stopCurrent() {
+  if (currentIndex_ == kNoApp) return false;
+  IrisApplication* app = apps_[currentIndex_].application;
+  if (app && states_[currentIndex_] != AppLifecycleState::Stopped) {
+    app->onStop();
+  }
+  states_[currentIndex_] = AppLifecycleState::Stopped;
+  currentIndex_ = kNoApp;
+  current_ = nullptr;
+  return true;
+}
+
+void AppManager::update(uint32_t nowMs) {
+  if (currentIndex_ == kNoApp) return;
+  IrisApplication* app = apps_[currentIndex_].application;
+  if (app) app->update(nowMs);
+}
+
+void AppManager::render() {
+  if (currentIndex_ == kNoApp) return;
+  IrisApplication* app = apps_[currentIndex_].application;
+  if (app) app->render();
+}
+
+void AppManager::onButtonA() {
+  if (currentIndex_ == kNoApp) return;
+  IrisApplication* app = apps_[currentIndex_].application;
+  if (app) app->onButtonA();
+}
+
+void AppManager::onButtonB() {
+  if (currentIndex_ == kNoApp) return;
+  IrisApplication* app = apps_[currentIndex_].application;
+  if (app) app->onButtonB();
+}
+
+void AppManager::onTouch(int32_t x, int32_t y) {
+  if (currentIndex_ == kNoApp) return;
+  IrisApplication* app = apps_[currentIndex_].application;
+  if (app) app->onTouch(x, y);
 }
 
 const AppDescriptor* AppManager::current() const {
@@ -35,19 +91,75 @@ const AppDescriptor* AppManager::current() const {
   return screenApp ? screenApp : current_;
 }
 
+AppLifecycleState AppManager::currentState() const {
+  if (currentIndex_ == kNoApp) return AppLifecycleState::Stopped;
+  return states_[currentIndex_];
+}
+
+const char* AppManager::currentStateName() const {
+  return appLifecycleStateName(currentState());
+}
+
 const AppDescriptor* AppManager::findById(const char* id) const {
-  if (!id) return nullptr;
-  for (size_t i = 0; i < count_; ++i) {
-    if (strcmp(apps_[i].id, id) == 0) return &apps_[i];
-  }
-  return nullptr;
+  const size_t index = findIndexById(id);
+  return index == kNoApp ? nullptr : &apps_[index];
 }
 
 const AppDescriptor* AppManager::findByScreen(ScreenId screen) const {
-  for (size_t i = 0; i < count_; ++i) {
-    if (apps_[i].screen == screen) return &apps_[i];
+  const size_t index = findIndexByScreen(screen);
+  return index == kNoApp ? nullptr : &apps_[index];
+}
+
+bool AppManager::activateIndex(size_t index, bool showScreen) {
+  if (index >= count_) return false;
+
+  if (currentIndex_ != kNoApp && currentIndex_ != index &&
+      states_[currentIndex_] == AppLifecycleState::Started) {
+    if (apps_[currentIndex_].application) apps_[currentIndex_].application->onPause();
+    states_[currentIndex_] = AppLifecycleState::Paused;
   }
-  return nullptr;
+
+  currentIndex_ = index;
+  current_ = &apps_[index];
+
+  if (!ensureAppBegun(index)) return false;
+
+  IrisApplication* app = apps_[index].application;
+  if (states_[index] == AppLifecycleState::Paused) {
+    if (app) app->onResume();
+  } else if (states_[index] != AppLifecycleState::Started) {
+    if (app) app->onStart();
+  }
+  states_[index] = AppLifecycleState::Started;
+
+  if (showScreen) screens_.show(apps_[index].screen);
+  return true;
+}
+
+size_t AppManager::findIndexById(const char* id) const {
+  if (!id) return kNoApp;
+  for (size_t i = 0; i < count_; ++i) {
+    if (strcmp(apps_[i].id, id) == 0) return i;
+  }
+  return kNoApp;
+}
+
+size_t AppManager::findIndexByScreen(ScreenId screen) const {
+  for (size_t i = 0; i < count_; ++i) {
+    if (apps_[i].screen == screen) return i;
+  }
+  return kNoApp;
+}
+
+bool AppManager::ensureAppBegun(size_t index) {
+  if (index >= count_ || begun_[index]) return index < count_;
+  IrisApplication* app = apps_[index].application;
+  if (app && !app->begin()) {
+    states_[index] = AppLifecycleState::Stopped;
+    return false;
+  }
+  begun_[index] = true;
+  return true;
 }
 
 const char* appKindName(AppKind kind) {
@@ -57,6 +169,16 @@ const char* appKindName(AppKind kind) {
     case AppKind::Fidget: return "Fidget";
     default: return "System";
   }
+}
+
+const char* appLifecycleStateName(AppLifecycleState state) {
+  switch (state) {
+    case AppLifecycleState::Registered: return "Registered";
+    case AppLifecycleState::Started: return "Started";
+    case AppLifecycleState::Paused: return "Paused";
+    case AppLifecycleState::Stopped: return "Stopped";
+  }
+  return "Unknown";
 }
 
 }  // namespace iris
