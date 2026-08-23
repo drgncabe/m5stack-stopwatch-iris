@@ -71,12 +71,6 @@ constexpr AppDescriptor kAppDefinitions[] = {
     {"fidget.poppers", "Poppers", ScreenId::FidgetPoppers, AppKind::Fidget, false},
     {"fidget.spinner", "Kaleidoscope", ScreenId::FidgetSpinner, AppKind::Fidget, false},
     {"fidget.gravity_ball", "Gravity ball", ScreenId::FidgetGravityBall, AppKind::Fidget, false},
-    {"system.developer", "Developer", ScreenId::Developer, AppKind::Developer, false},
-    {"developer.axis_calibration", "Axis calibration", ScreenId::AxisCalibration,
-     AppKind::Developer, false},
-    {"developer.bootloader", "Bootloader", ScreenId::Bootloader, AppKind::Developer, false},
-    {"developer.hardware_diagnostics", "Hardware diagnostics", ScreenId::HardwareDiagnostics,
-     AppKind::System, false},
 };
 
 constexpr AppDescriptor kSettingsAppDefinitions[] = {
@@ -87,11 +81,21 @@ constexpr AppDescriptor kSettingsAppDefinitions[] = {
     {"settings.power", "Power", ScreenId::Power, AppKind::Settings, false},
     {"settings.device_info", "Device information", ScreenId::DeviceInfo, AppKind::Settings, false},
 };
+
+constexpr AppDescriptor kDevelopmentAppDefinitions[] = {
+    {"system.development", "Development", ScreenId::Developer, AppKind::Developer, false},
+    {"developer.axis_calibration", "Axis calibration", ScreenId::AxisCalibration,
+     AppKind::Developer, false},
+    {"developer.bootloader", "Bootloader", ScreenId::Bootloader, AppKind::Developer, false},
+    {"developer.hardware_diagnostics", "Hardware diagnostics", ScreenId::HardwareDiagnostics,
+     AppKind::Developer, false},
+};
 }  // namespace
 
 App::App()
     : power_(settings_),
       appManager_(screenManager_),
+      developmentApp_(screenManager_),
       settingsApp_(screenManager_),
       watchScreen_(timeService_, battery_, wifi_, settings_),
       watchApp_(watchScreen_),
@@ -186,6 +190,12 @@ void App::registerApps() {
        ++i) {
     AppDescriptor app = kSettingsAppDefinitions[i];
     app.application = &settingsApp_;
+    appManager_.registerApp(app);
+  }
+  for (size_t i = 0;
+       i < sizeof(kDevelopmentAppDefinitions) / sizeof(kDevelopmentAppDefinitions[0]); ++i) {
+    AppDescriptor app = kDevelopmentAppDefinitions[i];
+    app.application = &developmentApp_;
     appManager_.registerApp(app);
   }
   for (size_t i = 0; i < sizeof(kAppDefinitions) / sizeof(kAppDefinitions[0]); ++i) {
