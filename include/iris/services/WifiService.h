@@ -43,6 +43,10 @@ class WifiService {
   void handleApiSettings();
   void handleApiDisplaySettings();
   void handleApiPowerSettings();
+  void handleApiTouchSettings();
+  void handleApiSoundSettings();
+  void handleApiThemeSettings();
+  void handleApiCommand();
   void handleApiWifiStatus();
   void handleDisplaySnapshot();
   void handleWifiSetup();
@@ -61,6 +65,13 @@ class WifiService {
   String snapshotValue(const String& snapshot, const char* key) const;
   int snapshotInt(const String& snapshot, const char* key, int fallback) const;
   bool snapshotOn(const String& snapshot, const char* key) const;
+  bool dispatchControlCommand(const String& command);
+  String apiArg(const char* name);
+  bool apiIntArg(const char* name, int* value);
+  bool apiBoolArg(const char* name, bool* value);
+  bool apiStringArg(const char* name, String* value);
+  void sendApiError(int code, const char* message);
+  void sendApiOk(const char* message);
   static String escapeJson(const String& value);
   static String escapeHtml(const String& value);
 
