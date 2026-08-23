@@ -34,9 +34,9 @@ class IrisApplication {
   virtual void onStop() {}
   virtual void update(uint32_t) {}
   virtual void render() {}
-  virtual void onButtonA() {}
-  virtual void onButtonB() {}
-  virtual void onTouch(int32_t, int32_t) {}
+  virtual bool onButtonA() { return false; }
+  virtual bool onButtonB() { return false; }
+  virtual bool onTouch(int32_t, int32_t) { return false; }
 };
 
 struct AppDescriptor {
@@ -82,9 +82,9 @@ class AppManager {
   bool stopCurrent();
   void update(uint32_t nowMs);
   void render();
-  void onButtonA();
-  void onButtonB();
-  void onTouch(int32_t x, int32_t y);
+  bool onButtonA();
+  bool onButtonB();
+  bool onTouch(int32_t x, int32_t y);
 
   const AppDescriptor* current() const;
   AppLifecycleState currentState() const;
