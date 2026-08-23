@@ -9,6 +9,7 @@ void SettingsStore::begin() {
   wifiEnabled_ = prefs_.getBool("wifi_on", true);
   watchBackground_ = prefs_.getUChar("watch_bg", 0);
   activeBrightness_ = prefs_.getUChar("bright", config::kActiveBrightness);
+  dimBrightness_ = prefs_.getUChar("dim_bright", config::kDimBrightness);
   dimTimeoutSeconds_ = prefs_.getUShort("dim_sec", config::kDisplayDimMs / 1000UL);
   sleepTimeoutSeconds_ = prefs_.getUShort("sleep_sec", config::kDisplaySleepMs / 1000UL);
   wifiOnDemand_ = prefs_.getBool("wifi_demand", false);
@@ -94,6 +95,11 @@ void SettingsStore::setComplicationId(uint8_t value) {
 void SettingsStore::setActiveBrightness(uint8_t value) {
   activeBrightness_ = value;
   prefs_.putUChar("bright", activeBrightness_);
+}
+
+void SettingsStore::setDimBrightness(uint8_t value) {
+  dimBrightness_ = value;
+  prefs_.putUChar("dim_bright", dimBrightness_);
 }
 
 void SettingsStore::setDimTimeoutSeconds(uint16_t value) {

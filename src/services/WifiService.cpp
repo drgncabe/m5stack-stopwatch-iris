@@ -140,6 +140,9 @@ void WifiService::configurePortalRoutes() {
   server_.on("/", HTTP_GET, [this]() { handleControlPanel(); });
   server_.on("/control", HTTP_GET, [this]() { handleControlCommand(); });
   server_.on("/api/settings", HTTP_GET, [this]() { handleApiSettings(); });
+  server_.on("/api/settings/display", HTTP_GET, [this]() { handleApiDisplaySettings(); });
+  server_.on("/api/settings/power", HTTP_GET, [this]() { handleApiPowerSettings(); });
+  server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/display.txt", HTTP_GET, [this]() { handleDisplaySnapshot(); });
   server_.on("/setup", HTTP_GET, [this]() { handleWifiSetup(); });
   server_.on("/save", HTTP_POST, [this]() { handlePortalSave(); });
@@ -170,6 +173,7 @@ void WifiService::handleControlPanel() {
   if (page == "display") {
     html += F("<section><h2>Display</h2>");
     appendRangeControl(html, "Brightness", "brightness_set", snapshotInt(snapshot, "Brightness", 96), 16, 255, 1, "/255");
+    appendRangeControl(html, "Dim brightness", "dim_brightness_set", snapshotInt(snapshot, "Dim brightness", 18), 1, 96, 1, "/255");
     appendRangeControl(html, "Dim timeout", "dim_set", snapshotInt(snapshot, "Dim timeout", 20), 5, 120, 1, " sec");
     appendRangeControl(html, "Sleep timeout", "sleep_set", snapshotInt(snapshot, "Sleep timeout", 90), 0, 600, 5, " sec");
     appendToggleControl(html, "Low-power watch face", "low_face_toggle", snapshotOn(snapshot, "Low-power face"));
@@ -216,6 +220,7 @@ void WifiService::handleControlPanel() {
   } else if (page == "power") {
     html += F("<section><h2>Power</h2>");
     appendRangeControl(html, "Brightness", "brightness_set", snapshotInt(snapshot, "Brightness", 96), 16, 255, 1, "/255");
+    appendRangeControl(html, "Dim brightness", "dim_brightness_set", snapshotInt(snapshot, "Dim brightness", 18), 1, 96, 1, "/255");
     appendRangeControl(html, "Dim timeout", "dim_set", snapshotInt(snapshot, "Dim timeout", 20), 5, 120, 1, " sec");
     appendRangeControl(html, "Screen-off timeout", "sleep_set", snapshotInt(snapshot, "Sleep timeout", 90), 0, 600, 5, " sec");
     html += F("<div class='control'><label>Power profile<span>");
@@ -245,7 +250,7 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "Face layout"));
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a></section>");
   } else if (page == "development") {
     html += F("<section><h2>Development</h2><div class='grid'>");
     appendAction(html, "Watch screen", "watch");
@@ -323,6 +328,8 @@ void WifiService::handleApiSettings() {
   json += escapeJson(snapshotValue(snapshot, "Face layout"));
   json += F("\",\"brightness\":");
   json += String(snapshotInt(snapshot, "Brightness", 0));
+  json += F(",\"dimBrightness\":");
+  json += String(snapshotInt(snapshot, "Dim brightness", 0));
   json += F(",\"dimTimeoutSeconds\":");
   json += String(snapshotInt(snapshot, "Dim timeout", 0));
   json += F(",\"sleepTimeoutSeconds\":");
@@ -330,6 +337,74 @@ void WifiService::handleApiSettings() {
   json += F(",\"touchDelayMs\":");
   json += String(snapshotInt(snapshot, "Touch delay", 0));
   json += F("}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiDisplaySettings() {
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(420);
+  json += F("{\"brightness\":");
+  json += String(snapshotInt(snapshot, "Brightness", 0));
+  json += F(",\"dimBrightness\":");
+  json += String(snapshotInt(snapshot, "Dim brightness", 0));
+  json += F(",\"dimTimeoutSeconds\":");
+  json += String(snapshotInt(snapshot, "Dim timeout", 0));
+  json += F(",\"sleepTimeoutSeconds\":");
+  json += String(snapshotInt(snapshot, "Sleep timeout", 0));
+  json += F(",\"lowPowerFace\":");
+  json += snapshotOn(snapshot, "Low-power face") ? F("true") : F("false");
+  json += F(",\"autoRotate\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Auto rotate"));
+  json += F("\",\"theme\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Theme"));
+  json += F("\",\"layout\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Face layout"));
+  json += F("\"}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiPowerSettings() {
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(360);
+  json += F("{\"displayPower\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Display power"));
+  json += F("\",\"powerProfile\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Power profile"));
+  json += F("\",\"cpu\":\"");
+  json += escapeJson(snapshotValue(snapshot, "CPU"));
+  json += F("\",\"dimBrightness\":");
+  json += String(snapshotInt(snapshot, "Dim brightness", 0));
+  json += F(",\"dimTimeoutSeconds\":");
+  json += String(snapshotInt(snapshot, "Dim timeout", 0));
+  json += F(",\"sleepTimeoutSeconds\":");
+  json += String(snapshotInt(snapshot, "Sleep timeout", 0));
+  json += F(",\"wifiOnDemand\":");
+  json += snapshotOn(snapshot, "WiFi on demand") ? F("true") : F("false");
+  json += F(",\"indicatorLight\":");
+  json += snapshotOn(snapshot, "Indicator light") ? F("true") : F("false");
+  json += F("}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiWifiStatus() {
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(260);
+  json += F("{\"enabled\":");
+  json += isEnabled() ? F("true") : F("false");
+  json += F(",\"connected\":");
+  json += isConnected() ? F("true") : F("false");
+  json += F(",\"provisioning\":");
+  json += isProvisioning() ? F("true") : F("false");
+  json += F(",\"status\":\"");
+  json += escapeJson(snapshotValue(snapshot, "WiFi"));
+  json += F("\",\"ssid\":\"");
+  json += escapeJson(snapshotValue(snapshot, "SSID"));
+  json += F("\",\"ip\":\"");
+  json += escapeJson(snapshotValue(snapshot, "IP"));
+  json += F("\"}");
   server_.send(200, "application/json", json);
 }
 

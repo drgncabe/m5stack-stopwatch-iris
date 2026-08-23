@@ -11,6 +11,8 @@ constexpr uint32_t kMenuReturnTimeoutMs = 30000;
 constexpr int32_t kTouchMoveTolerance = 18;
 constexpr uint16_t kMinDimSeconds = 5;
 constexpr uint16_t kMaxDimSeconds = 120;
+constexpr uint8_t kMinDimBrightness = 1;
+constexpr uint8_t kMaxDimBrightness = 96;
 constexpr uint16_t kMinSleepSeconds = 0;
 constexpr uint16_t kMaxSleepSeconds = 600;
 constexpr uint16_t kMinTouchDelayMs = 50;
@@ -328,6 +330,13 @@ void App::handleControlCommand(const String& command) {
     adjustDimTimeout(-5);
   } else if (command == "dim_up") {
     adjustDimTimeout(5);
+  } else if (command.startsWith("dim_brightness_set:")) {
+    const int brightness =
+        constrain(command.substring(19).toInt(), kMinDimBrightness, kMaxDimBrightness);
+    settings_.setDimBrightness(static_cast<uint8_t>(brightness));
+    if (power_.state() == DisplayPowerState::Dimmed) {
+      M5.Display.setBrightness(static_cast<uint8_t>(brightness));
+    }
   } else if (command.startsWith("dim_set:")) {
     const int seconds = constrain(command.substring(8).toInt(), kMinDimSeconds, kMaxDimSeconds);
     settings_.setDimTimeoutSeconds(static_cast<uint16_t>(seconds));
@@ -455,6 +464,9 @@ String App::buildControlSnapshot() const {
   snapshot += settings_.widgetEnabled(kWidgetComplication) ? complicationName(settings_.complicationId()) : "Off";
   snapshot += "\nBrightness: ";
   snapshot += String(settings_.activeBrightness());
+  snapshot += "/255";
+  snapshot += "\nDim brightness: ";
+  snapshot += String(settings_.dimBrightness());
   snapshot += "/255";
   snapshot += "\nDim timeout: ";
   snapshot += String(settings_.dimTimeoutSeconds());

@@ -252,11 +252,20 @@ Credentials are stored locally on the StopWatch using ESP32 non-volatile storage
 
 ## Web Control Panel
 
-When WiFi is active, Iris runs a lightweight web control panel on the device. The current web UI exposes common controls and a text-based status snapshot.
+When WiFi is active, Iris runs a lightweight web control panel on the device. The current web UI exposes common controls, category-based settings pages, and a text-based status snapshot.
 
-The planned web configurator is broader: a menu-based configuration console with pages for Dashboard, Display, Touch, Sound, WiFi, Theme, Power, Device, and Development. It should use the same settings model as the device UI and provide finer control than is practical on a 1.75-inch screen.
+The web configurator is moving toward a menu-based configuration console with pages for Dashboard, Display, Touch, Sound, WiFi, Theme, Power, Device, and Development. It uses the same settings model as the device UI and provides finer control than is practical on a 1.75-inch screen.
 
 A rendered watch-face preview or framebuffer-style display snapshot is planned, but the current snapshot is text-based.
+
+Current web/API routes include:
+
+- `/` for the web configurator
+- `/display.txt` for the plain-text device snapshot
+- `/api/settings` for the combined JSON settings snapshot
+- `/api/settings/display` for display-focused JSON settings
+- `/api/settings/power` for power-focused JSON settings
+- `/api/wifi/status` for WiFi status JSON
 
 ## ESP32-C5-Zero Companion Nodes
 
