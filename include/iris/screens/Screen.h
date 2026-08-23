@@ -22,6 +22,7 @@ enum class ScreenId : uint8_t {
   Developer,
   AxisCalibration,
   Bootloader,
+  HardwareDiagnostics,
   DeviceInfo,
   Count
 };

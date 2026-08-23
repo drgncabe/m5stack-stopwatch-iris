@@ -34,6 +34,7 @@ constexpr MenuItem kSettingsMenuItems[] = {
 };
 
 constexpr MenuItem kDeveloperMenuItems[] = {
+    {"HW diagnostics", ScreenId::HardwareDiagnostics},
     {"Axis calibration", ScreenId::AxisCalibration},
     {"Bootloader", ScreenId::Bootloader},
     {"Back", ScreenId::Settings},
@@ -78,6 +79,8 @@ constexpr AppDescriptor kAppDefinitions[] = {
     {"developer.axis_calibration", "Axis calibration", ScreenId::AxisCalibration,
      AppKind::Developer, false},
     {"developer.bootloader", "Bootloader", ScreenId::Bootloader, AppKind::Developer, false},
+    {"developer.hardware_diagnostics", "Hardware diagnostics", ScreenId::HardwareDiagnostics,
+     AppKind::System, false},
     {"system.device_info", "Device information", ScreenId::DeviceInfo, AppKind::System, false},
 };
 }  // namespace
@@ -104,6 +107,7 @@ App::App()
                            sizeof(kDeveloperMenuItems) / sizeof(kDeveloperMenuItems[0]), settings_),
       axisCalibrationScreen_(settings_),
       bootloaderScreen_(settings_),
+      hardwareDiagnosticsScreen_(settings_, wifi_),
       deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
 void App::begin() {
@@ -160,6 +164,7 @@ void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Developer, &developerMenuScreen_);
   screenManager_.registerScreen(ScreenId::AxisCalibration, &axisCalibrationScreen_);
   screenManager_.registerScreen(ScreenId::Bootloader, &bootloaderScreen_);
+  screenManager_.registerScreen(ScreenId::HardwareDiagnostics, &hardwareDiagnosticsScreen_);
   screenManager_.registerScreen(ScreenId::DeviceInfo, &deviceInfoScreen_);
 }
 
@@ -589,6 +594,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Developer: return "Developer";
     case ScreenId::AxisCalibration: return "Axis calibration";
     case ScreenId::Bootloader: return "Bootloader";
+    case ScreenId::HardwareDiagnostics: return "Hardware diagnostics";
     case ScreenId::DeviceInfo: return "Device info";
     default: return "Unknown";
   }
