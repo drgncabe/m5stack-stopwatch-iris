@@ -23,12 +23,14 @@ class PowerScreen : public Screen {
   void drawRow(size_t index, bool selected);
   int rowAt(int32_t x, int32_t y) const;
   void cycleBrightness();
+  void cycleDimBrightness();
   void cycleDimTimeout();
   void cycleSleepTimeout();
   void cyclePowerProfile();
   void cycleTouchDelay();
   void applyIndicatorLight();
   const char* brightnessName() const;
+  const char* dimBrightnessName() const;
   const char* dimTimeoutName() const;
   const char* sleepTimeoutName() const;
   const char* touchDelayName() const;

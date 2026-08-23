@@ -41,6 +41,9 @@ class WifiService {
   void handleControlPanel();
   void handleControlCommand();
   void handleApiSettings();
+  void handleApiDisplaySettings();
+  void handleApiPowerSettings();
+  void handleApiWifiStatus();
   void handleDisplaySnapshot();
   void handleWifiSetup();
   void handlePortalSave();

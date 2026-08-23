@@ -7,14 +7,15 @@
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 35;
-constexpr int kRowStartY = 74;
+constexpr int kRowHeight = 32;
+constexpr int kRowStartY = 70;
 constexpr int kRowLeft = 42;
 constexpr int kRowWidth = 382;
-constexpr int kRowRectHeight = 30;
-constexpr size_t kItemCount = 10;
+constexpr int kRowRectHeight = 27;
+constexpr size_t kItemCount = 11;
 
 constexpr uint8_t kBrightnessValues[] = {48, 96, 160};
+constexpr uint8_t kDimBrightnessValues[] = {8, 18, 32, 48};
 constexpr uint16_t kDimTimeoutValues[] = {10, 20, 45, 120};
 constexpr uint16_t kSleepTimeoutValues[] = {30, 90, 180, 300, 0};
 constexpr uint16_t kTouchDelayValues[] = {95, 150, 225, 300};
@@ -67,14 +68,15 @@ void PowerScreen::onButtonB() {
 void PowerScreen::activateSelected() {
   switch (selected_) {
     case 0: cycleBrightness(); break;
-    case 1: cycleDimTimeout(); break;
-    case 2: cycleSleepTimeout(); break;
-    case 3: cyclePowerProfile(); break;
-    case 4: settings_.setWifiOnDemand(!settings_.wifiOnDemand()); break;
-    case 5: settings_.setLowPowerFace(!settings_.lowPowerFace()); break;
-    case 6: settings_.setAutoRotate(!settings_.autoRotate()); break;
-    case 7: settings_.setIndicatorLightEnabled(!settings_.indicatorLightEnabled()); applyIndicatorLight(); break;
-    case 8: cycleTouchDelay(); break;
+    case 1: cycleDimBrightness(); break;
+    case 2: cycleDimTimeout(); break;
+    case 3: cycleSleepTimeout(); break;
+    case 4: cyclePowerProfile(); break;
+    case 5: settings_.setWifiOnDemand(!settings_.wifiOnDemand()); break;
+    case 6: settings_.setLowPowerFace(!settings_.lowPowerFace()); break;
+    case 7: settings_.setAutoRotate(!settings_.autoRotate()); break;
+    case 8: settings_.setIndicatorLightEnabled(!settings_.indicatorLightEnabled()); applyIndicatorLight(); break;
+    case 9: cycleTouchDelay(); break;
     default: goBack(); return;
   }
   drawRow(selected_, true);
@@ -103,34 +105,38 @@ void PowerScreen::drawRow(size_t index, bool selected) {
       value = brightnessName();
       break;
     case 1:
+      label = "Dim brightness";
+      value = dimBrightnessName();
+      break;
+    case 2:
       label = "Dim";
       value = dimTimeoutName();
       break;
-    case 2:
+    case 3:
       label = "Sleep";
       value = sleepTimeoutName();
       break;
-    case 3:
+    case 4:
       label = "Power profile";
       value = powerProfileName(settings_.powerProfile());
       break;
-    case 4:
+    case 5:
       label = "WiFi on demand";
       value = settings_.wifiOnDemand() ? "On" : "Off";
       break;
-    case 5:
+    case 6:
       label = "Low-power face";
       value = settings_.lowPowerFace() ? "On" : "Off";
       break;
-    case 6:
+    case 7:
       label = "Auto rotate";
       value = settings_.autoRotate() ? "On" : "Off";
       break;
-    case 7:
+    case 8:
       label = "Indicator light";
       value = settings_.indicatorLightEnabled() ? "On" : "Off";
       break;
-    case 8:
+    case 9:
       label = "Touch delay";
       value = touchDelayName();
       break;
@@ -170,6 +176,17 @@ void PowerScreen::cycleBrightness() {
   }
   settings_.setActiveBrightness(next);
   M5.Display.setBrightness(next);
+}
+
+void PowerScreen::cycleDimBrightness() {
+  uint8_t next = kDimBrightnessValues[0];
+  for (size_t i = 0; i < sizeof(kDimBrightnessValues); ++i) {
+    if (settings_.dimBrightness() <= kDimBrightnessValues[i]) {
+      next = kDimBrightnessValues[(i + 1) % sizeof(kDimBrightnessValues)];
+      break;
+    }
+  }
+  settings_.setDimBrightness(next);
 }
 
 void PowerScreen::cycleDimTimeout() {
@@ -226,6 +243,13 @@ void PowerScreen::applyIndicatorLight() {
 const char* PowerScreen::brightnessName() const {
   if (settings_.activeBrightness() <= 48) return "Low";
   if (settings_.activeBrightness() <= 96) return "Med";
+  return "High";
+}
+
+const char* PowerScreen::dimBrightnessName() const {
+  if (settings_.dimBrightness() <= 8) return "Min";
+  if (settings_.dimBrightness() <= 18) return "Low";
+  if (settings_.dimBrightness() <= 32) return "Med";
   return "High";
 }
 

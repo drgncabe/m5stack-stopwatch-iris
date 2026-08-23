@@ -86,6 +86,9 @@ class SettingsStore {
   uint8_t activeBrightness() const { return activeBrightness_; }
   void setActiveBrightness(uint8_t value);
 
+  uint8_t dimBrightness() const { return dimBrightness_; }
+  void setDimBrightness(uint8_t value);
+
   uint16_t dimTimeoutSeconds() const { return dimTimeoutSeconds_; }
   void setDimTimeoutSeconds(uint16_t value);
 
@@ -126,6 +129,7 @@ class SettingsStore {
   bool wifiEnabled_ = true;
   uint8_t watchBackground_ = 0;
   uint8_t activeBrightness_ = 96;
+  uint8_t dimBrightness_ = 18;
   uint16_t dimTimeoutSeconds_ = 20;
   uint16_t sleepTimeoutSeconds_ = 90;
   bool wifiOnDemand_ = false;

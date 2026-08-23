@@ -12,7 +12,6 @@ constexpr uint32_t kBalancedActiveCpuMhz = 160;
 constexpr uint32_t kPerformanceCpuMhz = 240;
 constexpr uint32_t kRuntimeIdleCpuMhz = 80;
 constexpr uint32_t kBalancedIdleCpuMhz = 80;
-constexpr uint8_t kRuntimeDimBrightness = 8;
 }  // namespace
 
 void PowerManager::begin() {
@@ -106,9 +105,7 @@ void PowerManager::applyActiveDisplay() {
 }
 
 void PowerManager::applyDimDisplay() {
-  const uint8_t dimBrightness =
-      settings_.powerProfile() == PowerProfile::Runtime ? kRuntimeDimBrightness : config::kDimBrightness;
-  M5.Display.setBrightness(dimBrightness);
+  M5.Display.setBrightness(settings_.dimBrightness());
 }
 
 void PowerManager::applySleepDisplay() {
