@@ -1,5 +1,7 @@
 #pragma once
 
+#include "iris/core/AppManager.h"
+#include "iris/core/ServiceRegistry.h"
 #include "iris/screens/AxisCalibrationScreen.h"
 #include "iris/screens/BootloaderScreen.h"
 #include "iris/screens/BackgroundScreen.h"
@@ -37,6 +39,9 @@ class App {
   static void handleControlCommand(void* context, const String& command);
   static String buildControlSnapshot(void* context);
 
+  void registerServices();
+  void registerScreens();
+  void registerApps();
   void handleControlCommand(const String& command);
   String buildControlSnapshot() const;
   void adjustVolume(int delta);
@@ -61,7 +66,9 @@ class App {
   StatusLightService statusLight_;
   WifiService wifi_;
   TimeService timeService_;
+  ServiceRegistry services_;
   ScreenManager screenManager_;
+  AppManager appManager_;
 
   WatchScreen watchScreen_;
   MenuScreen mainMenuScreen_;
