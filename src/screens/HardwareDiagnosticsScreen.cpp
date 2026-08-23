@@ -1,8 +1,10 @@
 #include "iris/screens/HardwareDiagnosticsScreen.h"
 
+#include <ESP.h>
 #include <M5Unified.h>
 #include <WiFi.h>
 
+#include "iris/AppConfig.h"
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
 
@@ -14,7 +16,8 @@ constexpr int kRowStartY = 76;
 constexpr int kRowLeft = 38;
 constexpr int kRowWidth = 390;
 constexpr int kRowRectHeight = 29;
-constexpr size_t kItemCount = 10;
+constexpr size_t kItemCount = 8;
+constexpr size_t kPageCount = 9;
 constexpr uint32_t kShortTestMs = 5000;
 constexpr uint32_t kHapticTestMs = 650;
 constexpr uint32_t kStatusRefreshMs = 500;
@@ -22,10 +25,48 @@ constexpr uint32_t kStatusRefreshMs = 500;
 bool timeExpired(uint32_t nowMs, uint32_t untilMs) {
   return untilMs != 0 && static_cast<int32_t>(nowMs - untilMs) >= 0;
 }
+
+String formatBytes(uint32_t bytes) {
+  if (bytes >= 1024 * 1024) {
+    return String(bytes / (1024 * 1024)) + "." + String((bytes % (1024 * 1024)) / 104858) + " MB";
+  }
+  if (bytes >= 1024) return String(bytes / 1024) + " KB";
+  return String(bytes) + " B";
+}
+
+String formatDateTime(const DateTimeSnapshot& dt) {
+  if (!dt.valid) return "Not set";
+  char buffer[24];
+  snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d %02d:%02d:%02d",
+           dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+  return String(buffer);
+}
+
+String formatVec3(float x, float y, float z, uint8_t decimals) {
+  const unsigned int places = decimals;
+  return String(x, places) + "," + String(y, places) + "," + String(z, places);
+}
+
+String fitTextToWidth(const String& text, int maxWidth) {
+  if (maxWidth <= 0 || M5.Display.textWidth(text) <= maxWidth) return text;
+
+  String fitted(text);
+  const String ellipsis("...");
+  while (fitted.length() > 0 &&
+         M5.Display.textWidth(fitted + ellipsis) > maxWidth) {
+    fitted.remove(fitted.length() - 1);
+  }
+
+  if (fitted.length() == 0) return ellipsis;
+  return fitted + ellipsis;
+}
 }  // namespace
 
 void HardwareDiagnosticsScreen::enter() {
+  page_ = Page::System;
   selected_ = 0;
+  lastTouchX_ = -1;
+  lastTouchY_ = -1;
   audioSilenceUntilMs_ = 0;
   displayOffUntilMs_ = 0;
   brightnessTestUntilMs_ = 0;
@@ -56,9 +97,12 @@ void HardwareDiagnosticsScreen::update(uint32_t nowMs) {
 
   if (displayOffUntilMs_ != 0) return;
 
+  if (page_ == Page::Imu && M5.Imu.isEnabled()) {
+    M5.Imu.update();
+  }
+
   if (shouldRedraw || nowMs - lastStatusDrawMs_ >= kStatusRefreshMs) {
-    drawFooter();
-    drawRow(selected_, true);
+    draw();
     lastStatusDrawMs_ = nowMs;
   }
 }
@@ -81,12 +125,16 @@ void HardwareDiagnosticsScreen::draw() {
 }
 
 void HardwareDiagnosticsScreen::previewTouch(int32_t x, int32_t y) {
+  lastTouchX_ = x;
+  lastTouchY_ = y;
   const int row = rowAt(x, y);
   if (row < 0) return;
   selectRow(static_cast<size_t>(row));
 }
 
 void HardwareDiagnosticsScreen::handleTouch(int32_t x, int32_t y) {
+  lastTouchX_ = x;
+  lastTouchY_ = y;
   const int row = rowAt(x, y);
   if (row < 0) return;
   selectRow(static_cast<size_t>(row));
@@ -102,17 +150,37 @@ void HardwareDiagnosticsScreen::onButtonB() {
 }
 
 void HardwareDiagnosticsScreen::activateSelected(uint32_t nowMs) {
-  switch (selected_) {
-    case 0: startAudioSilence(nowMs); break;
-    case 1: testAudioTone(); break;
-    case 2: startDisplayOff(nowMs); break;
-    case 3: startBrightnessTest(16, "Min test", nowMs); break;
-    case 4: startBrightnessTest(200, "High test", nowMs); break;
-    case 5: toggleWifi(); break;
-    case 6: toggleWifiSleep(); break;
-    case 7: startHapticPulse(nowMs); break;
-    case 8: cyclePowerProfile(); break;
-    default: goBack(); return;
+  if (selected_ == 0) {
+    nextPage();
+    return;
+  }
+  if (selected_ == kItemCount - 1) {
+    goBack();
+    return;
+  }
+
+  switch (page_) {
+    case Page::Display:
+      if (selected_ == 3) startDisplayOff(nowMs);
+      if (selected_ == 4) startBrightnessTest(16, "Min test", nowMs);
+      if (selected_ == 5) startBrightnessTest(200, "High test", nowMs);
+      break;
+    case Page::Audio:
+      if (selected_ == 2) testAudioTone();
+      if (selected_ == 3) startAudioSilence(nowMs);
+      break;
+    case Page::Wifi:
+      if (selected_ == 4) toggleWifi();
+      if (selected_ == 5) toggleWifiSleep();
+      break;
+    case Page::Power:
+      if (selected_ == 4) cyclePowerProfile();
+      break;
+    case Page::Haptics:
+      if (selected_ == 1) startHapticPulse(nowMs);
+      break;
+    default:
+      break;
   }
 
   if (displayOffUntilMs_ == 0) {
@@ -129,6 +197,13 @@ void HardwareDiagnosticsScreen::selectRow(size_t index) {
   drawRow(selected_, true);
 }
 
+void HardwareDiagnosticsScreen::nextPage() {
+  const uint8_t next = (static_cast<uint8_t>(page_) + 1) % kPageCount;
+  page_ = static_cast<Page>(next);
+  selected_ = 0;
+  draw();
+}
+
 void HardwareDiagnosticsScreen::drawRow(size_t index, bool selected) {
   if (index >= kItemCount || displayOffUntilMs_ != 0) return;
 
@@ -137,49 +212,8 @@ void HardwareDiagnosticsScreen::drawRow(size_t index, bool selected) {
   const uint16_t fill = selected ? theme.selected : theme.background;
   const uint16_t border = selected ? theme.foreground : theme.panel;
 
-  const char* label = "";
-  String value;
-  switch (index) {
-    case 0:
-      label = "Audio silence";
-      value = audioSilenceUntilMs_ == 0 ? "Ready" : "Muted";
-      break;
-    case 1:
-      label = "Audio tone";
-      value = "Tap";
-      break;
-    case 2:
-      label = "Display off";
-      value = displayOffUntilMs_ == 0 ? "5 sec" : "Off";
-      break;
-    case 3:
-      label = "Brightness min";
-      value = brightnessTestLabel_ == nullptr ? "5 sec" : brightnessTestLabel_;
-      break;
-    case 4:
-      label = "Brightness high";
-      value = brightnessTestLabel_ == nullptr ? "5 sec" : brightnessTestLabel_;
-      break;
-    case 5:
-      label = "WiFi radio";
-      value = wifi_.isEnabled() ? "On" : "Off";
-      break;
-    case 6:
-      label = "WiFi sleep";
-      value = wifiSleep_ ? "On" : "Off";
-      break;
-    case 7:
-      label = "Haptic pulse";
-      value = hapticUntilMs_ == 0 ? "Ready" : "On";
-      break;
-    case 8:
-      label = "Power profile";
-      value = powerProfileName(settings_.powerProfile());
-      break;
-    default:
-      label = "Back";
-      break;
-  }
+  const char* label = rowLabel(index);
+  const String value = rowValue(index);
 
   M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, fill);
   M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, border);
@@ -189,7 +223,8 @@ void HardwareDiagnosticsScreen::drawRow(size_t index, bool selected) {
   M5.Display.drawString(label, kRowLeft + 16, y + (kRowRectHeight / 2));
   M5.Display.setTextDatum(middle_right);
   M5.Display.setTextColor(theme.muted, fill);
-  M5.Display.drawString(value, kRowLeft + kRowWidth - 16, y + (kRowRectHeight / 2));
+  M5.Display.drawString(fitTextToWidth(value, 190), kRowLeft + kRowWidth - 16,
+                        y + (kRowRectHeight / 2));
 }
 
 void HardwareDiagnosticsScreen::drawFooter() {
@@ -201,11 +236,11 @@ void HardwareDiagnosticsScreen::drawFooter() {
   M5.Display.setTextDatum(middle_center);
   M5.Display.setTextColor(theme.muted, theme.background);
   String status = "CPU ";
-  status += String(getCpuFrequencyMhz());
+  status += String(power_.currentCpuMhz());
   status += " MHz  ";
-  status += wifi_.statusText();
+  status += battery_.statusText();
   M5.Display.drawString(status, M5.Display.width() / 2, 428);
-  M5.Display.drawString("A: Next     B: Run", M5.Display.width() / 2, 448);
+  M5.Display.drawString("A: Next     B: Run/Page", M5.Display.width() / 2, 448);
 }
 
 int HardwareDiagnosticsScreen::rowAt(int32_t x, int32_t y) const {
@@ -215,6 +250,186 @@ int HardwareDiagnosticsScreen::rowAt(int32_t x, int32_t y) const {
     if (y >= rowY - 3 && y <= rowY + kRowRectHeight + 3) return static_cast<int>(i);
   }
   return -1;
+}
+
+const char* HardwareDiagnosticsScreen::pageName() const {
+  switch (page_) {
+    case Page::System: return "System";
+    case Page::Display: return "Display";
+    case Page::Audio: return "Audio";
+    case Page::Input: return "Input";
+    case Page::Imu: return "BMI270";
+    case Page::Wifi: return "WiFi";
+    case Page::Power: return "Power";
+    case Page::Rtc: return "RTC";
+    case Page::Haptics: return "Haptics";
+  }
+  return "Unknown";
+}
+
+const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
+  if (index == 0) return "Page";
+  if (index == kItemCount - 1) return "Back";
+
+  switch (page_) {
+    case Page::System: {
+      constexpr const char* labels[] = {"", "Firmware", "CPU", "Uptime", "Heap", "PSRAM", "Flash", ""};
+      return labels[index];
+    }
+    case Page::Display: {
+      constexpr const char* labels[] = {"", "Brightness", "Power state", "Display off", "Brightness min", "Brightness high", "Rotation", ""};
+      return labels[index];
+    }
+    case Page::Audio: {
+      constexpr const char* labels[] = {"", "Volume", "Tone test", "Silence test", "Speaker", "Mic", "Restore", ""};
+      return labels[index];
+    }
+    case Page::Input: {
+      constexpr const char* labels[] = {"", "Touch", "BtnA", "BtnB", "Delay", "Preview", "Coordinates", ""};
+      return labels[index];
+    }
+    case Page::Imu: {
+      constexpr const char* labels[] = {"", "Sensor", "Accel", "Gyro", "Auto rotate", "Rotation", "Offsets", ""};
+      return labels[index];
+    }
+    case Page::Wifi: {
+      constexpr const char* labels[] = {"", "Status", "SSID", "IP", "Radio", "Sleep", "Portal", ""};
+      return labels[index];
+    }
+    case Page::Power: {
+      constexpr const char* labels[] = {"", "Battery", "Charging", "Display", "Profile", "CPU", "Idle dim/off", ""};
+      return labels[index];
+    }
+    case Page::Rtc: {
+      constexpr const char* labels[] = {"", "RTC", "Clock", "NTP", "Timezone", "System time", "Sync", ""};
+      return labels[index];
+    }
+    case Page::Haptics: {
+      constexpr const char* labels[] = {"", "Pulse test", "Vibration", "Audio mute", "Display test", "WiFi sleep", "Safe restore", ""};
+      return labels[index];
+    }
+  }
+  return "";
+}
+
+String HardwareDiagnosticsScreen::rowValue(size_t index) const {
+  if (index == 0) return String(pageName()) + " >";
+  if (index == kItemCount - 1) return "";
+
+  switch (page_) {
+    case Page::System:
+      switch (index) {
+        case 1: return config::kVersion;
+        case 2: return String(getCpuFrequencyMhz()) + " MHz";
+        case 3: return String(millis() / 1000) + "s";
+        case 4: return formatBytes(ESP.getFreeHeap());
+        case 5: return psramFound() ? formatBytes(ESP.getFreePsram()) : "Unavailable";
+        case 6: return formatBytes(ESP.getFlashChipSize());
+      }
+      break;
+    case Page::Display:
+      switch (index) {
+        case 1: return String(settings_.activeBrightness()) + "/255";
+        case 2: return power_.stateName();
+        case 3: return displayOffUntilMs_ == 0 ? "5 sec" : "Off";
+        case 4: return brightnessTestLabel_ == nullptr ? "5 sec" : brightnessTestLabel_;
+        case 5: return brightnessTestLabel_ == nullptr ? "5 sec" : brightnessTestLabel_;
+        case 6: return String(M5.Display.getRotation());
+      }
+      break;
+    case Page::Audio:
+      switch (index) {
+        case 1: return String((settings_.volume() * 100) / 255) + "%";
+        case 2: return "Run";
+        case 3: return audioSilenceUntilMs_ == 0 ? "5 sec" : "Muted";
+        case 4: return "Available";
+        case 5: return "Not measured";
+        case 6: return "On exit";
+      }
+      break;
+    case Page::Input:
+      switch (index) {
+        case 1: return M5.Touch.getDetail().isPressed() ? "Pressed" : "Released";
+        case 2: return M5.BtnA.isPressed() ? "Pressed" : "Released";
+        case 3: return M5.BtnB.isPressed() ? "Pressed" : "Released";
+        case 4: return String(settings_.touchDelayMs()) + "ms";
+        case 5: return lastTouchX_ < 0 ? "Waiting" : "Seen";
+        case 6:
+          return lastTouchX_ < 0 ? "None" : String(lastTouchX_) + "," + String(lastTouchY_);
+      }
+      break;
+    case Page::Imu:
+      if (!M5.Imu.isEnabled()) return index == 1 ? "Unavailable" : "--";
+      {
+        float ax = 0.0f;
+        float ay = 0.0f;
+        float az = 0.0f;
+        float gx = 0.0f;
+        float gy = 0.0f;
+        float gz = 0.0f;
+        M5.Imu.getAccel(&ax, &ay, &az);
+        M5.Imu.getGyro(&gx, &gy, &gz);
+        switch (index) {
+          case 1: return "Enabled";
+          case 2: return formatVec3(ax, ay, az, 2);
+          case 3: return formatVec3(gx, gy, gz, 0);
+          case 4: return settings_.autoRotate() ? "On" : "Off";
+          case 5: return orientation_.statusText();
+          case 6:
+            return formatVec3(settings_.accelOffsetX(), settings_.accelOffsetY(),
+                              settings_.accelOffsetZ(), 2);
+        }
+      }
+      break;
+    case Page::Wifi:
+      switch (index) {
+        case 1: return wifi_.statusText();
+        case 2: return wifi_.ssid().length() == 0 ? "None" : wifi_.ssid();
+        case 3: return wifi_.ipAddress();
+        case 4: return wifi_.isEnabled() ? "On" : "Off";
+        case 5: return wifiSleep_ ? "On" : "Off";
+        case 6: return wifi_.isProvisioning() ? wifi_.portalSsid() : "Stopped";
+      }
+      break;
+    case Page::Power:
+      switch (index) {
+        case 1: return battery_.statusText();
+        case 2: {
+          const auto charging = M5.Power.isCharging();
+          if (charging == m5::Power_Class::charge_unknown) return "Unknown";
+          return charging == m5::Power_Class::is_charging ? "Charging" : "No";
+        }
+        case 3: return power_.stateName();
+        case 4: return power_.profileName();
+        case 5: return String(power_.currentCpuMhz()) + " MHz";
+        case 6:
+          return String(settings_.dimTimeoutSeconds()) + "/" +
+                 String(settings_.sleepTimeoutSeconds()) + "s";
+      }
+      break;
+    case Page::Rtc:
+      switch (index) {
+        case 1: return timeService_.rtcAvailable() ? "Available" : "Unavailable";
+        case 2: return formatDateTime(timeService_.now());
+        case 3: return timeService_.ntpSynchronized() ? "Synced" : "Pending";
+        case 4: return config::kTimezone;
+        case 5: return timeService_.now().valid ? "Valid" : "Invalid";
+        case 6: return wifi_.isConnected() ? "WiFi ready" : "Needs WiFi";
+      }
+      break;
+    case Page::Haptics:
+      switch (index) {
+        case 1: return hapticUntilMs_ == 0 ? "Run" : "On";
+        case 2: return "M5PM1";
+        case 3: return audioSilenceUntilMs_ == 0 ? "Restored" : "Muted";
+        case 4: return displayOffUntilMs_ == 0 ? "Restored" : "Off";
+        case 5: return wifiSleep_ ? "On" : "Off";
+        case 6: return "On back";
+      }
+      break;
+  }
+
+  return "";
 }
 
 void HardwareDiagnosticsScreen::startAudioSilence(uint32_t nowMs) {
