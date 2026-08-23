@@ -73,22 +73,25 @@ void AppManager::render() {
   if (app) app->render();
 }
 
-void AppManager::onButtonA() {
-  if (currentIndex_ == kNoApp) return;
+bool AppManager::onButtonA() {
+  if (currentIndex_ == kNoApp) return false;
   IrisApplication* app = apps_[currentIndex_].application;
-  if (app) app->onButtonA();
+  if (!app) return false;
+  return app->onButtonA();
 }
 
-void AppManager::onButtonB() {
-  if (currentIndex_ == kNoApp) return;
+bool AppManager::onButtonB() {
+  if (currentIndex_ == kNoApp) return false;
   IrisApplication* app = apps_[currentIndex_].application;
-  if (app) app->onButtonB();
+  if (!app) return false;
+  return app->onButtonB();
 }
 
-void AppManager::onTouch(int32_t x, int32_t y) {
-  if (currentIndex_ == kNoApp) return;
+bool AppManager::onTouch(int32_t x, int32_t y) {
+  if (currentIndex_ == kNoApp) return false;
   IrisApplication* app = apps_[currentIndex_].application;
-  if (app) app->onTouch(x, y);
+  if (!app) return false;
+  return app->onTouch(x, y);
 }
 
 const AppDescriptor* AppManager::current() const {

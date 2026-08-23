@@ -44,6 +44,7 @@ Iris is early firmware. It builds, runs, and has been tested on a physical M5Sta
 ### Implemented
 
 - Watch face with time, date, battery level, WiFi status, theme support, and configurable widgets
+- Watch registered as `WatchApp` with stable app ID `system.watch`
 - Built-in themes with different colors and watch layouts
 - First complication foundation, currently including an uptime complication
 - Five-position wheel-style menu UI optimized for the circular display
@@ -149,9 +150,9 @@ void loop() {
 
 ### Applications
 
-The application model uses stable app IDs, display names, lifecycle state, and optional lifecycle callbacks while the existing screen system is migrated incrementally. Candidate apps include:
+The application model uses stable app IDs, display names, lifecycle state, and optional lifecycle callbacks while the existing screen system is migrated incrementally. Current and candidate apps include:
 
-- WatchApp
+- WatchApp (`system.watch`)
 - SettingsApp
 - DevelopmentApp
 - FidgetsApp
@@ -228,7 +229,6 @@ Likely future events include:
 - `NETWORK_SCAN_COMPLETE`
 - `NOTIFICATION_RECEIVED`
 - `AI_RESPONSE_RECEIVED`
-- `BATTERY_LOW`
 
 ## IMU And Motion
 
@@ -361,11 +361,13 @@ include/iris/
   App.h
   AppConfig.h
   Theme.h
+  apps/
   screens/
   services/
 
 src/
   App.cpp
+  apps/
   main.cpp
   screens/
   services/

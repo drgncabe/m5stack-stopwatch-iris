@@ -65,7 +65,6 @@ bool isMenuScreen(ScreenId id) {
 }
 
 constexpr AppDescriptor kAppDefinitions[] = {
-    {"system.watch", "Watch", ScreenId::Watch, AppKind::System, true},
     {"system.launcher", "Main menu", ScreenId::MainMenu, AppKind::System, false},
     {"system.settings", "Settings", ScreenId::Settings, AppKind::Settings, true},
     {"settings.volume", "Volume", ScreenId::Volume, AppKind::Settings, false},
@@ -91,6 +90,7 @@ App::App()
     : power_(settings_),
       appManager_(screenManager_),
       watchScreen_(timeService_, battery_, wifi_, settings_),
+      watchApp_(watchScreen_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
@@ -175,6 +175,9 @@ void App::registerScreens() {
 }
 
 void App::registerApps() {
+  appManager_.registerApp(
+      AppDescriptor(watchApp_.id(), watchApp_.name(), ScreenId::Watch, AppKind::System, true,
+                    &watchApp_));
   for (size_t i = 0; i < sizeof(kAppDefinitions) / sizeof(kAppDefinitions[0]); ++i) {
     appManager_.registerApp(kAppDefinitions[i]);
   }
@@ -203,8 +206,7 @@ void App::update() {
       wakeDisplay(nowMs);
     } else {
       noteActivity(nowMs);
-      appManager_.onButtonA();
-      screenManager_.onButtonA();
+      if (!appManager_.onButtonA()) screenManager_.onButtonA();
     }
     inputHandled = true;
   }
@@ -215,8 +217,7 @@ void App::update() {
       wakeDisplay(nowMs);
     } else {
       noteActivity(nowMs);
-      appManager_.onButtonB();
-      screenManager_.onButtonB();
+      if (!appManager_.onButtonB()) screenManager_.onButtonB();
     }
     inputHandled = true;
   }
@@ -249,8 +250,9 @@ void App::update() {
               ? kMenuTouchDelayMs
               : configuredDelayMs;
       if (!movedTooFar && !touchMoved_ && nowMs - touchStartMs_ >= touchDelayMs) {
-        appManager_.onTouch(touchStartX_, touchStartY_);
-        screenManager_.handleTouch(touchStartX_, touchStartY_);
+        if (!appManager_.onTouch(touchStartX_, touchStartY_)) {
+          screenManager_.handleTouch(touchStartX_, touchStartY_);
+        }
         touchHandled_ = true;
         inputHandled = true;
       } else if (movedTooFar && touchPreviewed_) {
@@ -263,8 +265,9 @@ void App::update() {
     }
   } else {
     if (touchActive_ && !touchHandled_ && touchPreviewed_ && !touchMoved_) {
-      appManager_.onTouch(touchStartX_, touchStartY_);
-      screenManager_.handleTouch(touchStartX_, touchStartY_);
+      if (!appManager_.onTouch(touchStartX_, touchStartY_)) {
+        screenManager_.handleTouch(touchStartX_, touchStartY_);
+      }
       inputHandled = true;
     }
     touchActive_ = false;
@@ -337,9 +340,9 @@ void App::handleControlCommand(const String& command) {
   } else if (command == "settings") {
     appManager_.launch("system.settings");
   } else if (command == "btn_a") {
-    screenManager_.onButtonA();
+    if (!appManager_.onButtonA()) screenManager_.onButtonA();
   } else if (command == "btn_b") {
-    screenManager_.onButtonB();
+    if (!appManager_.onButtonB()) screenManager_.onButtonB();
   } else if (command == "vol_down") {
     adjustVolume(-16);
   } else if (command == "vol_up") {
