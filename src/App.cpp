@@ -259,22 +259,43 @@ void App::handleControlCommand(const String& command) {
     adjustVolume(-16);
   } else if (command == "vol_up") {
     adjustVolume(16);
+  } else if (command.startsWith("volume_set:")) {
+    const int percent = constrain(command.substring(11).toInt(), 0, 100);
+    const uint8_t volume = static_cast<uint8_t>((percent * 255) / 100);
+    settings_.setVolume(volume);
+    M5.Speaker.setVolume(volume);
+    if (volume > 0) M5.Speaker.tone(2800, 30);
   } else if (command == "bright_down") {
     adjustBrightness(-16);
   } else if (command == "bright_up") {
     adjustBrightness(16);
+  } else if (command.startsWith("brightness_set:")) {
+    const int brightness = constrain(command.substring(15).toInt(), 16, 255);
+    settings_.setActiveBrightness(static_cast<uint8_t>(brightness));
+    if (displayPowerState_ == DisplayPowerState::Active) {
+      M5.Display.setBrightness(static_cast<uint8_t>(brightness));
+    }
   } else if (command == "dim_down") {
     adjustDimTimeout(-5);
   } else if (command == "dim_up") {
     adjustDimTimeout(5);
+  } else if (command.startsWith("dim_set:")) {
+    const int seconds = constrain(command.substring(8).toInt(), kMinDimSeconds, kMaxDimSeconds);
+    settings_.setDimTimeoutSeconds(static_cast<uint16_t>(seconds));
   } else if (command == "sleep_down") {
     adjustSleepTimeout(-15);
   } else if (command == "sleep_up") {
     adjustSleepTimeout(15);
+  } else if (command.startsWith("sleep_set:")) {
+    const int seconds = constrain(command.substring(10).toInt(), kMinSleepSeconds, kMaxSleepSeconds);
+    settings_.setSleepTimeoutSeconds(static_cast<uint16_t>(seconds));
   } else if (command == "touch_down") {
     adjustTouchDelay(-25);
   } else if (command == "touch_up") {
     adjustTouchDelay(25);
+  } else if (command.startsWith("touch_set:")) {
+    const int delayMs = constrain(command.substring(10).toInt(), kMinTouchDelayMs, kMaxTouchDelayMs);
+    settings_.setTouchDelayMs(static_cast<uint16_t>(delayMs));
   } else if (command == "low_face_toggle") {
     settings_.setLowPowerFace(!settings_.lowPowerFace());
     showWatchIfActive();
@@ -337,6 +358,17 @@ String App::buildControlSnapshot() const {
   snapshot += wifi_.ssid();
   snapshot += "\nIP: ";
   snapshot += wifi_.ipAddress();
+  const DateTimeSnapshot time = timeService_.now();
+  snapshot += "\nTime: ";
+  if (time.valid) {
+    if (time.hour < 10) snapshot += "0";
+    snapshot += String(time.hour);
+    snapshot += ":";
+    if (time.minute < 10) snapshot += "0";
+    snapshot += String(time.minute);
+  } else {
+    snapshot += "--:--";
+  }
   snapshot += "\nVolume: ";
   snapshot += String((settings_.volume() * 100) / 255);
   snapshot += "%\nTheme: ";

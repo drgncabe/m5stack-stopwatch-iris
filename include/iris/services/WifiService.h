@@ -40,9 +40,25 @@ class WifiService {
   void configurePortalRoutes();
   void handleControlPanel();
   void handleControlCommand();
+  void handleApiSettings();
   void handleDisplaySnapshot();
   void handleWifiSetup();
   void handlePortalSave();
+  void appendPageShellStart(String& html, const String& page, const String& snapshot);
+  void appendPageShellEnd(String& html);
+  void appendWatchPreview(String& html, const String& snapshot);
+  void appendNavigation(String& html, const String& page);
+  void appendRangeControl(String& html, const char* label, const char* command,
+                          int value, int minValue, int maxValue, int step,
+                          const char* suffix);
+  void appendToggleControl(String& html, const char* label, const char* command,
+                           bool enabled);
+  void appendAction(String& html, const char* label, const char* command,
+                    const char* className = "");
+  String snapshotValue(const String& snapshot, const char* key) const;
+  int snapshotInt(const String& snapshot, const char* key, int fallback) const;
+  bool snapshotOn(const String& snapshot, const char* key) const;
+  static String escapeJson(const String& value);
   static String escapeHtml(const String& value);
 
   Preferences prefs_;
