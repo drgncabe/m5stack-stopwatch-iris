@@ -60,10 +60,31 @@ bool isMenuScreen(ScreenId id) {
          id == ScreenId::Fidgets ||
          id == ScreenId::Developer;
 }
+
+constexpr AppDescriptor kAppDefinitions[] = {
+    {"system.watch", "Watch", ScreenId::Watch, AppKind::System, true},
+    {"system.launcher", "Main menu", ScreenId::MainMenu, AppKind::System, false},
+    {"system.settings", "Settings", ScreenId::Settings, AppKind::Settings, true},
+    {"settings.volume", "Volume", ScreenId::Volume, AppKind::Settings, false},
+    {"settings.wifi", "WiFi", ScreenId::Wifi, AppKind::Settings, false},
+    {"settings.theme", "Theme & widgets", ScreenId::Background, AppKind::Settings, false},
+    {"settings.power", "Power", ScreenId::Power, AppKind::Settings, false},
+    {"system.fidgets", "Fidgets", ScreenId::Fidgets, AppKind::Fidget, true},
+    {"fidget.wheel", "Wheel", ScreenId::FidgetWheel, AppKind::Fidget, false},
+    {"fidget.poppers", "Poppers", ScreenId::FidgetPoppers, AppKind::Fidget, false},
+    {"fidget.spinner", "Kaleidoscope", ScreenId::FidgetSpinner, AppKind::Fidget, false},
+    {"fidget.gravity_ball", "Gravity ball", ScreenId::FidgetGravityBall, AppKind::Fidget, false},
+    {"system.developer", "Developer", ScreenId::Developer, AppKind::Developer, false},
+    {"developer.axis_calibration", "Axis calibration", ScreenId::AxisCalibration,
+     AppKind::Developer, false},
+    {"developer.bootloader", "Bootloader", ScreenId::Bootloader, AppKind::Developer, false},
+    {"system.device_info", "Device information", ScreenId::DeviceInfo, AppKind::System, false},
+};
 }  // namespace
 
 App::App()
-    : watchScreen_(timeService_, battery_, wifi_, settings_),
+    : appManager_(screenManager_),
+      watchScreen_(timeService_, battery_, wifi_, settings_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
@@ -105,6 +126,24 @@ void App::begin() {
   wifiDemandStartedMs_ = millis();
   timeService_.begin();
 
+  registerServices();
+  registerScreens();
+  registerApps();
+
+  appManager_.launch("system.watch");
+  lastActivityMs_ = millis();
+}
+
+void App::registerServices() {
+  services_.registerService("settings", "Settings store");
+  services_.registerService("battery", "Battery");
+  services_.registerService("orientation", "Orientation");
+  services_.registerService("status_light", "Status light");
+  services_.registerService("wifi", "WiFi", wifi_.isEnabled());
+  services_.registerService("time", "Time / RTC");
+}
+
+void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Watch, &watchScreen_);
   screenManager_.registerScreen(ScreenId::MainMenu, &mainMenuScreen_);
   screenManager_.registerScreen(ScreenId::Settings, &settingsMenuScreen_);
@@ -121,9 +160,12 @@ void App::begin() {
   screenManager_.registerScreen(ScreenId::AxisCalibration, &axisCalibrationScreen_);
   screenManager_.registerScreen(ScreenId::Bootloader, &bootloaderScreen_);
   screenManager_.registerScreen(ScreenId::DeviceInfo, &deviceInfoScreen_);
+}
 
-  screenManager_.show(ScreenId::Watch);
-  lastActivityMs_ = millis();
+void App::registerApps() {
+  for (size_t i = 0; i < sizeof(kAppDefinitions) / sizeof(kAppDefinitions[0]); ++i) {
+    appManager_.registerApp(kAppDefinitions[i]);
+  }
 }
 
 void App::update() {
@@ -215,6 +257,7 @@ void App::update() {
 
   battery_.update(nowMs);
   wifi_.update(nowMs);
+  services_.setStarted("wifi", wifi_.isEnabled());
   timeService_.update(nowMs, wifi_.isConnected());
   updateWifiPower(nowMs);
 
@@ -248,9 +291,9 @@ void App::handleControlCommand(const String& command) {
   }
 
   if (command == "watch") {
-    screenManager_.show(ScreenId::Watch);
+    appManager_.launch("system.watch");
   } else if (command == "settings") {
-    screenManager_.show(ScreenId::Settings);
+    appManager_.launch("system.settings");
   } else if (command == "btn_a") {
     screenManager_.onButtonA();
   } else if (command == "btn_b") {
@@ -310,10 +353,12 @@ void App::handleControlCommand(const String& command) {
     const bool enabled = !wifi_.isEnabled();
     settings_.setWifiEnabled(enabled);
     wifi_.setEnabled(enabled);
+    services_.setStarted("wifi", enabled);
     if (enabled) wifiDemandStartedMs_ = nowMs;
   } else if (command == "wifi_setup") {
     settings_.setWifiEnabled(true);
     wifi_.setEnabled(true);
+    services_.setStarted("wifi", true);
     wifiDemandStartedMs_ = nowMs;
     wifi_.startProvisioning();
   } else if (command == "bg_next") {
@@ -344,6 +389,15 @@ String App::buildControlSnapshot() const {
   snapshot.reserve(520);
   snapshot += "Screen: ";
   snapshot += currentScreenName();
+  const AppDescriptor* currentApp = appManager_.current();
+  snapshot += "\nApp: ";
+  snapshot += currentApp ? currentApp->id : "unknown";
+  snapshot += "\nApp kind: ";
+  snapshot += currentApp ? appKindName(currentApp->kind) : "Unknown";
+  snapshot += "\nRegistered apps: ";
+  snapshot += String(appManager_.count());
+  snapshot += "\nServices: ";
+  snapshot += services_.summary();
   snapshot += "\nDisplay power: ";
   switch (displayPowerState_) {
     case DisplayPowerState::Active: snapshot += "Active"; break;
@@ -487,7 +541,7 @@ void App::updateDisplayPower(uint32_t nowMs) {
 
   const ScreenId current = screenManager_.currentId();
   if (current != ScreenId::Watch && !isFidgetScreen(current) && idleMs >= kMenuReturnTimeoutMs) {
-    screenManager_.show(ScreenId::Watch);
+    appManager_.launch("system.watch");
     lastActivityMs_ = nowMs;
     return;
   }
@@ -519,6 +573,7 @@ void App::updateWifiPower(uint32_t nowMs) {
   const bool expired = nowMs - wifiDemandStartedMs_ >= config::kWifiOnDemandOffMs;
   if (synced || expired) {
     wifi_.setEnabled(false);
+    services_.setStarted("wifi", false);
   }
 }
 
@@ -527,7 +582,7 @@ void App::wakeDisplay(uint32_t nowMs) {
   displayPowerState_ = DisplayPowerState::Active;
   M5.Display.wakeup();
   M5.Display.setBrightness(settings_.activeBrightness());
-  screenManager_.show(screenManager_.currentId());
+  appManager_.switchTo(screenManager_.currentId());
 }
 
 const char* App::currentScreenName() const {
