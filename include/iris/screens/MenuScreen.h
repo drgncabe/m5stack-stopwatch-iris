@@ -14,7 +14,7 @@ struct MenuItem {
 class MenuScreen : public Screen {
  public:
   MenuScreen(const char* title, const MenuItem* items, size_t itemCount,
-             SettingsStore& settings);
+             SettingsStore& settings, bool wrapEnabled = true);
 
   void enter() override;
   void update(uint32_t nowMs) override;
@@ -23,6 +23,7 @@ class MenuScreen : public Screen {
   void handleTouch(int32_t x, int32_t y) override;
   void onButtonA() override;
   void onButtonB() override;
+  void setWrapEnabled(bool enabled);
 
  private:
   void drawRow(size_t index, int relativePosition);
@@ -44,6 +45,7 @@ class MenuScreen : public Screen {
   int32_t scrollRemainder_ = 0;
   bool hapticActive_ = false;
   bool scrollIndicatorDrawn_ = false;
+  bool wrapEnabled_ = true;
   uint32_t hapticOffMs_ = 0;
   uint32_t lastScrollActivityMs_ = 0;
 };
