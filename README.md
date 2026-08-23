@@ -134,7 +134,7 @@ The current codebase is still screen-oriented, but the target architecture is ap
    Future Notifications            Location
 ```
 
-Current core coordination is handled mainly by `iris::App`, `ScreenManager`, screen classes, and service classes. The long-term goal is to keep the Arduino entry point small:
+Current core coordination is handled mainly by `iris::App`, `AppManager`, `ScreenManager`, screen classes, and service classes. The long-term goal is to keep the Arduino entry point small:
 
 ```cpp
 void setup() {
@@ -148,7 +148,7 @@ void loop() {
 
 ### Applications
 
-The intended application model uses stable app IDs, display names, lifecycle callbacks, and centralized launch/suspend behavior. Candidate apps include:
+The application model uses stable app IDs, display names, lifecycle state, and optional lifecycle callbacks while the existing screen system is migrated incrementally. Candidate apps include:
 
 - WatchApp
 - SettingsApp
@@ -159,15 +159,21 @@ The intended application model uses stable app IDs, display names, lifecycle cal
 - GPSApp
 - NotificationsApp
 
-The lifecycle is planned to move toward:
+The lifecycle foundation supports:
 
 ```text
-Start
-Pause
-Resume
-Stop
-Update
-Render
+Registered
+Started
+Paused
+Stopped
+
+begin
+onStart
+onPause
+onResume
+onStop
+update
+render
 ```
 
 ### Services
