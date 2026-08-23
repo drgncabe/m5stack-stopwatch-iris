@@ -26,7 +26,7 @@ class MenuScreen : public Screen {
 
  private:
   void drawRow(size_t index, int relativePosition);
-  void drawScrollBar();
+  void drawScrollBar(uint32_t nowMs);
   void selectRow(size_t row);
   void scrollSelection(int direction);
   void activateSelected();
@@ -43,7 +43,9 @@ class MenuScreen : public Screen {
   int32_t lastTouchY_ = 0;
   int32_t scrollRemainder_ = 0;
   bool hapticActive_ = false;
+  bool scrollIndicatorDrawn_ = false;
   uint32_t hapticOffMs_ = 0;
+  uint32_t lastScrollActivityMs_ = 0;
 };
 
 }  // namespace iris
