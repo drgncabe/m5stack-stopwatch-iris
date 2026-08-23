@@ -134,6 +134,7 @@ void App::begin() {
   timeService_.begin();
 
   registerServices();
+  services_.begin();
   registerScreens();
   registerApps();
   appManager_.begin();
@@ -142,13 +143,13 @@ void App::begin() {
 }
 
 void App::registerServices() {
-  services_.registerService("settings", "Settings store");
-  services_.registerService("battery", "Battery");
-  services_.registerService("orientation", "Orientation");
-  services_.registerService("status_light", "Status light");
-  services_.registerService("power", "Power manager");
-  services_.registerService("wifi", "WiFi", wifi_.isEnabled());
-  services_.registerService("time", "Time / RTC");
+  services_.registerService("settings", "Settings store", &settings_);
+  services_.registerService("battery", "Battery", &battery_);
+  services_.registerService("orientation", "Orientation", &orientation_);
+  services_.registerService("status_light", "Status light", &statusLight_);
+  services_.registerService("power", "Power manager", &power_);
+  services_.registerService("wifi", "WiFi", &wifi_, wifi_.isEnabled());
+  services_.registerService("time", "Time / RTC", &timeService_);
 }
 
 void App::registerScreens() {
@@ -273,6 +274,7 @@ void App::update() {
   services_.setStarted("wifi", wifi_.isEnabled());
   timeService_.update(nowMs, wifi_.isConnected());
   updateWifiPower(nowMs);
+  services_.update(nowMs);
 
   if (power_.state() != DisplayPowerState::Sleeping) {
     screenManager_.update(nowMs);
@@ -427,6 +429,8 @@ String App::buildControlSnapshot() const {
   snapshot += String(appManager_.count());
   snapshot += "\nServices: ";
   snapshot += services_.summary();
+  snapshot += "\nWiFi service: ";
+  snapshot += services_.stateName("wifi");
   snapshot += "\nDisplay power: ";
   snapshot += power_.stateName();
   snapshot += "\nPower profile: ";

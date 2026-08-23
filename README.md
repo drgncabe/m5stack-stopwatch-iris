@@ -134,7 +134,7 @@ The current codebase is still screen-oriented, but the target architecture is ap
    Future Notifications            Location
 ```
 
-Current core coordination is handled mainly by `iris::App`, `AppManager`, `ScreenManager`, screen classes, and service classes. The long-term goal is to keep the Arduino entry point small:
+Current core coordination is handled mainly by `iris::App`, `AppManager`, `ServiceManager`, `ScreenManager`, screen classes, and service classes. The long-term goal is to keep the Arduino entry point small:
 
 ```cpp
 void setup() {
@@ -178,7 +178,7 @@ render
 
 ### Services
 
-Services provide capabilities shared by multiple apps. Current services include:
+Services provide capabilities shared by multiple apps. The `ServiceManager` tracks service identity, lifecycle state, optional service callbacks, and typed access points for future app migrations. Current services include:
 
 - `SettingsStore`
 - `BatteryService`
@@ -186,10 +186,10 @@ Services provide capabilities shared by multiple apps. Current services include:
 - `StatusLightService`
 - `TimeService`
 - `WifiService`
+- `PowerManager`
 
 Planned or likely future services include:
 
-- `PowerManager`
 - `ImuService`
 - `StorageService`
 - `AudioService`
