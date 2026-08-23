@@ -123,6 +123,7 @@ void App::begin() {
 
   settings_.begin();
   M5.Speaker.setVolume(settings_.volume());
+  appManager_.setEventBus(&events_);
   power_.begin();
   statusLight_.begin(settings_.indicatorLightEnabled());
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
@@ -143,6 +144,7 @@ void App::begin() {
 }
 
 void App::registerServices() {
+  services_.registerService("events", "Event bus", &events_);
   services_.registerService("settings", "Settings store", &settings_);
   services_.registerService("battery", "Battery", &battery_);
   services_.registerService("orientation", "Orientation", &orientation_);
@@ -185,6 +187,8 @@ void App::update() {
 
   const uint32_t nowMs = millis();
   bool inputHandled = false;
+  const bool previousWifiConnected = wifi_.isConnected();
+  const uint8_t previousRotation = orientation_.rotation();
 
   if (power_.state() != DisplayPowerState::Sleeping &&
       orientation_.update(nowMs, settings_.autoRotate(), settings_.accelOffsetX(),
@@ -275,6 +279,7 @@ void App::update() {
   timeService_.update(nowMs, wifi_.isConnected());
   updateWifiPower(nowMs);
   services_.update(nowMs);
+  updateSystemEvents(previousWifiConnected, previousRotation);
 
   if (power_.state() != DisplayPowerState::Sleeping) {
     screenManager_.update(nowMs);
@@ -292,6 +297,26 @@ void App::update() {
 void App::handleControlCommand(void* context, const String& command) {
   if (!context) return;
   static_cast<App*>(context)->handleControlCommand(command);
+}
+
+void App::updateSystemEvents(bool previousWifiConnected, uint8_t previousRotation) {
+  const bool wifiConnected = wifi_.isConnected();
+  if (wifiConnected != previousWifiConnected) {
+    events_.publish(wifiConnected ? EventType::WifiConnected : EventType::WifiDisconnected,
+                    "WifiService", wifi_.ssid().c_str());
+  }
+
+  if (orientation_.rotation() != previousRotation) {
+    events_.publish(EventType::ImuOrientationChanged, "OrientationService", nullptr,
+                    orientation_.rotation());
+  }
+
+  const BatterySnapshot battery = battery_.snapshot();
+  const bool batteryLow = battery.percent >= 0 && battery.percent <= 15 && !battery.charging;
+  if (batteryLow && !batteryLowPublished_) {
+    events_.publish(EventType::BatteryLow, "BatteryService", nullptr, battery.percent);
+  }
+  batteryLowPublished_ = batteryLow;
 }
 
 String App::buildControlSnapshot(void* context) {
@@ -429,6 +454,8 @@ String App::buildControlSnapshot() const {
   snapshot += String(appManager_.count());
   snapshot += "\nServices: ";
   snapshot += services_.summary();
+  snapshot += "\nEvents: ";
+  snapshot += events_.summary();
   snapshot += "\nWiFi service: ";
   snapshot += services_.stateName("wifi");
   snapshot += "\nDisplay power: ";

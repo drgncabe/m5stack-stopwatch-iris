@@ -63,6 +63,7 @@ Iris is early firmware. It builds, runs, and has been tested on a physical M5Sta
 
 - More deliberate app-based architecture
 - Shared service layer boundaries
+- Lightweight event bus for core app/service events
 - More complete power-management architecture
 - Improved web configurator with proper settings categories
 - Better IMU/orientation calibration behavior
@@ -77,7 +78,7 @@ Iris is early firmware. It builds, runs, and has been tested on a physical M5Sta
 - Notifications
 - More complications
 - More fidget and motion apps
-- Event bus/pub-sub between services and apps
+- Expanded event bus usage between services and apps
 - More complete app lifecycle model
 
 Planned features are roadmap items unless they are listed under Implemented.
@@ -134,7 +135,7 @@ The current codebase is still screen-oriented, but the target architecture is ap
    Future Notifications            Location
 ```
 
-Current core coordination is handled mainly by `iris::App`, `AppManager`, `ServiceManager`, `ScreenManager`, screen classes, and service classes. The long-term goal is to keep the Arduino entry point small:
+Current core coordination is handled mainly by `iris::App`, `AppManager`, `ServiceManager`, `EventBus`, `ScreenManager`, screen classes, and service classes. The long-term goal is to keep the Arduino entry point small:
 
 ```cpp
 void setup() {
@@ -204,13 +205,23 @@ In Iris, "plugin" means a lightweight compile-time module/provider pattern. It d
 
 Apps and services are compiled into the firmware, then registered, initialized, activated, suspended, or disabled as appropriate.
 
-### Event Direction
+### Events
 
-An event bus is planned but not yet a completed core system. The goal is to prevent direct app-to-app coupling. Example future events:
+`EventBus` provides lightweight publish/subscribe messaging between apps and services without direct app-to-app coupling. It uses fixed subscription storage to avoid unnecessary heap churn on the ESP32-S3.
+
+Current core events include:
 
 - `WIFI_CONNECTED`
 - `WIFI_DISCONNECTED`
 - `IMU_ORIENTATION_CHANGED`
+- `APP_STARTED`
+- `APP_PAUSED`
+- `APP_RESUMED`
+- `APP_STOPPED`
+- `BATTERY_LOW`
+
+Likely future events include:
+
 - `GPS_FIX_ACQUIRED`
 - `LOCATION_CHANGED`
 - `C5_NODE_DISCOVERED`
