@@ -1,6 +1,6 @@
 #include "iris/screens/HardwareDiagnosticsScreen.h"
 
-#include <ESP.h>
+#include <Arduino.h>
 #include <M5Unified.h>
 #include <WiFi.h>
 
