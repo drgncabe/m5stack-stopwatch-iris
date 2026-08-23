@@ -6,6 +6,10 @@ namespace iris {
 
 AppManager::AppManager(ScreenManager& screens) : screens_(screens) {}
 
+void AppManager::setEventBus(EventBus* events) {
+  events_ = events;
+}
+
 bool AppManager::registerApp(const AppDescriptor& app) {
   if (!app.id || !app.name || count_ >= kMaxApps || findById(app.id)) return false;
   apps_[count_] = app;
@@ -47,8 +51,9 @@ bool AppManager::syncToCurrentScreen() {
 bool AppManager::stopCurrent() {
   if (currentIndex_ == kNoApp) return false;
   IrisApplication* app = apps_[currentIndex_].application;
-  if (app && states_[currentIndex_] != AppLifecycleState::Stopped) {
-    app->onStop();
+  if (states_[currentIndex_] != AppLifecycleState::Stopped) {
+    if (app) app->onStop();
+    publishLifecycle(EventType::AppStopped, apps_[currentIndex_]);
   }
   states_[currentIndex_] = AppLifecycleState::Stopped;
   currentIndex_ = kNoApp;
@@ -117,6 +122,7 @@ bool AppManager::activateIndex(size_t index, bool showScreen) {
       states_[currentIndex_] == AppLifecycleState::Started) {
     if (apps_[currentIndex_].application) apps_[currentIndex_].application->onPause();
     states_[currentIndex_] = AppLifecycleState::Paused;
+    publishLifecycle(EventType::AppPaused, apps_[currentIndex_]);
   }
 
   currentIndex_ = index;
@@ -127,8 +133,10 @@ bool AppManager::activateIndex(size_t index, bool showScreen) {
   IrisApplication* app = apps_[index].application;
   if (states_[index] == AppLifecycleState::Paused) {
     if (app) app->onResume();
+    publishLifecycle(EventType::AppResumed, apps_[index]);
   } else if (states_[index] != AppLifecycleState::Started) {
     if (app) app->onStart();
+    publishLifecycle(EventType::AppStarted, apps_[index]);
   }
   states_[index] = AppLifecycleState::Started;
 
@@ -160,6 +168,11 @@ bool AppManager::ensureAppBegun(size_t index) {
   }
   begun_[index] = true;
   return true;
+}
+
+void AppManager::publishLifecycle(EventType type, const AppDescriptor& app) {
+  if (!events_) return;
+  events_->publish(type, "AppManager", app.id);
 }
 
 const char* appKindName(AppKind kind) {

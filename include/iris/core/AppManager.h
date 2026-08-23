@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "iris/core/EventBus.h"
 #include "iris/screens/ScreenManager.h"
 
 namespace iris {
@@ -72,6 +73,7 @@ class AppManager {
  public:
   explicit AppManager(ScreenManager& screens);
 
+  void setEventBus(EventBus* events);
   bool registerApp(const AppDescriptor& app);
   bool begin();
   bool launch(const char* id);
@@ -99,8 +101,10 @@ class AppManager {
   size_t findIndexById(const char* id) const;
   size_t findIndexByScreen(ScreenId screen) const;
   bool ensureAppBegun(size_t index);
+  void publishLifecycle(EventType type, const AppDescriptor& app);
 
   ScreenManager& screens_;
+  EventBus* events_ = nullptr;
   AppDescriptor apps_[kMaxApps]{};
   AppLifecycleState states_[kMaxApps]{};
   bool begun_[kMaxApps]{};

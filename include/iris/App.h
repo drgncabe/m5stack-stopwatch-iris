@@ -1,6 +1,7 @@
 #pragma once
 
 #include "iris/core/AppManager.h"
+#include "iris/core/EventBus.h"
 #include "iris/core/ServiceManager.h"
 #include "iris/screens/AxisCalibrationScreen.h"
 #include "iris/screens/BootloaderScreen.h"
@@ -38,6 +39,7 @@ class App {
   void registerServices();
   void registerScreens();
   void registerApps();
+  void updateSystemEvents(bool previousWifiConnected, uint8_t previousRotation);
   void handleControlCommand(const String& command);
   String buildControlSnapshot() const;
   void adjustVolume(int delta);
@@ -63,6 +65,7 @@ class App {
   WifiService wifi_;
   TimeService timeService_;
   PowerManager power_;
+  EventBus events_;
   ServiceManager services_;
   ScreenManager screenManager_;
   AppManager appManager_;
@@ -92,6 +95,7 @@ class App {
   int32_t touchStartY_ = 0;
   uint32_t touchStartMs_ = 0;
   uint32_t wifiDemandStartedMs_ = 0;
+  bool batteryLowPublished_ = false;
 };
 
 }  // namespace iris
