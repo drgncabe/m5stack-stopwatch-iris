@@ -1,5 +1,6 @@
 #pragma once
 
+#include "iris/apps/settings/SettingsApp.h"
 #include "iris/apps/watch/WatchApp.h"
 #include "iris/core/AppManager.h"
 #include "iris/core/EventBus.h"
@@ -71,6 +72,7 @@ class App {
   ScreenManager screenManager_;
   AppManager appManager_;
 
+  SettingsApp settingsApp_;
   WatchScreen watchScreen_;
   WatchApp watchApp_;
   MenuScreen mainMenuScreen_;
