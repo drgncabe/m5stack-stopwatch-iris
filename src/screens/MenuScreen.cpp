@@ -7,17 +7,28 @@
 namespace iris {
 
 namespace {
-constexpr int kTitleY = 50;
-constexpr int kListCenterY = 240;
-constexpr int kRowHeight = 52;
-constexpr int kRowLeft = 52;
-constexpr int kRowWidth = 362;
-constexpr int kRowRectHeight = 50;
-constexpr int kVisiblePaddingRows = 5;
+constexpr int kTitleY = 42;
+constexpr int kListCenterY = 230;
+constexpr int kRowHeight = 56;
+constexpr int kFooterY = 408;
+constexpr int kVisiblePaddingRows = 2;
 constexpr int kTouchScrollStepPx = 72;
 constexpr int kDragDeadzonePx = 3;
 constexpr int kMaxDragDeltaPx = 24;
 constexpr uint32_t kHapticPulseMs = 14;
+
+uint16_t blend565(uint16_t fg, uint16_t bg, uint8_t amount) {
+  const uint8_t fr = ((fg >> 11) & 0x1F) << 3;
+  const uint8_t fgG = ((fg >> 5) & 0x3F) << 2;
+  const uint8_t fb = (fg & 0x1F) << 3;
+  const uint8_t br = ((bg >> 11) & 0x1F) << 3;
+  const uint8_t bgG = ((bg >> 5) & 0x3F) << 2;
+  const uint8_t bb = (bg & 0x1F) << 3;
+  const uint8_t r = br + (((fr - br) * amount) / 255);
+  const uint8_t g = bgG + (((fgG - bgG) * amount) / 255);
+  const uint8_t b = bb + (((fb - bb) * amount) / 255);
+  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+}
 }  // namespace
 
 MenuScreen::MenuScreen(const char* title, const MenuItem* items, size_t itemCount,
@@ -47,14 +58,16 @@ void MenuScreen::draw() {
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.drawString(title_, M5.Display.width() / 2, kTitleY);
 
-  for (size_t i = 0; i < itemCount_; ++i) {
-    drawRow(i, i == selected_);
+  for (int relative = -kVisiblePaddingRows; relative <= kVisiblePaddingRows; ++relative) {
+    const int row = static_cast<int>(selected_) + relative;
+    if (row < 0 || row >= static_cast<int>(itemCount_)) continue;
+    drawRow(static_cast<size_t>(row), relative);
   }
   drawScrollBar();
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString("Drag to scroll     Press-hold to select", M5.Display.width() / 2, 426);
+  M5.Display.drawString("A: Next   B: Select", M5.Display.width() / 2, kFooterY);
 }
 
 void MenuScreen::previewTouch(int32_t x, int32_t y) {
@@ -131,37 +144,43 @@ void MenuScreen::scrollSelection(int direction) {
   selectRow(static_cast<size_t>(next));
 }
 
-void MenuScreen::drawRow(size_t index, bool selected) {
+void MenuScreen::drawRow(size_t index, int relativePosition) {
   if (index >= itemCount_) return;
   const Theme theme = currentTheme(settings_);
-  const int offset = static_cast<int>(index) - static_cast<int>(selected_);
-  if (abs(offset) > kVisiblePaddingRows) return;
+  if (abs(relativePosition) > kVisiblePaddingRows) return;
 
-  const int y = kListCenterY + offset * kRowHeight - (kRowRectHeight / 2);
-  if (y < 72 || y > 406) return;
-
-  const int distance = abs(offset);
-  const uint16_t fill = selected ? theme.selected : theme.background;
-  const uint16_t text = theme.foreground;
-  const int inset = selected ? -8 : distance * 12;
-  const int rowX = kRowLeft + inset;
-  const int rowW = kRowWidth - (inset * 2);
+  const bool selected = relativePosition == 0;
+  const int distance = abs(relativePosition);
+  const int y = kListCenterY + relativePosition * kRowHeight;
+  const int inset = distance == 0 ? 34 : (distance == 1 ? 58 : 96);
+  const int rowHeight = distance == 0 ? 52 : (distance == 1 ? 42 : 34);
+  const int rowW = M5.Display.width() - (inset * 2);
+  const int rowX = inset;
+  const uint8_t brightness = distance == 0 ? 255 : (distance == 1 ? 175 : 105);
+  const uint16_t text = blend565(theme.foreground, theme.background, brightness);
 
   if (selected) {
-    M5.Display.fillRoundRect(rowX, y - 4, rowW, kRowRectHeight + 8, 22, fill);
+    M5.Display.fillRoundRect(rowX, y - (rowHeight / 2), rowW, rowHeight, 20, theme.selected);
+    M5.Display.drawRoundRect(rowX, y - (rowHeight / 2), rowW, rowHeight, 20, theme.accent);
   }
   M5.Display.setTextDatum(middle_center);
-  M5.Display.setFont(selected ? &fonts::FreeSansBold12pt7b : &fonts::FreeSans12pt7b);
-  M5.Display.setTextColor(text, fill);
-  M5.Display.drawString(items_[index].label, M5.Display.width() / 2, y + (kRowRectHeight / 2));
+  if (selected) {
+    M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  } else if (distance == 1) {
+    M5.Display.setFont(&fonts::FreeSans12pt7b);
+  } else {
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+  }
+  M5.Display.setTextColor(text, selected ? theme.selected : theme.background);
+  M5.Display.drawString(items_[index].label, M5.Display.width() / 2, y);
 }
 
 void MenuScreen::drawScrollBar() {
   if (itemCount_ <= 1) return;
   const Theme theme = currentTheme(settings_);
   constexpr int trackX = 424;
-  constexpr int trackY = 96;
-  constexpr int trackH = 286;
+  constexpr int trackY = 88;
+  constexpr int trackH = 276;
   constexpr int trackW = 5;
   constexpr int thumbMinH = 34;
   const int thumbH = max(thumbMinH, trackH / static_cast<int>(itemCount_));

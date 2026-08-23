@@ -7,6 +7,8 @@
 
 namespace iris {
 
+struct Theme;
+
 class AxisCalibrationScreen : public Screen {
  public:
   explicit AxisCalibrationScreen(SettingsStore& settings);
@@ -18,21 +20,65 @@ class AxisCalibrationScreen : public Screen {
   void onButtonA() override;
   void onButtonB() override;
 
+  struct Pose {
+    const char* name;
+    const char* instruction;
+    const char* icon;
+    Vec3 expected;
+  };
+
  private:
-  void readSample();
-  void captureCalibration();
-  void resetCalibration();
+  enum class Mode : uint8_t {
+    Summary,
+    Capture,
+    Complete,
+    ClearConfirm,
+    Saved,
+  };
+
+  struct SampleAccumulator {
+    Vec3 accelSum{0.0f, 0.0f, 0.0f};
+    Vec3 accelSquareSum{0.0f, 0.0f, 0.0f};
+    Vec3 gyroSum{0.0f, 0.0f, 0.0f};
+    uint16_t count = 0;
+  };
+
+  void startCalibration();
+  void updateCapture(uint32_t nowMs);
+  void completePose();
+  void saveCalibration();
+  void clearCalibration();
   void goBack();
+  void drawSummary(const Theme& theme);
+  void drawCapture(const Theme& theme);
+  void drawComplete(const Theme& theme);
+  void drawClearConfirm(const Theme& theme);
+  void drawSaved(const Theme& theme);
+  void drawMetric(int x, int& y, const char* label, const String& value,
+                  const Theme& theme);
   void drawButton(int x, int y, int w, int h, const char* label, uint16_t fill, uint16_t text);
+  bool readImu(Vec3* accel, Vec3* gyro);
+  bool isStable(const Vec3& accel, const Vec3& gyro) const;
+  Vec3 meanAccel() const;
+  Vec3 meanGyro() const;
+  float accelVariance() const;
+  void assignPoseReference(size_t pose, const Vec3& reference);
+  String formatVec(const Vec3& vec) const;
+  String formatCalibrationAge(uint32_t calibratedAtMs) const;
+  void pulse(uint8_t strength, uint32_t durationMs);
 
   SettingsStore& settings_;
-  float ax_ = 0.0f;
-  float ay_ = 0.0f;
-  float az_ = 0.0f;
-  float pitch_ = 0.0f;
-  float roll_ = 0.0f;
+  Mode mode_ = Mode::Summary;
+  ImuCalibrationData pendingCalibration_;
+  SampleAccumulator samples_;
+  Vec3 lastAccel_{0.0f, 0.0f, 0.0f};
+  Vec3 lastGyro_{0.0f, 0.0f, 0.0f};
   bool imuReady_ = false;
+  size_t poseIndex_ = 0;
   uint32_t lastSampleMs_ = 0;
+  uint32_t stableSinceMs_ = 0;
+  uint32_t statusUntilMs_ = 0;
+  const char* statusText_ = nullptr;
 };
 
 }  // namespace iris

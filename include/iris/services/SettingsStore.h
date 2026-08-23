@@ -5,6 +5,29 @@
 
 namespace iris {
 
+struct Vec3 {
+  float x;
+  float y;
+  float z;
+};
+
+struct ImuCalibrationData {
+  static constexpr uint8_t kVersion = 1;
+
+  uint8_t version = kVersion;
+  bool valid = false;
+  uint32_t calibratedAtMs = 0;
+  uint16_t sampleCount = 0;
+  Vec3 accelOffset{0.0f, 0.0f, 0.0f};
+  Vec3 gyroBias{0.0f, 0.0f, 0.0f};
+  Vec3 upReference{0.0f, -1.0f, 0.0f};
+  Vec3 downReference{0.0f, 1.0f, 0.0f};
+  Vec3 leftReference{-1.0f, 0.0f, 0.0f};
+  Vec3 rightReference{1.0f, 0.0f, 0.0f};
+  Vec3 faceUpReference{0.0f, 0.0f, 1.0f};
+  Vec3 faceDownReference{0.0f, 0.0f, -1.0f};
+};
+
 constexpr uint8_t kWidgetBattery = 1 << 0;
 constexpr uint8_t kWidgetDate = 1 << 1;
 constexpr uint8_t kWidgetSeconds = 1 << 2;
@@ -70,9 +93,13 @@ class SettingsStore {
   uint16_t touchDelayMs() const { return touchDelayMs_; }
   void setTouchDelayMs(uint16_t value);
 
-  float accelOffsetX() const { return accelOffsetX_; }
-  float accelOffsetY() const { return accelOffsetY_; }
-  float accelOffsetZ() const { return accelOffsetZ_; }
+  const ImuCalibrationData& imuCalibration() const { return imuCalibration_; }
+  bool imuCalibrationValid() const { return imuCalibration_.valid; }
+  void saveImuCalibration(const ImuCalibrationData& data);
+  void clearImuCalibration();
+  float accelOffsetX() const { return imuCalibration_.accelOffset.x; }
+  float accelOffsetY() const { return imuCalibration_.accelOffset.y; }
+  float accelOffsetZ() const { return imuCalibration_.accelOffset.z; }
   void setAccelCalibration(float offsetX, float offsetY, float offsetZ);
   void resetAccelCalibration();
 
@@ -91,9 +118,7 @@ class SettingsStore {
   uint16_t touchDelayMs_ = 150;
   uint8_t widgetMask_ = kDefaultWidgetMask;
   uint8_t complicationId_ = kComplicationUptime;
-  float accelOffsetX_ = 0.0f;
-  float accelOffsetY_ = 0.0f;
-  float accelOffsetZ_ = 0.0f;
+  ImuCalibrationData imuCalibration_;
 };
 
 }  // namespace iris
