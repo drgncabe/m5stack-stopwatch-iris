@@ -1,15 +1,26 @@
 #pragma once
 
 #include "iris/screens/Screen.h"
+#include "iris/services/BatteryService.h"
+#include "iris/services/OrientationService.h"
+#include "iris/services/PowerManager.h"
 #include "iris/services/SettingsStore.h"
+#include "iris/services/TimeService.h"
 #include "iris/services/WifiService.h"
 
 namespace iris {
 
 class HardwareDiagnosticsScreen : public Screen {
  public:
-  HardwareDiagnosticsScreen(SettingsStore& settings, WifiService& wifi)
-      : settings_(settings), wifi_(wifi) {}
+  HardwareDiagnosticsScreen(SettingsStore& settings, WifiService& wifi,
+                            BatteryService& battery, TimeService& timeService,
+                            PowerManager& power, OrientationService& orientation)
+      : settings_(settings),
+        wifi_(wifi),
+        battery_(battery),
+        timeService_(timeService),
+        power_(power),
+        orientation_(orientation) {}
 
   void enter() override;
   void update(uint32_t nowMs) override;
@@ -20,11 +31,27 @@ class HardwareDiagnosticsScreen : public Screen {
   void onButtonB() override;
 
  private:
+  enum class Page : uint8_t {
+    System,
+    Display,
+    Audio,
+    Input,
+    Imu,
+    Wifi,
+    Power,
+    Rtc,
+    Haptics,
+  };
+
   void activateSelected(uint32_t nowMs);
   void selectRow(size_t index);
+  void nextPage();
   void drawRow(size_t index, bool selected);
   void drawFooter();
   int rowAt(int32_t x, int32_t y) const;
+  const char* pageName() const;
+  const char* rowLabel(size_t index) const;
+  String rowValue(size_t index) const;
   void startAudioSilence(uint32_t nowMs);
   void testAudioTone();
   void startDisplayOff(uint32_t nowMs);
@@ -40,8 +67,15 @@ class HardwareDiagnosticsScreen : public Screen {
 
   SettingsStore& settings_;
   WifiService& wifi_;
+  BatteryService& battery_;
+  TimeService& timeService_;
+  PowerManager& power_;
+  OrientationService& orientation_;
+  Page page_ = Page::System;
   size_t selected_ = 0;
   bool wifiSleep_ = true;
+  int32_t lastTouchX_ = -1;
+  int32_t lastTouchY_ = -1;
   uint32_t audioSilenceUntilMs_ = 0;
   uint32_t displayOffUntilMs_ = 0;
   uint32_t brightnessTestUntilMs_ = 0;

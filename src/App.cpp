@@ -117,7 +117,7 @@ App::App()
                            sizeof(kDeveloperMenuItems) / sizeof(kDeveloperMenuItems[0]), settings_),
       axisCalibrationScreen_(settings_),
       bootloaderScreen_(settings_),
-      hardwareDiagnosticsScreen_(settings_, wifi_),
+      hardwareDiagnosticsScreen_(settings_, wifi_, battery_, timeService_, power_, orientation_),
       deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
 void App::begin() {
