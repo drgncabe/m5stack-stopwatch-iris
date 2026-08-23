@@ -66,11 +66,6 @@ bool isMenuScreen(ScreenId id) {
 
 constexpr AppDescriptor kAppDefinitions[] = {
     {"system.launcher", "Main menu", ScreenId::MainMenu, AppKind::System, false},
-    {"system.settings", "Settings", ScreenId::Settings, AppKind::Settings, true},
-    {"settings.volume", "Volume", ScreenId::Volume, AppKind::Settings, false},
-    {"settings.wifi", "WiFi", ScreenId::Wifi, AppKind::Settings, false},
-    {"settings.theme", "Theme & widgets", ScreenId::Background, AppKind::Settings, false},
-    {"settings.power", "Power", ScreenId::Power, AppKind::Settings, false},
     {"system.fidgets", "Fidgets", ScreenId::Fidgets, AppKind::Fidget, true},
     {"fidget.wheel", "Wheel", ScreenId::FidgetWheel, AppKind::Fidget, false},
     {"fidget.poppers", "Poppers", ScreenId::FidgetPoppers, AppKind::Fidget, false},
@@ -82,13 +77,22 @@ constexpr AppDescriptor kAppDefinitions[] = {
     {"developer.bootloader", "Bootloader", ScreenId::Bootloader, AppKind::Developer, false},
     {"developer.hardware_diagnostics", "Hardware diagnostics", ScreenId::HardwareDiagnostics,
      AppKind::System, false},
-    {"system.device_info", "Device information", ScreenId::DeviceInfo, AppKind::System, false},
+};
+
+constexpr AppDescriptor kSettingsAppDefinitions[] = {
+    {"system.settings", "Settings", ScreenId::Settings, AppKind::Settings, true},
+    {"settings.volume", "Volume", ScreenId::Volume, AppKind::Settings, false},
+    {"settings.wifi", "WiFi", ScreenId::Wifi, AppKind::Settings, false},
+    {"settings.theme", "Theme & widgets", ScreenId::Background, AppKind::Settings, false},
+    {"settings.power", "Power", ScreenId::Power, AppKind::Settings, false},
+    {"settings.device_info", "Device information", ScreenId::DeviceInfo, AppKind::Settings, false},
 };
 }  // namespace
 
 App::App()
     : power_(settings_),
       appManager_(screenManager_),
+      settingsApp_(screenManager_),
       watchScreen_(timeService_, battery_, wifi_, settings_),
       watchApp_(watchScreen_),
       mainMenuScreen_("Iris", kMainMenuItems,
@@ -178,6 +182,12 @@ void App::registerApps() {
   appManager_.registerApp(
       AppDescriptor(watchApp_.id(), watchApp_.name(), ScreenId::Watch, AppKind::System, true,
                     &watchApp_));
+  for (size_t i = 0; i < sizeof(kSettingsAppDefinitions) / sizeof(kSettingsAppDefinitions[0]);
+       ++i) {
+    AppDescriptor app = kSettingsAppDefinitions[i];
+    app.application = &settingsApp_;
+    appManager_.registerApp(app);
+  }
   for (size_t i = 0; i < sizeof(kAppDefinitions) / sizeof(kAppDefinitions[0]); ++i) {
     appManager_.registerApp(kAppDefinitions[i]);
   }
