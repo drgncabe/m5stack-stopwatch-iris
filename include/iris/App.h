@@ -1,7 +1,7 @@
 #pragma once
 
 #include "iris/core/AppManager.h"
-#include "iris/core/ServiceRegistry.h"
+#include "iris/core/ServiceManager.h"
 #include "iris/screens/AxisCalibrationScreen.h"
 #include "iris/screens/BootloaderScreen.h"
 #include "iris/screens/BackgroundScreen.h"
@@ -63,7 +63,7 @@ class App {
   WifiService wifi_;
   TimeService timeService_;
   PowerManager power_;
-  ServiceRegistry services_;
+  ServiceManager services_;
   ScreenManager screenManager_;
   AppManager appManager_;
 
