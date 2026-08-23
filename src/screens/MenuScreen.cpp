@@ -1,5 +1,7 @@
 #include "iris/screens/MenuScreen.h"
 
+#include <math.h>
+
 #include <M5Unified.h>
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
@@ -9,12 +11,14 @@ namespace iris {
 namespace {
 constexpr int kTitleY = 42;
 constexpr int kListCenterY = 230;
-constexpr int kRowHeight = 56;
-constexpr int kFooterY = 408;
+constexpr int kRowHeight = 58;
+constexpr int kFooterY = 414;
 constexpr int kVisiblePaddingRows = 2;
 constexpr int kTouchScrollStepPx = 72;
 constexpr int kDragDeadzonePx = 3;
 constexpr int kMaxDragDeltaPx = 24;
+constexpr int kScreenSafeMarginPx = 18;
+constexpr int kTextSafePaddingPx = 18;
 constexpr uint32_t kHapticPulseMs = 14;
 constexpr uint32_t kScrollIndicatorHoldMs = 750;
 
@@ -30,11 +34,41 @@ uint16_t blend565(uint16_t fg, uint16_t bg, uint8_t amount) {
   const uint8_t b = bb + (((fb - bb) * amount) / 255);
   return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 }
+
+int circularSafeWidthAtY(int y, int margin) {
+  const int width = M5.Display.width();
+  const int height = M5.Display.height();
+  const int centerY = height / 2;
+  const int radius = (min(width, height) / 2) - margin;
+  const int dy = abs(y - centerY);
+  if (dy >= radius) return 0;
+
+  const float halfWidth = sqrtf(static_cast<float>((radius * radius) - (dy * dy)));
+  return max(0, static_cast<int>(halfWidth * 2.0f) - (margin * 2));
+}
+
+String fitTextToWidth(const char* text, int maxWidth) {
+  String fitted(text);
+  if (maxWidth <= 0 || M5.Display.textWidth(fitted) <= maxWidth) return fitted;
+
+  const String ellipsis("...");
+  while (fitted.length() > 0 &&
+         M5.Display.textWidth(fitted + ellipsis) > maxWidth) {
+    fitted.remove(fitted.length() - 1);
+  }
+
+  if (fitted.length() == 0) return ellipsis;
+  return fitted + ellipsis;
+}
 }  // namespace
 
 MenuScreen::MenuScreen(const char* title, const MenuItem* items, size_t itemCount,
-                       SettingsStore& settings)
-    : title_(title), items_(items), itemCount_(itemCount), settings_(settings) {}
+                       SettingsStore& settings, bool wrapEnabled)
+    : title_(title),
+      items_(items),
+      itemCount_(itemCount),
+      settings_(settings),
+      wrapEnabled_(wrapEnabled) {}
 
 void MenuScreen::enter() {
   selected_ = 0;
@@ -62,7 +96,8 @@ void MenuScreen::draw() {
   M5.Display.setTextDatum(middle_center);
   M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
-  M5.Display.drawString(title_, M5.Display.width() / 2, kTitleY);
+  M5.Display.drawString(fitTextToWidth(title_, circularSafeWidthAtY(kTitleY, 26)),
+                        M5.Display.width() / 2, kTitleY);
 
   for (int relative = -kVisiblePaddingRows; relative <= kVisiblePaddingRows; ++relative) {
     const int row = static_cast<int>(selected_) + relative;
@@ -73,7 +108,9 @@ void MenuScreen::draw() {
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString("A: Next   B: Select", M5.Display.width() / 2, kFooterY);
+  M5.Display.drawString(fitTextToWidth("A: Next   B: Select",
+                                       circularSafeWidthAtY(kFooterY, 26)),
+                        M5.Display.width() / 2, kFooterY);
 }
 
 void MenuScreen::previewTouch(int32_t x, int32_t y) {
@@ -124,11 +161,19 @@ void MenuScreen::handleTouch(int32_t x, int32_t y) {
 
 void MenuScreen::onButtonA() {
   if (itemCount_ == 0) return;
-  selectRow((selected_ + 1) % itemCount_);
+  if (wrapEnabled_) {
+    selectRow((selected_ + 1) % itemCount_);
+  } else {
+    scrollSelection(1);
+  }
 }
 
 void MenuScreen::onButtonB() {
   activateSelected();
+}
+
+void MenuScreen::setWrapEnabled(bool enabled) {
+  wrapEnabled_ = enabled;
 }
 
 void MenuScreen::activateSelected() {
@@ -159,10 +204,17 @@ void MenuScreen::drawRow(size_t index, int relativePosition) {
   const bool selected = relativePosition == 0;
   const int distance = abs(relativePosition);
   const int y = kListCenterY + relativePosition * kRowHeight;
-  const int inset = distance == 0 ? 34 : (distance == 1 ? 58 : 96);
+  const int displayCenterX = M5.Display.width() / 2;
+  const int inset = distance == 0 ? 40 : (distance == 1 ? 66 : 108);
+  const int sideShift = distance == 0 ? 0 : (relativePosition < 0 ? 12 : -12) * distance;
+  const int maxSafeWidth = circularSafeWidthAtY(y, kScreenSafeMarginPx);
   const int rowHeight = distance == 0 ? 52 : (distance == 1 ? 42 : 34);
-  const int rowW = M5.Display.width() - (inset * 2);
-  const int rowX = inset;
+  const int desiredRowW = M5.Display.width() - (inset * 2);
+  const int shiftedSafeWidth = max(0, maxSafeWidth - (abs(sideShift) * 2));
+  const int rowW = min(desiredRowW, shiftedSafeWidth);
+  const int rowX = displayCenterX - (rowW / 2) + sideShift;
+  const int textCenterX = rowX + (rowW / 2);
+  const int textMaxWidth = max(0, rowW - (kTextSafePaddingPx * 2));
   const uint8_t brightness = distance == 0 ? 255 : (distance == 1 ? 175 : 105);
   const uint16_t text = blend565(theme.foreground, theme.background, brightness);
 
@@ -179,7 +231,7 @@ void MenuScreen::drawRow(size_t index, int relativePosition) {
     M5.Display.setFont(&fonts::FreeSans9pt7b);
   }
   M5.Display.setTextColor(text, selected ? theme.selected : theme.background);
-  M5.Display.drawString(items_[index].label, M5.Display.width() / 2, y);
+  M5.Display.drawString(fitTextToWidth(items_[index].label, textMaxWidth), textCenterX, y);
 }
 
 void MenuScreen::drawScrollBar(uint32_t nowMs) {
@@ -189,9 +241,9 @@ void MenuScreen::drawScrollBar(uint32_t nowMs) {
     return;
   }
   const Theme theme = currentTheme(settings_);
-  constexpr int trackX = 424;
-  constexpr int trackY = 88;
-  constexpr int trackH = 276;
+  constexpr int trackX = 410;
+  constexpr int trackY = 112;
+  constexpr int trackH = 224;
   constexpr int trackW = 5;
   constexpr int thumbMinH = 34;
   const int thumbH = max(thumbMinH, trackH / static_cast<int>(itemCount_));
