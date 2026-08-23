@@ -28,6 +28,20 @@ struct ImuCalibrationData {
   Vec3 faceDownReference{0.0f, 0.0f, -1.0f};
 };
 
+enum class PowerProfile : uint8_t {
+  Runtime = 0,
+  Balanced = 1,
+  Performance = 2,
+};
+
+inline const char* powerProfileName(PowerProfile profile) {
+  switch (profile) {
+    case PowerProfile::Runtime: return "Runtime";
+    case PowerProfile::Performance: return "Performance";
+    default: return "Balanced";
+  }
+}
+
 constexpr uint8_t kWidgetBattery = 1 << 0;
 constexpr uint8_t kWidgetDate = 1 << 1;
 constexpr uint8_t kWidgetSeconds = 1 << 2;
@@ -84,6 +98,9 @@ class SettingsStore {
   bool lowPowerFace() const { return lowPowerFace_; }
   void setLowPowerFace(bool enabled);
 
+  PowerProfile powerProfile() const { return powerProfile_; }
+  void setPowerProfile(PowerProfile profile);
+
   bool autoRotate() const { return autoRotate_; }
   void setAutoRotate(bool enabled);
 
@@ -113,6 +130,7 @@ class SettingsStore {
   uint16_t sleepTimeoutSeconds_ = 90;
   bool wifiOnDemand_ = false;
   bool lowPowerFace_ = false;
+  PowerProfile powerProfile_ = PowerProfile::Balanced;
   bool autoRotate_ = true;
   bool indicatorLightEnabled_ = false;
   uint16_t touchDelayMs_ = 150;

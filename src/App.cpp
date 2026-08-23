@@ -83,7 +83,8 @@ constexpr AppDescriptor kAppDefinitions[] = {
 }  // namespace
 
 App::App()
-    : appManager_(screenManager_),
+    : power_(settings_),
+      appManager_(screenManager_),
       watchScreen_(timeService_, battery_, wifi_, settings_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
@@ -116,7 +117,7 @@ void App::begin() {
 
   settings_.begin();
   M5.Speaker.setVolume(settings_.volume());
-  M5.Display.setBrightness(settings_.activeBrightness());
+  power_.begin();
   statusLight_.begin(settings_.indicatorLightEnabled());
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
 
@@ -131,7 +132,6 @@ void App::begin() {
   registerApps();
 
   appManager_.launch("system.watch");
-  lastActivityMs_ = millis();
 }
 
 void App::registerServices() {
@@ -139,6 +139,7 @@ void App::registerServices() {
   services_.registerService("battery", "Battery");
   services_.registerService("orientation", "Orientation");
   services_.registerService("status_light", "Status light");
+  services_.registerService("power", "Power manager");
   services_.registerService("wifi", "WiFi", wifi_.isEnabled());
   services_.registerService("time", "Time / RTC");
 }
@@ -176,7 +177,7 @@ void App::update() {
   const uint32_t nowMs = millis();
   bool inputHandled = false;
 
-  if (displayPowerState_ != DisplayPowerState::Sleeping &&
+  if (power_.state() != DisplayPowerState::Sleeping &&
       orientation_.update(nowMs, settings_.autoRotate(), settings_.accelOffsetX(),
                           settings_.accelOffsetY(), settings_.accelOffsetZ())) {
     resetTouch();
@@ -185,7 +186,7 @@ void App::update() {
 
   if (M5.BtnA.wasPressed()) {
     Serial.println("BtnA Pressed");
-    if (displayPowerState_ == DisplayPowerState::Sleeping) {
+    if (power_.state() == DisplayPowerState::Sleeping) {
       wakeDisplay(nowMs);
     } else {
       noteActivity(nowMs);
@@ -196,7 +197,7 @@ void App::update() {
 
   if (M5.BtnB.wasPressed()) {
     Serial.println("BtnB Pressed");
-    if (displayPowerState_ == DisplayPowerState::Sleeping) {
+    if (power_.state() == DisplayPowerState::Sleeping) {
       wakeDisplay(nowMs);
     } else {
       noteActivity(nowMs);
@@ -215,7 +216,7 @@ void App::update() {
       touchStartX_ = touch.x;
       touchStartY_ = touch.y;
       touchStartMs_ = nowMs;
-      if (displayPowerState_ == DisplayPowerState::Sleeping) {
+      if (power_.state() == DisplayPowerState::Sleeping) {
         wakeDisplay(nowMs);
         touchHandled_ = true;
       } else {
@@ -261,7 +262,7 @@ void App::update() {
   timeService_.update(nowMs, wifi_.isConnected());
   updateWifiPower(nowMs);
 
-  if (displayPowerState_ != DisplayPowerState::Sleeping) {
+  if (power_.state() != DisplayPowerState::Sleeping) {
     screenManager_.update(nowMs);
   }
 
@@ -284,7 +285,7 @@ String App::buildControlSnapshot(void* context) {
 
 void App::handleControlCommand(const String& command) {
   const uint32_t nowMs = millis();
-  if (displayPowerState_ == DisplayPowerState::Sleeping) {
+  if (power_.state() == DisplayPowerState::Sleeping) {
     wakeDisplay(nowMs);
   } else {
     noteActivity(nowMs);
@@ -315,7 +316,7 @@ void App::handleControlCommand(const String& command) {
   } else if (command.startsWith("brightness_set:")) {
     const int brightness = constrain(command.substring(15).toInt(), 16, 255);
     settings_.setActiveBrightness(static_cast<uint8_t>(brightness));
-    if (displayPowerState_ == DisplayPowerState::Active) {
+    if (power_.state() == DisplayPowerState::Active) {
       M5.Display.setBrightness(static_cast<uint8_t>(brightness));
     }
   } else if (command == "dim_down") {
@@ -342,6 +343,11 @@ void App::handleControlCommand(const String& command) {
   } else if (command == "low_face_toggle") {
     settings_.setLowPowerFace(!settings_.lowPowerFace());
     showWatchIfActive();
+  } else if (command == "power_profile_next") {
+    const uint8_t next =
+        (static_cast<uint8_t>(settings_.powerProfile()) + 1) %
+        (static_cast<uint8_t>(PowerProfile::Performance) + 1);
+    settings_.setPowerProfile(static_cast<PowerProfile>(next));
   } else if (command == "auto_rotate_toggle") {
     settings_.setAutoRotate(!settings_.autoRotate());
   } else if (command == "indicator_toggle") {
@@ -386,7 +392,7 @@ void App::handleControlCommand(const String& command) {
 
 String App::buildControlSnapshot() const {
   String snapshot;
-  snapshot.reserve(520);
+  snapshot.reserve(620);
   snapshot += "Screen: ";
   snapshot += currentScreenName();
   const AppDescriptor* currentApp = appManager_.current();
@@ -399,11 +405,12 @@ String App::buildControlSnapshot() const {
   snapshot += "\nServices: ";
   snapshot += services_.summary();
   snapshot += "\nDisplay power: ";
-  switch (displayPowerState_) {
-    case DisplayPowerState::Active: snapshot += "Active"; break;
-    case DisplayPowerState::Dimmed: snapshot += "Dimmed"; break;
-    case DisplayPowerState::Sleeping: snapshot += "Sleeping"; break;
-  }
+  snapshot += power_.stateName();
+  snapshot += "\nPower profile: ";
+  snapshot += power_.profileName();
+  snapshot += "\nCPU: ";
+  snapshot += String(power_.currentCpuMhz());
+  snapshot += " MHz";
   snapshot += "\nBattery: ";
   snapshot += battery_.statusText();
   snapshot += "\nWiFi: ";
@@ -477,7 +484,7 @@ void App::adjustBrightness(int delta) {
   int next = static_cast<int>(settings_.activeBrightness()) + delta;
   next = constrain(next, 16, 255);
   settings_.setActiveBrightness(static_cast<uint8_t>(next));
-  if (displayPowerState_ == DisplayPowerState::Active) {
+  if (power_.state() == DisplayPowerState::Active) {
     M5.Display.setBrightness(static_cast<uint8_t>(next));
   }
 }
@@ -529,37 +536,20 @@ void App::showWatchIfActive() {
 }
 
 void App::noteActivity(uint32_t nowMs) {
-  lastActivityMs_ = nowMs;
-  if (displayPowerState_ == DisplayPowerState::Dimmed) {
-    displayPowerState_ = DisplayPowerState::Active;
-    M5.Display.setBrightness(settings_.activeBrightness());
-  }
+  power_.userActivity(nowMs);
 }
 
 void App::updateDisplayPower(uint32_t nowMs) {
-  const uint32_t idleMs = nowMs - lastActivityMs_;
+  const uint32_t idleMs = power_.idleMs(nowMs);
 
   const ScreenId current = screenManager_.currentId();
   if (current != ScreenId::Watch && !isFidgetScreen(current) && idleMs >= kMenuReturnTimeoutMs) {
     appManager_.launch("system.watch");
-    lastActivityMs_ = nowMs;
+    power_.userActivity(nowMs);
     return;
   }
 
-  const uint16_t sleepSeconds = settings_.sleepTimeoutSeconds();
-  if (sleepSeconds > 0 &&
-      displayPowerState_ != DisplayPowerState::Sleeping &&
-      idleMs >= static_cast<uint32_t>(sleepSeconds) * 1000UL) {
-    displayPowerState_ = DisplayPowerState::Sleeping;
-    M5.Display.sleep();
-    return;
-  }
-
-  if (displayPowerState_ == DisplayPowerState::Active &&
-      idleMs >= static_cast<uint32_t>(settings_.dimTimeoutSeconds()) * 1000UL) {
-    displayPowerState_ = DisplayPowerState::Dimmed;
-    M5.Display.setBrightness(config::kDimBrightness);
-  }
+  power_.update(nowMs, appManager_.current());
 }
 
 void App::updateWifiPower(uint32_t nowMs) {
@@ -578,10 +568,7 @@ void App::updateWifiPower(uint32_t nowMs) {
 }
 
 void App::wakeDisplay(uint32_t nowMs) {
-  lastActivityMs_ = nowMs;
-  displayPowerState_ = DisplayPowerState::Active;
-  M5.Display.wakeup();
-  M5.Display.setBrightness(settings_.activeBrightness());
+  power_.wake(nowMs);
   appManager_.switchTo(screenManager_.currentId());
 }
 
