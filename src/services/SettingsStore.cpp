@@ -13,6 +13,10 @@ void SettingsStore::begin() {
   sleepTimeoutSeconds_ = prefs_.getUShort("sleep_sec", config::kDisplaySleepMs / 1000UL);
   wifiOnDemand_ = prefs_.getBool("wifi_demand", false);
   lowPowerFace_ = prefs_.getBool("low_face", false);
+  powerProfile_ = static_cast<PowerProfile>(prefs_.getUChar("pwr_profile", static_cast<uint8_t>(PowerProfile::Balanced)));
+  if (static_cast<uint8_t>(powerProfile_) > static_cast<uint8_t>(PowerProfile::Performance)) {
+    powerProfile_ = PowerProfile::Balanced;
+  }
   autoRotate_ = prefs_.getBool("auto_rotate", true);
   indicatorLightEnabled_ = prefs_.getBool("light_on", false);
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
@@ -110,6 +114,11 @@ void SettingsStore::setWifiOnDemand(bool enabled) {
 void SettingsStore::setLowPowerFace(bool enabled) {
   lowPowerFace_ = enabled;
   prefs_.putBool("low_face", lowPowerFace_);
+}
+
+void SettingsStore::setPowerProfile(PowerProfile profile) {
+  powerProfile_ = profile;
+  prefs_.putUChar("pwr_profile", static_cast<uint8_t>(powerProfile_));
 }
 
 void SettingsStore::setAutoRotate(bool enabled) {

@@ -16,6 +16,7 @@ void WifiService::begin(bool enabled) {
   if (enabled_) {
     connectSaved();
   } else {
+    WiFi.setSleep(false);
     WiFi.mode(WIFI_OFF);
   }
 }
@@ -48,6 +49,7 @@ void WifiService::setEnabled(bool enabled) {
       serverRunning_ = false;
     }
     WiFi.disconnect(true, false);
+    WiFi.setSleep(false);
     WiFi.mode(WIFI_OFF);
     return;
   }
@@ -92,6 +94,7 @@ void WifiService::connectSaved() {
   }
 
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(true);
   WiFi.begin(savedSsid_.c_str(), savedPassword_.c_str());
   ensureServer();
   lastConnectAttemptMs_ = millis();
@@ -108,6 +111,7 @@ void WifiService::startProvisioning() {
   portalSsid_ = String("Iris-Setup-") + suffix;
 
   WiFi.mode(WIFI_AP_STA);
+  WiFi.setSleep(false);
   WiFi.softAP(portalSsid_.c_str());
   ensureServer();
   portalRunning_ = true;
@@ -214,6 +218,11 @@ void WifiService::handleControlPanel() {
     appendRangeControl(html, "Brightness", "brightness_set", snapshotInt(snapshot, "Brightness", 96), 16, 255, 1, "/255");
     appendRangeControl(html, "Dim timeout", "dim_set", snapshotInt(snapshot, "Dim timeout", 20), 5, 120, 1, " sec");
     appendRangeControl(html, "Screen-off timeout", "sleep_set", snapshotInt(snapshot, "Sleep timeout", 90), 0, 600, 5, " sec");
+    html += F("<div class='control'><label>Power profile<span>");
+    html += escapeHtml(snapshotValue(snapshot, "Power profile"));
+    html += F("</span></label>");
+    appendAction(html, "Next profile", "power_profile_next");
+    html += F("<p class='hint'>Runtime favors cooler operation, Balanced is the default, and Performance keeps animation-heavy apps at full speed.</p></div>");
     appendToggleControl(html, "Low-power watch face", "low_face_toggle", snapshotOn(snapshot, "Low-power face"));
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
     appendToggleControl(html, "Indicator light", "indicator_toggle", snapshotOn(snapshot, "Indicator light"));
@@ -224,6 +233,10 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "Screen"));
     html += F("</span></p><p><b>Display power</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Display power"));
+    html += F("</span></p><p><b>Power profile</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Power profile"));
+    html += F("</span></p><p><b>CPU</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "CPU"));
     html += F("</span></p><p><b>Battery</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Battery"));
     html += F("</span></p><p><b>Theme</b><span>");
@@ -290,6 +303,10 @@ void WifiService::handleApiSettings() {
   json += escapeJson(snapshotValue(snapshot, "Screen"));
   json += F("\",\"displayPower\":\"");
   json += escapeJson(snapshotValue(snapshot, "Display power"));
+  json += F("\",\"powerProfile\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Power profile"));
+  json += F("\",\"cpu\":\"");
+  json += escapeJson(snapshotValue(snapshot, "CPU"));
   json += F("\",\"battery\":\"");
   json += escapeJson(snapshotValue(snapshot, "Battery"));
   json += F("\",\"wifi\":\"");

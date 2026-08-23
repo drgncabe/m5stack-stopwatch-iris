@@ -7,12 +7,12 @@
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 42;
-constexpr int kRowStartY = 76;
+constexpr int kRowHeight = 35;
+constexpr int kRowStartY = 74;
 constexpr int kRowLeft = 42;
 constexpr int kRowWidth = 382;
-constexpr int kRowRectHeight = 36;
-constexpr size_t kItemCount = 9;
+constexpr int kRowRectHeight = 30;
+constexpr size_t kItemCount = 10;
 
 constexpr uint8_t kBrightnessValues[] = {48, 96, 160};
 constexpr uint16_t kDimTimeoutValues[] = {10, 20, 45, 120};
@@ -69,11 +69,12 @@ void PowerScreen::activateSelected() {
     case 0: cycleBrightness(); break;
     case 1: cycleDimTimeout(); break;
     case 2: cycleSleepTimeout(); break;
-    case 3: settings_.setWifiOnDemand(!settings_.wifiOnDemand()); break;
-    case 4: settings_.setLowPowerFace(!settings_.lowPowerFace()); break;
-    case 5: settings_.setAutoRotate(!settings_.autoRotate()); break;
-    case 6: settings_.setIndicatorLightEnabled(!settings_.indicatorLightEnabled()); applyIndicatorLight(); break;
-    case 7: cycleTouchDelay(); break;
+    case 3: cyclePowerProfile(); break;
+    case 4: settings_.setWifiOnDemand(!settings_.wifiOnDemand()); break;
+    case 5: settings_.setLowPowerFace(!settings_.lowPowerFace()); break;
+    case 6: settings_.setAutoRotate(!settings_.autoRotate()); break;
+    case 7: settings_.setIndicatorLightEnabled(!settings_.indicatorLightEnabled()); applyIndicatorLight(); break;
+    case 8: cycleTouchDelay(); break;
     default: goBack(); return;
   }
   drawRow(selected_, true);
@@ -110,22 +111,26 @@ void PowerScreen::drawRow(size_t index, bool selected) {
       value = sleepTimeoutName();
       break;
     case 3:
+      label = "Power profile";
+      value = powerProfileName(settings_.powerProfile());
+      break;
+    case 4:
       label = "WiFi on demand";
       value = settings_.wifiOnDemand() ? "On" : "Off";
       break;
-    case 4:
+    case 5:
       label = "Low-power face";
       value = settings_.lowPowerFace() ? "On" : "Off";
       break;
-    case 5:
+    case 6:
       label = "Auto rotate";
       value = settings_.autoRotate() ? "On" : "Off";
       break;
-    case 6:
+    case 7:
       label = "Indicator light";
       value = settings_.indicatorLightEnabled() ? "On" : "Off";
       break;
-    case 7:
+    case 8:
       label = "Touch delay";
       value = touchDelayName();
       break;
@@ -135,8 +140,8 @@ void PowerScreen::drawRow(size_t index, bool selected) {
       break;
   }
 
-  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 14, fill);
-  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 14, border);
+  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, fill);
+  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, border);
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.foreground, fill);
   M5.Display.setTextDatum(middle_left);
@@ -187,6 +192,13 @@ void PowerScreen::cycleSleepTimeout() {
     }
   }
   settings_.setSleepTimeoutSeconds(next);
+}
+
+void PowerScreen::cyclePowerProfile() {
+  const uint8_t next =
+      (static_cast<uint8_t>(settings_.powerProfile()) + 1) %
+      (static_cast<uint8_t>(PowerProfile::Performance) + 1);
+  settings_.setPowerProfile(static_cast<PowerProfile>(next));
 }
 
 void PowerScreen::cycleTouchDelay() {

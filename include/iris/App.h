@@ -15,18 +15,13 @@
 #include "iris/screens/WifiScreen.h"
 #include "iris/services/BatteryService.h"
 #include "iris/services/OrientationService.h"
+#include "iris/services/PowerManager.h"
 #include "iris/services/SettingsStore.h"
 #include "iris/services/StatusLightService.h"
 #include "iris/services/TimeService.h"
 #include "iris/services/WifiService.h"
 
 namespace iris {
-
-enum class DisplayPowerState : uint8_t {
-  Active,
-  Dimmed,
-  Sleeping,
-};
 
 class App {
  public:
@@ -66,6 +61,7 @@ class App {
   StatusLightService statusLight_;
   WifiService wifi_;
   TimeService timeService_;
+  PowerManager power_;
   ServiceRegistry services_;
   ScreenManager screenManager_;
   AppManager appManager_;
@@ -93,9 +89,7 @@ class App {
   int32_t touchStartX_ = 0;
   int32_t touchStartY_ = 0;
   uint32_t touchStartMs_ = 0;
-  uint32_t lastActivityMs_ = 0;
   uint32_t wifiDemandStartedMs_ = 0;
-  DisplayPowerState displayPowerState_ = DisplayPowerState::Active;
 };
 
 }  // namespace iris
