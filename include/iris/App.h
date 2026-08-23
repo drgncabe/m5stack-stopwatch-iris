@@ -7,6 +7,7 @@
 #include "iris/screens/BackgroundScreen.h"
 #include "iris/screens/DeviceInfoScreen.h"
 #include "iris/screens/FidgetScreens.h"
+#include "iris/screens/HardwareDiagnosticsScreen.h"
 #include "iris/screens/MenuScreen.h"
 #include "iris/screens/PowerScreen.h"
 #include "iris/screens/ScreenManager.h"
@@ -81,6 +82,7 @@ class App {
   MenuScreen developerMenuScreen_;
   AxisCalibrationScreen axisCalibrationScreen_;
   BootloaderScreen bootloaderScreen_;
+  HardwareDiagnosticsScreen hardwareDiagnosticsScreen_;
   DeviceInfoScreen deviceInfoScreen_;
   bool touchActive_ = false;
   bool touchPreviewed_ = false;
