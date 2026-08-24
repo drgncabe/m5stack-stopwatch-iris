@@ -4,6 +4,30 @@
 
 namespace iris {
 
+namespace {
+const char* apiEndpointForCommand(const char* command) {
+  if (strcmp(command, "brightness_set") == 0 ||
+      strcmp(command, "dim_brightness_set") == 0 ||
+      strcmp(command, "dim_set") == 0 ||
+      strcmp(command, "sleep_set") == 0) {
+    return "/api/settings/display";
+  }
+  if (strcmp(command, "touch_set") == 0) return "/api/settings/touch";
+  if (strcmp(command, "volume_set") == 0) return "/api/settings/sound";
+  return "";
+}
+
+const char* apiFieldForCommand(const char* command) {
+  if (strcmp(command, "brightness_set") == 0) return "brightness";
+  if (strcmp(command, "dim_brightness_set") == 0) return "dimBrightness";
+  if (strcmp(command, "dim_set") == 0) return "dimTimeoutSeconds";
+  if (strcmp(command, "sleep_set") == 0) return "sleepTimeoutSeconds";
+  if (strcmp(command, "touch_set") == 0) return "touchDelayMs";
+  if (strcmp(command, "volume_set") == 0) return "volumePercent";
+  return "";
+}
+}  // namespace
+
 WifiService::WifiService() : server_(80) {}
 
 void WifiService::begin(bool enabled) {
@@ -331,6 +355,8 @@ void WifiService::handleApiSettings() {
   json += escapeJson(snapshotValue(snapshot, "SSID"));
   json += F("\",\"ip\":\"");
   json += escapeJson(snapshotValue(snapshot, "IP"));
+  json += F("\",\"time\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time"));
   json += F("\",\"volumePercent\":");
   json += String(snapshotInt(snapshot, "Volume", 0));
   json += F(",\"theme\":\"");
@@ -657,17 +683,23 @@ void WifiService::handlePortalSave() {
 
 void WifiService::appendPageShellStart(String& html, const String& page, const String& snapshot) {
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
-  html += F("<meta http-equiv='refresh' content='20'><title>Iris</title><style>");
-  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;background:#000;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008}.face{text-align:center}.time{font-size:42px;font-weight:800;line-height:1}.date{margin-top:12px;color:#b7c5b8}.chip{display:inline-block;margin-top:14px;border:1px solid #344035;border-radius:999px;padding:5px 10px;color:#c9d7c9;font-size:13px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px}.button.warn{border-color:#f0c36a;background:#342710}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number]{width:82px;background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
+  html += F("<title>Iris</title><style>");
+  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;background:#000;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008}.face{text-align:center}.time{font-size:42px;font-weight:800;line-height:1}.date{margin-top:12px;color:#b7c5b8}.chip{display:inline-block;margin-top:14px;border:1px solid #344035;border-radius:999px;padding:5px 10px;color:#c9d7c9;font-size:13px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number]{width:82px;background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
   html += F("<div class='top'>");
   appendWatchPreview(html, snapshot);
-  html += F("<div class='title'><h1>Iris</h1><p>Web configurator for display, touch, sound, WiFi, theme, power, device, and development controls.</p></div></div><div class='layout'>");
+  html += F("<div class='title'><h1>Iris</h1><p>Web configurator for display, touch, sound, WiFi, theme, power, device, and development controls.</p><span id='status' class='status'></span></div></div><div class='layout'>");
   appendNavigation(html, page);
   html += F("<main>");
 }
 
 void WifiService::appendPageShellEnd(String& html) {
-  html += F("</main></div></div></body></html>");
+  html += F("</main></div></div><script>");
+  html += F("const statusEl=document.getElementById('status');function note(t){if(statusEl)statusEl.textContent=t||''}");
+  html += F("async function sendJson(url,method,payload){const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload||{})});if(!r.ok)throw new Error(await r.text());return r.json()}");
+  html += F("async function refreshPreview(){try{const s=await fetch('/api/settings').then(r=>r.json());const time=document.querySelector('.time');const theme=document.querySelector('.date');const chip=document.querySelector('.chip');if(time&&s.time)time.textContent=s.time;if(theme)theme.textContent=s.theme||'';if(chip)chip.textContent=s.battery||''}catch(e){}}");
+  html += F("document.querySelectorAll('form[data-api]').forEach(f=>{const range=f.querySelector('input[type=range]');const number=f.querySelector('input[type=number]');const value=f.querySelector('[data-value]');const sync=v=>{if(range)range.value=v;if(number)number.value=v;if(value)value.textContent=v};if(range)range.addEventListener('input',()=>sync(range.value));if(number)number.addEventListener('input',()=>sync(number.value));f.addEventListener('submit',async e=>{e.preventDefault();const btn=f.querySelector('button');try{btn&&btn.classList.add('busy');note('Applying...');await sendJson(f.dataset.api,'PUT',{[f.dataset.field]:Number(number?number.value:range.value)});btn&&btn.classList.add('saved');note('Saved');refreshPreview()}catch(err){note('Could not apply setting')}finally{btn&&btn.classList.remove('busy');setTimeout(()=>{btn&&btn.classList.remove('saved');note('')},1800)}})});");
+  html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note('Could not apply command')}finally{a.classList.remove('busy')}}));");
+  html += F("setInterval(refreshPreview,15000);</script></body></html>");
 }
 
 void WifiService::appendWatchPreview(String& html, const String& snapshot) {
@@ -702,14 +734,25 @@ void WifiService::appendRangeControl(String& html, const char* label, const char
                                      int value, int minValue, int maxValue, int step,
                                      const char* suffix) {
   const String page = server_.arg("page");
-  html += F("<div class='control'><form method='get' action='/control'><input type='hidden' name='cmd' value='");
+  const char* endpoint = apiEndpointForCommand(command);
+  const char* field = apiFieldForCommand(command);
+  html += F("<div class='control'><form method='get' action='/control'");
+  if (endpoint[0] != '\0' && field[0] != '\0') {
+    html += F(" data-api='");
+    html += endpoint;
+    html += F("' data-field='");
+    html += field;
+    html += F("'");
+  }
+  html += F("><input type='hidden' name='cmd' value='");
   html += command;
   html += F("'><input type='hidden' name='page' value='");
   html += escapeHtml(page);
   html += F("'><label>");
   html += label;
-  html += F("<span>");
+  html += F("<span><span data-value>");
   html += String(value);
+  html += F("</span>");
   html += suffix;
   html += F("</span></label><input type='range' value='");
   html += String(value);
@@ -750,6 +793,8 @@ void WifiService::appendAction(String& html, const char* label, const char* comm
   html += command;
   html += F("&page=");
   html += escapeHtml(page);
+  html += F("' data-command='");
+  html += command;
   html += F("'>");
   html += label;
   html += F("</a>");
