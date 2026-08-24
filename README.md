@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.2.6`
+Current firmware version: `0.2.7`
 
 ### Implemented
 
@@ -50,6 +50,7 @@ Current firmware version: `0.2.6`
 - Settings registered as `SettingsApp` with stable app ID `system.settings`
 - Development tools registered as `DevelopmentApp` with stable app ID `system.development`
 - Built-in themes with different colors and watch layouts
+- Web theme cards with built-in palette previews and active-theme state
 - First complication foundation, currently including an uptime complication
 - Five-position wheel-style menu UI optimized for the circular display
 - Touch scrolling with press-and-hold selection behavior and haptic feedback
