@@ -141,8 +141,21 @@ void WifiService::configurePortalRoutes() {
   server_.on("/control", HTTP_GET, [this]() { handleControlCommand(); });
   server_.on("/api/settings", HTTP_GET, [this]() { handleApiSettings(); });
   server_.on("/api/settings/display", HTTP_GET, [this]() { handleApiDisplaySettings(); });
+  server_.on("/api/settings/display", HTTP_PUT, [this]() { handleApiDisplaySettings(); });
   server_.on("/api/settings/power", HTTP_GET, [this]() { handleApiPowerSettings(); });
+  server_.on("/api/settings/power", HTTP_PUT, [this]() { handleApiPowerSettings(); });
+  server_.on("/api/settings/touch", HTTP_GET, [this]() { handleApiTouchSettings(); });
+  server_.on("/api/settings/touch", HTTP_PUT, [this]() { handleApiTouchSettings(); });
+  server_.on("/api/settings/sound", HTTP_GET, [this]() { handleApiSoundSettings(); });
+  server_.on("/api/settings/sound", HTTP_PUT, [this]() { handleApiSoundSettings(); });
+  server_.on("/api/settings/audio", HTTP_GET, [this]() { handleApiSoundSettings(); });
+  server_.on("/api/settings/audio", HTTP_PUT, [this]() { handleApiSoundSettings(); });
+  server_.on("/api/settings/theme", HTTP_GET, [this]() { handleApiThemeSettings(); });
+  server_.on("/api/settings/theme", HTTP_PUT, [this]() { handleApiThemeSettings(); });
+  server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
+  server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
+  server_.on("/api/wifi/setup", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/display.txt", HTTP_GET, [this]() { handleDisplaySnapshot(); });
   server_.on("/setup", HTTP_GET, [this]() { handleWifiSetup(); });
   server_.on("/save", HTTP_POST, [this]() { handlePortalSave(); });
@@ -250,7 +263,7 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "Face layout"));
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a></section>");
   } else if (page == "development") {
     html += F("<section><h2>Development</h2><div class='grid'>");
     appendAction(html, "Watch screen", "watch");
@@ -286,9 +299,7 @@ void WifiService::handleControlCommand() {
     command += ":";
     command += server_.arg("value");
   }
-  if (commandHandler_ && !command.isEmpty()) {
-    commandHandler_(controlContext_, command);
-  }
+  dispatchControlCommand(command);
 
   String destination = "/";
   if (server_.hasArg("return")) {
@@ -341,6 +352,32 @@ void WifiService::handleApiSettings() {
 }
 
 void WifiService::handleApiDisplaySettings() {
+  if (server_.method() == HTTP_PUT) {
+    int intValue = 0;
+    bool boolValue = false;
+    const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+    if (apiIntArg("brightness", &intValue)) {
+      dispatchControlCommand(String("brightness_set:") + intValue);
+    }
+    if (apiIntArg("dimBrightness", &intValue)) {
+      dispatchControlCommand(String("dim_brightness_set:") + intValue);
+    }
+    if (apiIntArg("dimTimeoutSeconds", &intValue)) {
+      dispatchControlCommand(String("dim_set:") + intValue);
+    }
+    if (apiIntArg("sleepTimeoutSeconds", &intValue)) {
+      dispatchControlCommand(String("sleep_set:") + intValue);
+    }
+    if (apiBoolArg("lowPowerFace", &boolValue) &&
+        boolValue != snapshotOn(snapshot, "Low-power face")) {
+      dispatchControlCommand("low_face_toggle");
+    }
+    if (apiBoolArg("autoRotate", &boolValue) &&
+        boolValue != (snapshotValue(snapshot, "Auto rotate") != "Off")) {
+      dispatchControlCommand("auto_rotate_toggle");
+    }
+  }
+
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
   json.reserve(420);
@@ -365,6 +402,36 @@ void WifiService::handleApiDisplaySettings() {
 }
 
 void WifiService::handleApiPowerSettings() {
+  if (server_.method() == HTTP_PUT) {
+    int intValue = 0;
+    bool boolValue = false;
+    const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+    if (apiIntArg("dimBrightness", &intValue)) {
+      dispatchControlCommand(String("dim_brightness_set:") + intValue);
+    }
+    if (apiIntArg("dimTimeoutSeconds", &intValue)) {
+      dispatchControlCommand(String("dim_set:") + intValue);
+    }
+    if (apiIntArg("sleepTimeoutSeconds", &intValue)) {
+      dispatchControlCommand(String("sleep_set:") + intValue);
+    }
+    if (apiBoolArg("lowPowerFace", &boolValue) &&
+        boolValue != snapshotOn(snapshot, "Low-power face")) {
+      dispatchControlCommand("low_face_toggle");
+    }
+    if (apiBoolArg("wifiOnDemand", &boolValue) &&
+        boolValue != snapshotOn(snapshot, "WiFi on demand")) {
+      dispatchControlCommand("wifi_demand_toggle");
+    }
+    if (apiBoolArg("indicatorLight", &boolValue) &&
+        boolValue != snapshotOn(snapshot, "Indicator light")) {
+      dispatchControlCommand("indicator_toggle");
+    }
+    if (apiBoolArg("nextProfile", &boolValue) && boolValue) {
+      dispatchControlCommand("power_profile_next");
+    }
+  }
+
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
   json.reserve(360);
@@ -388,7 +455,133 @@ void WifiService::handleApiPowerSettings() {
   server_.send(200, "application/json", json);
 }
 
+void WifiService::handleApiTouchSettings() {
+  int value = 0;
+  if (server_.method() == HTTP_PUT && apiIntArg("touchDelayMs", &value)) {
+    dispatchControlCommand(String("touch_set:") + value);
+  }
+
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(80);
+  json += F("{\"touchDelayMs\":");
+  json += String(snapshotInt(snapshot, "Touch delay", 0));
+  json += F("}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiSoundSettings() {
+  int value = 0;
+  if (server_.method() == HTTP_PUT && apiIntArg("volumePercent", &value)) {
+    dispatchControlCommand(String("volume_set:") + value);
+  }
+
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(90);
+  json += F("{\"volumePercent\":");
+  json += String(snapshotInt(snapshot, "Volume", 0));
+  json += F("}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiThemeSettings() {
+  if (server_.method() == HTTP_PUT) {
+    int intValue = 0;
+    bool boolValue = false;
+    const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+    const String widgets = snapshotValue(snapshot, "Widgets");
+    const bool batteryWidget = widgets.indexOf("Battery") >= 0;
+    const bool dateWidget = widgets.indexOf("Date") >= 0;
+    const bool secondsWidget = widgets.indexOf("Seconds") >= 0;
+    const bool wifiWidget = widgets.indexOf("WiFi") >= 0;
+    const bool complication = snapshotValue(snapshot, "Complication") != "Off";
+
+    if (apiIntArg("themeId", &intValue)) {
+      dispatchControlCommand(String("theme_") + intValue);
+    }
+    if (apiBoolArg("nextTheme", &boolValue) && boolValue) {
+      dispatchControlCommand("bg_next");
+    }
+    if (apiBoolArg("batteryWidget", &boolValue) && boolValue != batteryWidget) {
+      dispatchControlCommand("widget_battery_toggle");
+    }
+    if (apiBoolArg("dateWidget", &boolValue) && boolValue != dateWidget) {
+      dispatchControlCommand("widget_date_toggle");
+    }
+    if (apiBoolArg("secondsWidget", &boolValue) && boolValue != secondsWidget) {
+      dispatchControlCommand("widget_seconds_toggle");
+    }
+    if (apiBoolArg("wifiWidget", &boolValue) && boolValue != wifiWidget) {
+      dispatchControlCommand("widget_wifi_toggle");
+    }
+    if (apiBoolArg("complication", &boolValue) && boolValue != complication) {
+      dispatchControlCommand("complication_next");
+    }
+    if (apiBoolArg("nextComplication", &boolValue) && boolValue) {
+      dispatchControlCommand("complication_next");
+    }
+  }
+
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  const String widgets = snapshotValue(snapshot, "Widgets");
+  String json;
+  json.reserve(320);
+  json += F("{\"theme\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Theme"));
+  json += F("\",\"layout\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Face layout"));
+  json += F("\",\"widgets\":\"");
+  json += escapeJson(widgets);
+  json += F("\",\"batteryWidget\":");
+  json += widgets.indexOf("Battery") >= 0 ? F("true") : F("false");
+  json += F(",\"dateWidget\":");
+  json += widgets.indexOf("Date") >= 0 ? F("true") : F("false");
+  json += F(",\"secondsWidget\":");
+  json += widgets.indexOf("Seconds") >= 0 ? F("true") : F("false");
+  json += F(",\"wifiWidget\":");
+  json += widgets.indexOf("WiFi") >= 0 ? F("true") : F("false");
+  json += F(",\"complication\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Complication"));
+  json += F("\"}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiCommand() {
+  String command;
+  if (!apiStringArg("command", &command)) {
+    apiStringArg("cmd", &command);
+  }
+  if (command.isEmpty() && server_.uri() == "/api/wifi/setup") {
+    command = "wifi_setup";
+  }
+  if (command.isEmpty()) {
+    sendApiError(400, "Missing command.");
+    return;
+  }
+  if (!dispatchControlCommand(command)) {
+    sendApiError(503, "Control command handler unavailable.");
+    return;
+  }
+  sendApiOk("Command accepted.");
+}
+
 void WifiService::handleApiWifiStatus() {
+  if (server_.method() == HTTP_POST) {
+    bool boolValue = false;
+    const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+    if (apiBoolArg("enabled", &boolValue) && boolValue != isEnabled()) {
+      dispatchControlCommand("wifi_toggle");
+    }
+    if (apiBoolArg("onDemand", &boolValue) &&
+        boolValue != snapshotOn(snapshot, "WiFi on demand")) {
+      dispatchControlCommand("wifi_demand_toggle");
+    }
+    if (apiBoolArg("setup", &boolValue) && boolValue) {
+      dispatchControlCommand("wifi_setup");
+    }
+  }
+
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
   json.reserve(260);
@@ -593,6 +786,98 @@ int WifiService::snapshotInt(const String& snapshot, const char* key, int fallba
 bool WifiService::snapshotOn(const String& snapshot, const char* key) const {
   const String value = snapshotValue(snapshot, key);
   return value == "On" || value.startsWith("On ");
+}
+
+bool WifiService::dispatchControlCommand(const String& command) {
+  if (!commandHandler_ || command.isEmpty()) return false;
+  commandHandler_(controlContext_, command);
+  return true;
+}
+
+String WifiService::apiArg(const char* name) {
+  if (server_.hasArg(name)) {
+    return server_.arg(name);
+  }
+
+  const String body = server_.arg("plain");
+  if (body.isEmpty()) return "";
+
+  String needle = String("\"") + name + "\"";
+  int key = body.indexOf(needle);
+  if (key < 0) key = body.indexOf(name);
+  if (key < 0) return "";
+
+  int start = body.indexOf(':', key);
+  if (start < 0) return "";
+  ++start;
+  while (start < static_cast<int>(body.length()) && isspace(body[start])) {
+    ++start;
+  }
+  if (start >= static_cast<int>(body.length())) return "";
+
+  if (body[start] == '"') {
+    ++start;
+    int end = body.indexOf('"', start);
+    if (end < 0) end = body.length();
+    return body.substring(start, end);
+  }
+
+  int end = start;
+  while (end < static_cast<int>(body.length()) &&
+         body[end] != ',' && body[end] != '}' && body[end] != '\r' && body[end] != '\n') {
+    ++end;
+  }
+  String value = body.substring(start, end);
+  value.trim();
+  return value;
+}
+
+bool WifiService::apiIntArg(const char* name, int* value) {
+  if (!value) return false;
+  const String raw = apiArg(name);
+  if (raw.isEmpty()) return false;
+  *value = raw.toInt();
+  return true;
+}
+
+bool WifiService::apiBoolArg(const char* name, bool* value) {
+  if (!value) return false;
+  String raw = apiArg(name);
+  raw.toLowerCase();
+  if (raw == "true" || raw == "1" || raw == "on" || raw == "yes") {
+    *value = true;
+    return true;
+  }
+  if (raw == "false" || raw == "0" || raw == "off" || raw == "no") {
+    *value = false;
+    return true;
+  }
+  return false;
+}
+
+bool WifiService::apiStringArg(const char* name, String* value) {
+  if (!value) return false;
+  *value = apiArg(name);
+  value->trim();
+  return !value->isEmpty();
+}
+
+void WifiService::sendApiError(int code, const char* message) {
+  String json;
+  json.reserve(80);
+  json += F("{\"ok\":false,\"error\":\"");
+  json += escapeJson(message);
+  json += F("\"}");
+  server_.send(code, "application/json", json);
+}
+
+void WifiService::sendApiOk(const char* message) {
+  String json;
+  json.reserve(80);
+  json += F("{\"ok\":true,\"message\":\"");
+  json += escapeJson(message);
+  json += F("\"}");
+  server_.send(200, "application/json", json);
 }
 
 String WifiService::escapeJson(const String& value) {
