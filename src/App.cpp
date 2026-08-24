@@ -21,6 +21,7 @@ constexpr uint16_t kMenuTouchDelayMs = 300;
 
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
+    {"Stopwatch", ScreenId::Stopwatch},
     {"Fidgets", ScreenId::Fidgets},
     {"Settings", ScreenId::Settings},
 };
@@ -56,6 +57,10 @@ bool isFidgetScreen(ScreenId id) {
          id == ScreenId::FidgetPoppers ||
          id == ScreenId::FidgetSpinner ||
          id == ScreenId::FidgetGravityBall;
+}
+
+bool isStopwatchScreen(ScreenId id) {
+  return id == ScreenId::Stopwatch || id == ScreenId::StopwatchLaps;
 }
 
 bool isMenuScreen(ScreenId id) {
@@ -111,6 +116,9 @@ App::App()
       settingsApp_(screenManager_),
       watchScreen_(timeService_, battery_, wifi_, settings_),
       watchApp_(watchScreen_),
+      stopwatchScreen_(settings_, stopwatchEngine_),
+      stopwatchLapHistoryScreen_(settings_, stopwatchEngine_),
+      stopwatchApp_(stopwatchScreen_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
@@ -178,6 +186,8 @@ void App::registerServices() {
 
 void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Watch, &watchScreen_);
+  screenManager_.registerScreen(ScreenId::Stopwatch, &stopwatchScreen_);
+  screenManager_.registerScreen(ScreenId::StopwatchLaps, &stopwatchLapHistoryScreen_);
   screenManager_.registerScreen(ScreenId::MainMenu, &mainMenuScreen_);
   screenManager_.registerScreen(ScreenId::Settings, &settingsMenuScreen_);
   screenManager_.registerScreen(ScreenId::Volume, &volumeScreen_);
@@ -201,6 +211,9 @@ void App::registerApps() {
   appManager_.registerApp(
       AppDescriptor(watchApp_.id(), watchApp_.name(), ScreenId::Watch, AppKind::System, true,
                     &watchApp_, AppUpdateClass::Normal));
+  appManager_.registerApp(AppDescriptor(stopwatchApp_.id(), stopwatchApp_.name(),
+                                        ScreenId::Stopwatch, AppKind::Tool, true,
+                                        &stopwatchApp_, AppUpdateClass::Realtime));
   for (size_t i = 0; i < sizeof(kSettingsAppDefinitions) / sizeof(kSettingsAppDefinitions[0]);
        ++i) {
     AppDescriptor app = kSettingsAppDefinitions[i];
@@ -719,7 +732,8 @@ void App::updateDisplayPower(uint32_t nowMs) {
   const uint32_t idleMs = power_.idleMs(nowMs);
 
   const ScreenId current = screenManager_.currentId();
-  if (current != ScreenId::Watch && !isFidgetScreen(current) && idleMs >= kMenuReturnTimeoutMs) {
+  if (current != ScreenId::Watch && !isFidgetScreen(current) && !isStopwatchScreen(current) &&
+      idleMs >= kMenuReturnTimeoutMs) {
     appManager_.launch("system.watch");
     power_.userActivity(nowMs);
     return;
@@ -767,6 +781,8 @@ bool App::shouldUpdateForeground(uint32_t nowMs, const AppDescriptor* app) {
 const char* App::currentScreenName() const {
   switch (screenManager_.currentId()) {
     case ScreenId::Watch: return "Watch";
+    case ScreenId::Stopwatch: return "Stopwatch";
+    case ScreenId::StopwatchLaps: return "Stopwatch laps";
     case ScreenId::MainMenu: return "Main menu";
     case ScreenId::Settings: return "Settings";
     case ScreenId::Volume: return "Volume";

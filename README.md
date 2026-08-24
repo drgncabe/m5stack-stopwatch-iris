@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.2.14`
+Current firmware version: `0.3.0`
 
 Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -49,6 +49,7 @@ Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](
 
 - Watch face with time, date, battery level, WiFi status, theme support, and configurable widgets
 - Watch registered as `WatchApp` with stable app ID `system.watch`
+- Stopwatch registered as `StopwatchApp` with stable app ID `tools.stopwatch`
 - Settings registered as `SettingsApp` with stable app ID `system.settings`
 - Development tools registered as `DevelopmentApp` with stable app ID `system.development`
 - Built-in themes with different colors and watch layouts
@@ -58,6 +59,7 @@ Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](
 - Touch scrolling with press-and-hold selection behavior and haptic feedback
 - Volume, display, touch delay, theme/widget, power, WiFi, and developer settings
 - Date & Time settings with country/region defaults, date format, time format, timezone, automatic NTP sync, Sync Now, manual date/time, and RTC information
+- Dedicated stopwatch app with start, pause, resume, reset confirmation, lap capture, lap history, haptics, and a radial second-progress display
 - WiFi client mode with saved credentials
 - WiFi setup access point for provisioning
 - Lightweight web control panel while WiFi is active, including saved WiFi management and detailed device information
@@ -106,6 +108,9 @@ Planned features are roadmap items unless they are listed under Implemented.
 - BtnA moves to the next item.
 - BtnB selects the current item.
 - Most settings screens show their available A/B actions near the bottom of the display.
+- In Stopwatch, BtnB starts, pauses, or resumes; BtnA records a lap while running or starts reset confirmation while paused.
+- In Stopwatch, tap the left control for Lap/Reset/Back and the right control for Start/Pause/Resume.
+- In Stopwatch, tap the lap/status area to view recent lap history.
 
 ## User Interface
 
@@ -167,6 +172,7 @@ void loop() {
 The application model uses stable app IDs, display names, lifecycle state, and optional lifecycle callbacks while the existing screen system is migrated incrementally. Current and candidate apps include:
 
 - WatchApp (`system.watch`)
+- StopwatchApp (`tools.stopwatch`)
 - SettingsApp (`system.settings`)
 - DevelopmentApp (`system.development`)
 - FidgetsApp

@@ -15,6 +15,8 @@ enum class ScreenId : uint8_t {
   DateTime,
   Background,
   Power,
+  Stopwatch,
+  StopwatchLaps,
   Fidgets,
   FidgetWheel,
   FidgetPoppers,
