@@ -12,6 +12,13 @@ constexpr uint32_t kBalancedActiveCpuMhz = 160;
 constexpr uint32_t kPerformanceCpuMhz = 240;
 constexpr uint32_t kRuntimeIdleCpuMhz = 80;
 constexpr uint32_t kBalancedIdleCpuMhz = 80;
+constexpr uint16_t kActiveLoopDelayMs = 5;
+constexpr uint16_t kBalancedDimLoopDelayMs = 25;
+constexpr uint16_t kRuntimeDimLoopDelayMs = 50;
+constexpr uint16_t kBalancedSleepLoopDelayMs = 80;
+constexpr uint16_t kRuntimeSleepLoopDelayMs = 140;
+constexpr uint16_t kDimForegroundUpdateMs = 1000;
+constexpr uint16_t kPerformanceForegroundUpdateMs = 100;
 }  // namespace
 
 void PowerManager::begin() {
@@ -70,6 +77,30 @@ const char* PowerManager::stateName() const {
     case DisplayPowerState::Sleeping: return "Sleeping";
   }
   return "Unknown";
+}
+
+uint16_t PowerManager::loopDelayMs(const AppDescriptor* app) const {
+  if (settings_.powerProfile() == PowerProfile::Performance || appNeedsPerformance(app)) {
+    return kActiveLoopDelayMs;
+  }
+  if (state_ == DisplayPowerState::Sleeping) {
+    return settings_.powerProfile() == PowerProfile::Runtime ? kRuntimeSleepLoopDelayMs
+                                                             : kBalancedSleepLoopDelayMs;
+  }
+  if (state_ == DisplayPowerState::Dimmed) {
+    return settings_.powerProfile() == PowerProfile::Runtime ? kRuntimeDimLoopDelayMs
+                                                             : kBalancedDimLoopDelayMs;
+  }
+  return kActiveLoopDelayMs;
+}
+
+uint16_t PowerManager::foregroundUpdateIntervalMs(const AppDescriptor* app) const {
+  if (state_ == DisplayPowerState::Sleeping) return 0;
+  if (state_ == DisplayPowerState::Active) return 0;
+  if (settings_.powerProfile() == PowerProfile::Performance || appNeedsPerformance(app)) {
+    return kPerformanceForegroundUpdateMs;
+  }
+  return kDimForegroundUpdateMs;
 }
 
 bool PowerManager::appNeedsPerformance(const AppDescriptor* app) const {

@@ -27,6 +27,8 @@ class PowerManager {
   const char* stateName() const;
   uint32_t idleMs(uint32_t nowMs) const { return nowMs - lastActivityMs_; }
   uint32_t currentCpuMhz() const { return currentCpuMhz_; }
+  uint16_t loopDelayMs(const AppDescriptor* app) const;
+  uint16_t foregroundUpdateIntervalMs(const AppDescriptor* app) const;
   const char* profileName() const { return powerProfileName(settings_.powerProfile()); }
 
  private:

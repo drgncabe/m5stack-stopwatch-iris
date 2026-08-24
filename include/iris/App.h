@@ -59,6 +59,7 @@ class App {
   void updateDisplayPower(uint32_t nowMs);
   void updateWifiPower(uint32_t nowMs);
   void wakeDisplay(uint32_t nowMs);
+  bool shouldUpdateForeground(uint32_t nowMs, const AppDescriptor* app);
   const char* currentScreenName() const;
 
   SettingsStore settings_;
@@ -100,6 +101,7 @@ class App {
   int32_t touchStartX_ = 0;
   int32_t touchStartY_ = 0;
   uint32_t touchStartMs_ = 0;
+  uint32_t lastForegroundUpdateMs_ = 0;
   uint32_t wifiDemandStartedMs_ = 0;
   bool batteryLowPublished_ = false;
 };

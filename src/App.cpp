@@ -304,17 +304,18 @@ void App::update() {
   services_.update(nowMs);
   updateSystemEvents(previousWifiConnected, previousRotation);
 
-  if (power_.state() != DisplayPowerState::Sleeping) {
+  const AppDescriptor* currentApp = appManager_.current();
+  if (shouldUpdateForeground(nowMs, currentApp)) {
     screenManager_.update(nowMs);
+    appManager_.update(nowMs);
   }
   appManager_.syncToCurrentScreen();
-  appManager_.update(nowMs);
 
   if (!inputHandled) {
     updateDisplayPower(nowMs);
   }
 
-  delay(5);
+  delay(power_.loopDelayMs(currentApp));
 }
 
 void App::handleControlCommand(void* context, const String& command) {
@@ -488,6 +489,12 @@ String App::buildControlSnapshot() const {
   snapshot += "\nCPU: ";
   snapshot += String(power_.currentCpuMhz());
   snapshot += " MHz";
+  snapshot += "\nLoop delay: ";
+  snapshot += String(power_.loopDelayMs(currentApp));
+  snapshot += "ms";
+  snapshot += "\nForeground update: ";
+  const uint16_t foregroundIntervalMs = power_.foregroundUpdateIntervalMs(currentApp);
+  snapshot += foregroundIntervalMs == 0 ? String("Unthrottled") : String(foregroundIntervalMs) + "ms";
   snapshot += "\nBattery: ";
   snapshot += battery_.statusText();
   snapshot += "\nWiFi: ";
@@ -649,7 +656,19 @@ void App::updateWifiPower(uint32_t nowMs) {
 
 void App::wakeDisplay(uint32_t nowMs) {
   power_.wake(nowMs);
+  lastForegroundUpdateMs_ = 0;
   appManager_.switchTo(screenManager_.currentId());
+}
+
+bool App::shouldUpdateForeground(uint32_t nowMs, const AppDescriptor* app) {
+  const uint16_t intervalMs = power_.foregroundUpdateIntervalMs(app);
+  if (power_.state() == DisplayPowerState::Sleeping) return false;
+  if (intervalMs == 0 || lastForegroundUpdateMs_ == 0 ||
+      nowMs - lastForegroundUpdateMs_ >= intervalMs) {
+    lastForegroundUpdateMs_ = nowMs;
+    return true;
+  }
+  return false;
 }
 
 const char* App::currentScreenName() const {
