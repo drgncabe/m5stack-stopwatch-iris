@@ -49,6 +49,7 @@ class WifiService {
   void handleApiThemeSettings();
   void handleApiTimeSettings();
   void handleApiDeviceInfo();
+  void handleApiApps();
   void handleApiCommand();
   void handleApiWifiStatus();
   void handleApiWifiNetworks();
@@ -63,6 +64,7 @@ class WifiService {
   void appendPageShellEnd(String& html);
   void appendWatchPreview(String& html, const String& snapshot);
   void appendNavigation(String& html, const String& page);
+  void appendAppRegistry(String& html, const String& registry);
   void appendRangeControl(String& html, const char* label, const char* command,
                           int value, int minValue, int maxValue, int step,
                           const char* suffix);

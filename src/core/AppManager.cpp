@@ -118,6 +118,14 @@ const AppDescriptor* AppManager::findByScreen(ScreenId screen) const {
   return index == kNoApp ? nullptr : &apps_[index];
 }
 
+const AppDescriptor* AppManager::appAt(size_t index) const {
+  return index < count_ ? &apps_[index] : nullptr;
+}
+
+AppLifecycleState AppManager::stateAt(size_t index) const {
+  return index < count_ ? states_[index] : AppLifecycleState::Stopped;
+}
+
 bool AppManager::activateIndex(size_t index, bool showScreen) {
   if (index >= count_) return false;
 

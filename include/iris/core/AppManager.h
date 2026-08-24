@@ -91,6 +91,8 @@ class AppManager {
   const char* currentStateName() const;
   const AppDescriptor* findById(const char* id) const;
   const AppDescriptor* findByScreen(ScreenId screen) const;
+  const AppDescriptor* appAt(size_t index) const;
+  AppLifecycleState stateAt(size_t index) const;
   size_t count() const { return count_; }
 
  private:
