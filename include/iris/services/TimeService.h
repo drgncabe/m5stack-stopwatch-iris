@@ -24,6 +24,8 @@ class TimeService {
   void begin();
   void update(uint32_t nowMs, bool wifiConnected);
   DateTimeSnapshot now() const;
+  DateTimeSnapshot systemNow() const;
+  DateTimeSnapshot rtcNow() const;
   bool rtcAvailable() const { return rtcAvailable_; }
   bool ntpSynchronized() const { return ntpSynchronized_; }
   bool syncNow(uint32_t nowMs);
@@ -36,12 +38,14 @@ class TimeService {
   String utcOffsetText() const;
   String dstText() const;
   String lastNtpSyncText() const;
+  String rtcSystemDifferenceText() const;
 
  private:
   void requestNtp(uint32_t nowMs);
   bool copySystemTimeToRtc();
   bool restoreSystemTimeFromRtc();
   bool setSystemAndRtc(time_t epoch);
+  bool snapshotToEpoch(const DateTimeSnapshot& snapshot, time_t* epoch) const;
 
   SettingsStore& settings_;
   bool rtcAvailable_ = false;

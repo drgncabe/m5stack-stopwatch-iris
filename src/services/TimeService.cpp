@@ -53,8 +53,18 @@ void TimeService::update(uint32_t nowMs, bool wifiConnected) {
 }
 
 DateTimeSnapshot TimeService::now() const {
-  DateTimeSnapshot snapshot;
+  DateTimeSnapshot snapshot = systemNow();
+  if (snapshot.valid) return snapshot;
 
+  if (rtcAvailable_) {
+    snapshot = rtcNow();
+  }
+
+  return snapshot;
+}
+
+DateTimeSnapshot TimeService::systemNow() const {
+  DateTimeSnapshot snapshot;
   time_t systemNow = time(nullptr);
   if (systemNow > 1700000000) {
     struct tm localTime {};
@@ -70,18 +80,22 @@ DateTimeSnapshot TimeService::now() const {
     return snapshot;
   }
 
-  if (rtcAvailable_) {
-    const auto dt = M5.Rtc.getDateTime();
-    snapshot.year = dt.date.year;
-    snapshot.month = dt.date.month;
-    snapshot.day = dt.date.date;
-    snapshot.hour = dt.time.hours;
-    snapshot.minute = dt.time.minutes;
-    snapshot.second = dt.time.seconds;
-    snapshot.weekDay = dt.date.weekDay;
-    snapshot.valid = snapshot.year >= 2024;
-  }
+  return snapshot;
+}
 
+DateTimeSnapshot TimeService::rtcNow() const {
+  DateTimeSnapshot snapshot;
+  if (!rtcAvailable_) return snapshot;
+
+  const auto dt = M5.Rtc.getDateTime();
+  snapshot.year = dt.date.year;
+  snapshot.month = dt.date.month;
+  snapshot.day = dt.date.date;
+  snapshot.hour = dt.time.hours;
+  snapshot.minute = dt.time.minutes;
+  snapshot.second = dt.time.seconds;
+  snapshot.weekDay = dt.date.weekDay;
+  snapshot.valid = snapshotLooksValid(snapshot);
   return snapshot;
 }
 
@@ -272,32 +286,37 @@ String TimeService::lastNtpSyncText() const {
   return formatDate(snapshot) + " " + formatTime(snapshot);
 }
 
+String TimeService::rtcSystemDifferenceText() const {
+  const DateTimeSnapshot rtc = rtcNow();
+  const DateTimeSnapshot system = systemNow();
+  if (!rtc.valid || !system.valid) return "Unknown";
+
+  time_t rtcEpoch = 0;
+  time_t systemEpoch = 0;
+  if (!snapshotToEpoch(rtc, &rtcEpoch) || !snapshotToEpoch(system, &systemEpoch)) {
+    return "Unknown";
+  }
+
+  long diff = static_cast<long>(difftime(rtcEpoch, systemEpoch));
+  const char sign = diff >= 0 ? '+' : '-';
+  if (diff < 0) diff = -diff;
+
+  String text;
+  text.reserve(12);
+  text += sign;
+  text += String(diff);
+  text += " sec";
+  return text;
+}
+
 bool TimeService::restoreSystemTimeFromRtc() {
   if (!rtcAvailable_) return false;
 
-  const auto dt = M5.Rtc.getDateTime();
-  DateTimeSnapshot snapshot;
-  snapshot.year = dt.date.year;
-  snapshot.month = dt.date.month;
-  snapshot.day = dt.date.date;
-  snapshot.hour = dt.time.hours;
-  snapshot.minute = dt.time.minutes;
-  snapshot.second = dt.time.seconds;
-  snapshot.weekDay = dt.date.weekDay;
-  snapshot.valid = snapshotLooksValid(snapshot);
+  const DateTimeSnapshot snapshot = rtcNow();
   if (!snapshot.valid) return false;
 
-  struct tm localTime {};
-  localTime.tm_year = snapshot.year - 1900;
-  localTime.tm_mon = snapshot.month - 1;
-  localTime.tm_mday = snapshot.day;
-  localTime.tm_hour = snapshot.hour;
-  localTime.tm_min = snapshot.minute;
-  localTime.tm_sec = snapshot.second;
-  localTime.tm_isdst = -1;
-
-  const time_t epoch = mktime(&localTime);
-  if (epoch <= 0) return false;
+  time_t epoch = 0;
+  if (!snapshotToEpoch(snapshot, &epoch)) return false;
   return setSystemAndRtc(epoch);
 }
 
@@ -318,6 +337,24 @@ bool TimeService::setSystemAndRtc(time_t epoch) {
          static_cast<int8_t>(localTime.tm_sec)}});
   }
 
+  return true;
+}
+
+bool TimeService::snapshotToEpoch(const DateTimeSnapshot& snapshot, time_t* epoch) const {
+  if (!epoch || !snapshotLooksValid(snapshot)) return false;
+
+  struct tm localTime {};
+  localTime.tm_year = snapshot.year - 1900;
+  localTime.tm_mon = snapshot.month - 1;
+  localTime.tm_mday = snapshot.day;
+  localTime.tm_hour = snapshot.hour;
+  localTime.tm_min = snapshot.minute;
+  localTime.tm_sec = snapshot.second;
+  localTime.tm_isdst = -1;
+
+  const time_t value = mktime(&localTime);
+  if (value <= 0) return false;
+  *epoch = value;
   return true;
 }
 
