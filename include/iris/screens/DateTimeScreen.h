@@ -22,7 +22,16 @@ class DateTimeScreen : public Screen {
  private:
   enum class Page : uint8_t {
     Settings = 0,
-    RtcInfo = 1,
+    Manual = 1,
+    RtcInfo = 2,
+  };
+
+  enum class ManualField : uint8_t {
+    Year = 0,
+    Month = 1,
+    Day = 2,
+    Hour = 3,
+    Minute = 4,
   };
 
   void activateSelected();
@@ -33,6 +42,13 @@ class DateTimeScreen : public Screen {
   size_t itemCount() const;
   const char* rowLabel(size_t index) const;
   String rowValue(size_t index) const;
+  void openManualEditor();
+  void cycleManualField();
+  void adjustManualField(int delta);
+  void normalizeManualDraft();
+  void applyManualDraft();
+  const char* manualFieldName() const;
+  String manualFieldValue() const;
   void cycleCountry();
   void cycleDateFormat();
   void cycleTimeFormat();
@@ -42,6 +58,8 @@ class DateTimeScreen : public Screen {
   SettingsStore& settings_;
   TimeService& timeService_;
   Page page_ = Page::Settings;
+  ManualField manualField_ = ManualField::Year;
+  DateTimeSnapshot manualDraft_;
   size_t selected_ = 0;
   uint32_t lastRefreshMs_ = 0;
   String status_;

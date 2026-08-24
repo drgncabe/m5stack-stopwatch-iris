@@ -146,6 +146,25 @@ bool TimeService::adjustManualMinutes(int deltaMinutes) {
   return setSystemAndRtc(epoch);
 }
 
+bool TimeService::setManualDateTime(const DateTimeSnapshot& value) {
+  if (settings_.automaticTimeEnabled()) return false;
+  if (!snapshotLooksValid(value)) return false;
+
+  struct tm localTime {};
+  localTime.tm_year = value.year - 1900;
+  localTime.tm_mon = value.month - 1;
+  localTime.tm_mday = value.day;
+  localTime.tm_hour = value.hour;
+  localTime.tm_min = value.minute;
+  localTime.tm_sec = value.second;
+  localTime.tm_isdst = -1;
+
+  const time_t epoch = mktime(&localTime);
+  if (epoch <= 0) return false;
+  ntpSynchronized_ = false;
+  return setSystemAndRtc(epoch);
+}
+
 void TimeService::applyConfiguredTimezone() {
   setenv("TZ", timeZonePosix(settings_.timeZone()), 1);
   tzset();

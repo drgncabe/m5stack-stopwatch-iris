@@ -28,6 +28,7 @@ class TimeService {
   bool ntpSynchronized() const { return ntpSynchronized_; }
   bool syncNow(uint32_t nowMs);
   bool adjustManualMinutes(int deltaMinutes);
+  bool setManualDateTime(const DateTimeSnapshot& value);
   void applyConfiguredTimezone();
   String formatDate(const DateTimeSnapshot& value) const;
   String formatTime(const DateTimeSnapshot& value, bool includeSeconds = false) const;
