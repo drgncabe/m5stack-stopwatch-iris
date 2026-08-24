@@ -40,6 +40,8 @@ enum class CountryRegion : uint8_t {
   Europe = 2,
 };
 
+constexpr uint8_t kCountryRegionCount = static_cast<uint8_t>(CountryRegion::Europe) + 1;
+
 enum class DateFormat : uint8_t {
   MonthDayYear = 0,
   DayMonthYear = 1,
@@ -48,10 +50,14 @@ enum class DateFormat : uint8_t {
   DayMonthName = 4,
 };
 
+constexpr uint8_t kDateFormatCount = static_cast<uint8_t>(DateFormat::DayMonthName) + 1;
+
 enum class TimeFormat : uint8_t {
   TwelveHour = 0,
   TwentyFourHour = 1,
 };
+
+constexpr uint8_t kTimeFormatCount = static_cast<uint8_t>(TimeFormat::TwentyFourHour) + 1;
 
 enum class TimeZoneId : uint8_t {
   Eastern = 0,
@@ -59,6 +65,8 @@ enum class TimeZoneId : uint8_t {
   Mountain = 2,
   Pacific = 3,
   Utc = 4,
+  London = 5,
+  CentralEurope = 6,
 };
 
 inline const char* powerProfileName(PowerProfile profile) {
@@ -115,6 +123,8 @@ inline const char* timeZoneName(TimeZoneId zone) {
     case TimeZoneId::Central: return "Central";
     case TimeZoneId::Mountain: return "Mountain";
     case TimeZoneId::Pacific: return "Pacific";
+    case TimeZoneId::London: return "London";
+    case TimeZoneId::CentralEurope: return "Central Europe";
     case TimeZoneId::Utc: return "UTC";
     default: return "Eastern";
   }
@@ -125,6 +135,8 @@ inline const char* timeZoneIanaName(TimeZoneId zone) {
     case TimeZoneId::Central: return "America/Chicago";
     case TimeZoneId::Mountain: return "America/Denver";
     case TimeZoneId::Pacific: return "America/Los_Angeles";
+    case TimeZoneId::London: return "Europe/London";
+    case TimeZoneId::CentralEurope: return "Europe/Berlin";
     case TimeZoneId::Utc: return "Etc/UTC";
     default: return "America/New_York";
   }
@@ -135,10 +147,14 @@ inline const char* timeZonePosix(TimeZoneId zone) {
     case TimeZoneId::Central: return "CST6CDT,M3.2.0,M11.1.0";
     case TimeZoneId::Mountain: return "MST7MDT,M3.2.0,M11.1.0";
     case TimeZoneId::Pacific: return "PST8PDT,M3.2.0,M11.1.0";
+    case TimeZoneId::London: return "GMT0BST,M3.5.0/1,M10.5.0";
+    case TimeZoneId::CentralEurope: return "CET-1CEST,M3.5.0,M10.5.0/3";
     case TimeZoneId::Utc: return "UTC0";
     default: return "EST5EDT,M3.2.0,M11.1.0";
   }
 }
+
+constexpr uint8_t kTimeZoneCount = static_cast<uint8_t>(TimeZoneId::CentralEurope) + 1;
 
 constexpr uint8_t kWidgetBattery = 1 << 0;
 constexpr uint8_t kWidgetDate = 1 << 1;

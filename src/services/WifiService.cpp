@@ -207,6 +207,8 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/settings/audio", HTTP_PUT, [this]() { handleApiSoundSettings(); });
   server_.on("/api/settings/theme", HTTP_GET, [this]() { handleApiThemeSettings(); });
   server_.on("/api/settings/theme", HTTP_PUT, [this]() { handleApiThemeSettings(); });
+  server_.on("/api/settings/time", HTTP_GET, [this]() { handleApiTimeSettings(); });
+  server_.on("/api/settings/time", HTTP_PUT, [this]() { handleApiTimeSettings(); });
   server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
@@ -268,6 +270,31 @@ void WifiService::handleControlPanel() {
     appendAction(html, "Next complication", "complication_next");
     html += F("</div>");
 
+    html += F("<h3>Date & Time</h3><div class='facts'>");
+    html += F("<p><b>Country</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Country"));
+    html += F("</span></p><p><b>Locale</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Locale"));
+    html += F("</span></p><p><b>Date format</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Date format"));
+    html += F("</span></p><p><b>Time format</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Time format"));
+    html += F("</span></p><p><b>Time zone</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Time zone"));
+    html += F("</span></p><p><b>Sync</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Time sync"));
+    html += F("</span></p></div><div class='grid'>");
+    appendAction(html, "Next country", "country_next");
+    appendAction(html, "Next time zone", "timezone_next");
+    appendAction(html, "Next date format", "date_format_next");
+    appendAction(html, "Next time format", "time_format_next");
+    appendAction(html, "Sync now", "time_sync_now");
+    appendAction(html, "Open Date & Time", "date_time");
+    html += F("</div>");
+    appendToggleControl(html, "Automatic date & time", "auto_time_toggle",
+                        snapshotOn(snapshot, "Automatic time"));
+    html += F("<p class='hint'>Country applies date and time format defaults only. Time zone remains a separate setting.</p>");
+
     html += F("<h3>Touch</h3>");
     appendRangeControl(html, "Touch delay", "touch_set", snapshotInt(snapshot, "Touch delay", 150), 50, 500, 5, " ms");
     html += F("<p class='hint'>Menu screens still enforce a slightly longer minimum hold so scrolling does not accidentally select an item.</p>");
@@ -318,7 +345,7 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "Face layout"));
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a></section>");
   } else if (page == "development") {
     html += F("<section><h2>Development</h2><h3>Tools</h3><div class='grid'>");
     appendAction(html, "Hardware Diagnostics", "hardware_diagnostics");
@@ -429,6 +456,24 @@ void WifiService::handleApiSettings() {
   json += escapeJson(snapshotValue(snapshot, "IP"));
   json += F("\",\"time\":\"");
   json += escapeJson(snapshotValue(snapshot, "Time"));
+  json += F("\",\"date\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Date"));
+  json += F("\",\"country\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Country"));
+  json += F("\",\"locale\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Locale"));
+  json += F("\",\"dateFormat\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Date format"));
+  json += F("\",\"timeFormat\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time format"));
+  json += F("\",\"timeZone\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time zone"));
+  json += F("\",\"automaticTime\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Automatic time"));
+  json += F("\",\"timeSync\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time sync"));
+  json += F("\",\"lastNtpSync\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Last NTP sync"));
   json += F("\",\"volumePercent\":");
   json += String(snapshotInt(snapshot, "Volume", 0));
   json += F(",\"theme\":\"");
@@ -446,6 +491,58 @@ void WifiService::handleApiSettings() {
   json += F(",\"touchDelayMs\":");
   json += String(snapshotInt(snapshot, "Touch delay", 0));
   json += F("}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiTimeSettings() {
+  if (server_.method() == HTTP_PUT) {
+    bool boolValue = false;
+    const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+    if (apiBoolArg("nextCountry", &boolValue) && boolValue) {
+      dispatchControlCommand("country_next");
+    }
+    if (apiBoolArg("nextTimeZone", &boolValue) && boolValue) {
+      dispatchControlCommand("timezone_next");
+    }
+    if (apiBoolArg("nextDateFormat", &boolValue) && boolValue) {
+      dispatchControlCommand("date_format_next");
+    }
+    if (apiBoolArg("nextTimeFormat", &boolValue) && boolValue) {
+      dispatchControlCommand("time_format_next");
+    }
+    if (apiBoolArg("automaticTime", &boolValue) &&
+        boolValue != snapshotOn(snapshot, "Automatic time")) {
+      dispatchControlCommand("auto_time_toggle");
+    }
+    if (apiBoolArg("syncNow", &boolValue) && boolValue) {
+      dispatchControlCommand("time_sync_now");
+    }
+  }
+
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(520);
+  json += F("{\"date\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Date"));
+  json += F("\",\"time\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time"));
+  json += F("\",\"country\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Country"));
+  json += F("\",\"locale\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Locale"));
+  json += F("\",\"dateFormat\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Date format"));
+  json += F("\",\"timeFormat\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time format"));
+  json += F("\",\"timeZone\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time zone"));
+  json += F("\",\"automaticTime\":");
+  json += snapshotOn(snapshot, "Automatic time") ? F("true") : F("false");
+  json += F(",\"timeSync\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Time sync"));
+  json += F("\",\"lastNtpSync\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Last NTP sync"));
+  json += F("\"}");
   server_.send(200, "application/json", json);
 }
 
