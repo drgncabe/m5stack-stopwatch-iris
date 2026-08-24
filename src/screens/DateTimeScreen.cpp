@@ -16,7 +16,7 @@ constexpr int kRowWidth = 382;
 constexpr int kRowRectHeight = 27;
 constexpr size_t kSettingsItemCount = 9;
 constexpr size_t kManualItemCount = 8;
-constexpr size_t kRtcInfoItemCount = 9;
+constexpr size_t kRtcInfoItemCount = 10;
 constexpr uint32_t kRefreshMs = 1000;
 
 String fitTextToWidth(const String& text, int maxWidth) {
@@ -228,7 +228,7 @@ const char* DateTimeScreen::rowLabel(size_t index) const {
   if (page_ == Page::RtcInfo) {
     constexpr const char* labels[] = {
         "Back", "RTC", "RTC time", "System time", "Time zone",
-        "UTC offset", "DST", "Last NTP", "Back"};
+        "UTC offset", "DST", "Last NTP", "Clock diff", "Back"};
     return labels[index];
   }
 
@@ -261,16 +261,16 @@ String DateTimeScreen::rowValue(size_t index) const {
   }
 
   if (page_ == Page::RtcInfo) {
-    const DateTimeSnapshot now = timeService_.now();
     switch (index) {
       case 0:
-      case 8:
+      case 9:
         return "";
       case 1:
         return timeService_.rtcAvailable() ? "Available" : "Unavailable";
       case 2:
+        return timeService_.formatDateTime(timeService_.rtcNow());
       case 3:
-        return timeService_.formatDateTime(now);
+        return timeService_.formatDateTime(timeService_.systemNow());
       case 4:
         return timeZoneIanaName(settings_.timeZone());
       case 5:
@@ -279,6 +279,8 @@ String DateTimeScreen::rowValue(size_t index) const {
         return timeService_.dstText();
       case 7:
         return timeService_.lastNtpSyncText();
+      case 8:
+        return timeService_.rtcSystemDifferenceText();
       default:
         return "";
     }
