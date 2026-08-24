@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.2.2`
+Current firmware version: `0.2.3`
 
 ### Implemented
 
@@ -292,6 +292,7 @@ Current web/API routes include:
 - `/api/settings/theme` for theme-focused JSON settings
 - `/api/settings/power` for power-focused JSON settings
 - `/api/wifi/status` for WiFi status JSON
+- `/api/wifi/networks` for nearby WiFi network scan results
 
 ## ESP32-C5-Zero Companion Nodes
 
