@@ -17,6 +17,10 @@ constexpr uint16_t kBalancedDimLoopDelayMs = 25;
 constexpr uint16_t kRuntimeDimLoopDelayMs = 50;
 constexpr uint16_t kBalancedSleepLoopDelayMs = 80;
 constexpr uint16_t kRuntimeSleepLoopDelayMs = 140;
+constexpr uint16_t kRealtimeForegroundUpdateMs = 33;
+constexpr uint16_t kInteractiveForegroundUpdateMs = 100;
+constexpr uint16_t kNormalForegroundUpdateMs = 250;
+constexpr uint16_t kBackgroundForegroundUpdateMs = 1000;
 constexpr uint16_t kDimForegroundUpdateMs = 1000;
 constexpr uint16_t kPerformanceForegroundUpdateMs = 100;
 }  // namespace
@@ -96,16 +100,32 @@ uint16_t PowerManager::loopDelayMs(const AppDescriptor* app) const {
 
 uint16_t PowerManager::foregroundUpdateIntervalMs(const AppDescriptor* app) const {
   if (state_ == DisplayPowerState::Sleeping) return 0;
-  if (state_ == DisplayPowerState::Active) return 0;
   if (settings_.powerProfile() == PowerProfile::Performance || appNeedsPerformance(app)) {
-    return kPerformanceForegroundUpdateMs;
+    return state_ == DisplayPowerState::Active ? kRealtimeForegroundUpdateMs
+                                               : kPerformanceForegroundUpdateMs;
   }
-  return kDimForegroundUpdateMs;
+
+  const AppUpdateClass updateClass = updateClassFor(app);
+  if (state_ == DisplayPowerState::Dimmed) {
+    return updateClass == AppUpdateClass::Realtime ? kPerformanceForegroundUpdateMs
+                                                   : kDimForegroundUpdateMs;
+  }
+
+  switch (updateClass) {
+    case AppUpdateClass::Realtime: return kRealtimeForegroundUpdateMs;
+    case AppUpdateClass::Interactive: return kInteractiveForegroundUpdateMs;
+    case AppUpdateClass::Background: return kBackgroundForegroundUpdateMs;
+    default: return kNormalForegroundUpdateMs;
+  }
 }
 
 bool PowerManager::appNeedsPerformance(const AppDescriptor* app) const {
   if (!app) return false;
-  return app->kind == AppKind::Fidget || app->kind == AppKind::Developer;
+  return app->updateClass == AppUpdateClass::Realtime;
+}
+
+AppUpdateClass PowerManager::updateClassFor(const AppDescriptor* app) const {
+  return app ? app->updateClass : AppUpdateClass::Normal;
 }
 
 bool PowerManager::profileAllowsCpuScaling() const {

@@ -205,4 +205,13 @@ const char* appLifecycleStateName(AppLifecycleState state) {
   return "Unknown";
 }
 
+const char* appUpdateClassName(AppUpdateClass updateClass) {
+  switch (updateClass) {
+    case AppUpdateClass::Interactive: return "Interactive";
+    case AppUpdateClass::Realtime: return "Realtime";
+    case AppUpdateClass::Background: return "Background";
+    default: return "Normal";
+  }
+}
+
 }  // namespace iris

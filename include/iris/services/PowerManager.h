@@ -33,6 +33,7 @@ class PowerManager {
 
  private:
   bool appNeedsPerformance(const AppDescriptor* app) const;
+  AppUpdateClass updateClassFor(const AppDescriptor* app) const;
   bool profileAllowsCpuScaling() const;
   uint32_t activeCpuMhz(const AppDescriptor* app) const;
   uint32_t idleCpuMhz(const AppDescriptor* app) const;
