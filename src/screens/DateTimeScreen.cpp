@@ -1,6 +1,7 @@
 #include "iris/screens/DateTimeScreen.h"
 
 #include <M5Unified.h>
+#include <time.h>
 
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
@@ -13,7 +14,8 @@ constexpr int kRowStartY = 70;
 constexpr int kRowLeft = 42;
 constexpr int kRowWidth = 382;
 constexpr int kRowRectHeight = 27;
-constexpr size_t kSettingsItemCount = 10;
+constexpr size_t kSettingsItemCount = 9;
+constexpr size_t kManualItemCount = 8;
 constexpr size_t kRtcInfoItemCount = 9;
 constexpr uint32_t kRefreshMs = 1000;
 
@@ -40,7 +42,7 @@ void DateTimeScreen::enter() {
 }
 
 void DateTimeScreen::update(uint32_t nowMs) {
-  if (page_ != Page::RtcInfo) return;
+  if (page_ != Page::RtcInfo && page_ != Page::Manual) return;
   if (lastRefreshMs_ == 0 || nowMs - lastRefreshMs_ >= kRefreshMs) {
     lastRefreshMs_ = nowMs;
     draw();
@@ -53,8 +55,10 @@ void DateTimeScreen::draw() {
   M5.Display.setTextDatum(middle_center);
   M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
-  M5.Display.drawString(page_ == Page::Settings ? "Date & Time" : "RTC info",
-                        M5.Display.width() / 2, 50);
+  const char* title = "Date & Time";
+  if (page_ == Page::Manual) title = "Manual time";
+  if (page_ == Page::RtcInfo) title = "RTC info";
+  M5.Display.drawString(title, M5.Display.width() / 2, 50);
 
   for (size_t i = 0; i < itemCount(); ++i) {
     drawRow(i, i == selected_);
@@ -85,6 +89,33 @@ void DateTimeScreen::onButtonB() {
 }
 
 void DateTimeScreen::activateSelected() {
+  if (page_ == Page::Manual) {
+    switch (selected_) {
+      case 0:
+      case 7:
+        page_ = Page::Settings;
+        selected_ = 0;
+        draw();
+        return;
+      case 1:
+        cycleManualField();
+        break;
+      case 2:
+        adjustManualField(1);
+        break;
+      case 3:
+        adjustManualField(-1);
+        break;
+      case 4:
+        applyManualDraft();
+        break;
+      default:
+        break;
+    }
+    draw();
+    return;
+  }
+
   if (page_ == Page::RtcInfo) {
     if (selected_ == 0 || selected_ == itemCount() - 1) {
       page_ = Page::Settings;
@@ -115,12 +146,9 @@ void DateTimeScreen::activateSelected() {
       status_ = timeService_.syncNow(millis()) ? "Sync successful" : "Sync pending";
       break;
     case 6:
-      status_ = timeService_.adjustManualMinutes(1) ? "+1 minute" : "Turn auto off";
-      break;
+      openManualEditor();
+      return;
     case 7:
-      status_ = timeService_.adjustManualMinutes(-1) ? "-1 minute" : "Turn auto off";
-      break;
-    case 8:
       page_ = Page::RtcInfo;
       selected_ = 0;
       lastRefreshMs_ = 0;
@@ -128,7 +156,7 @@ void DateTimeScreen::activateSelected() {
       return;
     default:
       goBack();
-      return;
+      break;
   }
 
   timeService_.applyConfiguredTimezone();
@@ -186,10 +214,17 @@ int DateTimeScreen::rowAt(int32_t x, int32_t y) const {
 }
 
 size_t DateTimeScreen::itemCount() const {
+  if (page_ == Page::Manual) return kManualItemCount;
   return page_ == Page::Settings ? kSettingsItemCount : kRtcInfoItemCount;
 }
 
 const char* DateTimeScreen::rowLabel(size_t index) const {
+  if (page_ == Page::Manual) {
+    constexpr const char* labels[] = {
+        "Back", "Field", "Increase", "Decrease", "Apply", "Date", "Time", "Back"};
+    return labels[index];
+  }
+
   if (page_ == Page::RtcInfo) {
     constexpr const char* labels[] = {
         "Back", "RTC", "RTC time", "System time", "Time zone",
@@ -199,11 +234,32 @@ const char* DateTimeScreen::rowLabel(size_t index) const {
 
   constexpr const char* labels[] = {
       "Country", "Time zone", "Date format", "Time format", "Automatic",
-      "Sync now", "Manual +1m", "Manual -1m", "RTC info", "Back"};
+      "Sync now", "Manual time", "RTC info", "Back"};
   return labels[index];
 }
 
 String DateTimeScreen::rowValue(size_t index) const {
+  if (page_ == Page::Manual) {
+    switch (index) {
+      case 0:
+      case 7:
+        return "";
+      case 1:
+        return manualFieldName();
+      case 2:
+      case 3:
+        return settings_.automaticTimeEnabled() ? "Auto on" : manualFieldValue();
+      case 4:
+        return settings_.automaticTimeEnabled() ? "Disabled" : "Save";
+      case 5:
+        return timeService_.formatDate(manualDraft_);
+      case 6:
+        return timeService_.formatTime(manualDraft_);
+      default:
+        return "";
+    }
+  }
+
   if (page_ == Page::RtcInfo) {
     const DateTimeSnapshot now = timeService_.now();
     switch (index) {
@@ -243,11 +299,123 @@ String DateTimeScreen::rowValue(size_t index) const {
       return timeService_.ntpSynchronized() ? "Synced" : "Run";
     case 6:
     case 7:
-      return settings_.automaticTimeEnabled() ? "Auto on" : "Ready";
-    case 8:
       return "Open";
     default:
       return "";
+  }
+}
+
+void DateTimeScreen::openManualEditor() {
+  manualDraft_ = timeService_.now();
+  if (!manualDraft_.valid) {
+    manualDraft_.year = 2026;
+    manualDraft_.month = 1;
+    manualDraft_.day = 1;
+    manualDraft_.hour = 12;
+    manualDraft_.minute = 0;
+    manualDraft_.second = 0;
+    manualDraft_.weekDay = 4;
+    manualDraft_.valid = true;
+  }
+  manualField_ = ManualField::Year;
+  page_ = Page::Manual;
+  selected_ = 1;
+  status_ = settings_.automaticTimeEnabled() ? "Turn auto off first" : "Edit then apply";
+  draw();
+}
+
+void DateTimeScreen::cycleManualField() {
+  const uint8_t next = (static_cast<uint8_t>(manualField_) + 1) %
+                       (static_cast<uint8_t>(ManualField::Minute) + 1);
+  manualField_ = static_cast<ManualField>(next);
+  status_ = manualFieldName();
+}
+
+void DateTimeScreen::adjustManualField(int delta) {
+  if (settings_.automaticTimeEnabled()) {
+    status_ = "Turn auto off first";
+    return;
+  }
+
+  switch (manualField_) {
+    case ManualField::Year:
+      manualDraft_.year += delta;
+      manualDraft_.year = constrain(manualDraft_.year, 2024, 2099);
+      break;
+    case ManualField::Month:
+      manualDraft_.month += delta;
+      break;
+    case ManualField::Day:
+      manualDraft_.day += delta;
+      break;
+    case ManualField::Hour:
+      manualDraft_.hour += delta;
+      break;
+    case ManualField::Minute:
+      manualDraft_.minute += delta;
+      break;
+  }
+
+  normalizeManualDraft();
+  status_ = String(manualFieldName()) + " " + manualFieldValue();
+}
+
+void DateTimeScreen::normalizeManualDraft() {
+  struct tm localTime {};
+  localTime.tm_year = manualDraft_.year - 1900;
+  localTime.tm_mon = manualDraft_.month - 1;
+  localTime.tm_mday = manualDraft_.day;
+  localTime.tm_hour = manualDraft_.hour;
+  localTime.tm_min = manualDraft_.minute;
+  localTime.tm_sec = manualDraft_.second;
+  localTime.tm_isdst = -1;
+
+  const time_t epoch = mktime(&localTime);
+  if (epoch <= 0) return;
+
+  struct tm normalized {};
+  localtime_r(&epoch, &normalized);
+  manualDraft_.year = normalized.tm_year + 1900;
+  manualDraft_.month = normalized.tm_mon + 1;
+  manualDraft_.day = normalized.tm_mday;
+  manualDraft_.hour = normalized.tm_hour;
+  manualDraft_.minute = normalized.tm_min;
+  manualDraft_.second = normalized.tm_sec;
+  manualDraft_.weekDay = normalized.tm_wday;
+  manualDraft_.valid = true;
+}
+
+void DateTimeScreen::applyManualDraft() {
+  if (settings_.automaticTimeEnabled()) {
+    status_ = "Turn auto off first";
+    return;
+  }
+  normalizeManualDraft();
+  status_ = timeService_.setManualDateTime(manualDraft_) ? "Manual time saved" : "Could not save";
+}
+
+const char* DateTimeScreen::manualFieldName() const {
+  switch (manualField_) {
+    case ManualField::Month: return "Month";
+    case ManualField::Day: return "Day";
+    case ManualField::Hour: return "Hour";
+    case ManualField::Minute: return "Minute";
+    default: return "Year";
+  }
+}
+
+String DateTimeScreen::manualFieldValue() const {
+  switch (manualField_) {
+    case ManualField::Month:
+      return String(manualDraft_.month);
+    case ManualField::Day:
+      return String(manualDraft_.day);
+    case ManualField::Hour:
+      return String(manualDraft_.hour);
+    case ManualField::Minute:
+      return String(manualDraft_.minute);
+    default:
+      return String(manualDraft_.year);
   }
 }
 
