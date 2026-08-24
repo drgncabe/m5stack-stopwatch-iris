@@ -22,11 +22,21 @@ class PowerManager {
   void userActivity(uint32_t nowMs);
   void update(uint32_t nowMs, const AppDescriptor* app);
   void wake(uint32_t nowMs);
+  void requestPerformanceMode();
+  void releasePerformanceMode();
+  void requestDisplay();
+  void releaseDisplay();
+  void requestWifi();
+  void releaseWifi();
 
   DisplayPowerState state() const { return state_; }
   const char* stateName() const;
   uint32_t idleMs(uint32_t nowMs) const { return nowMs - lastActivityMs_; }
   uint32_t currentCpuMhz() const { return currentCpuMhz_; }
+  bool performanceRequested() const { return performanceRequests_ > 0; }
+  bool displayRequested() const { return displayRequests_ > 0; }
+  bool wifiRequested() const { return wifiRequests_ > 0; }
+  String requestSummary() const;
   uint16_t loopDelayMs(const AppDescriptor* app) const;
   uint16_t foregroundUpdateIntervalMs(const AppDescriptor* app) const;
   const char* profileName() const { return powerProfileName(settings_.powerProfile()); }
@@ -45,6 +55,9 @@ class PowerManager {
   SettingsStore& settings_;
   uint32_t lastActivityMs_ = 0;
   uint32_t currentCpuMhz_ = 0;
+  uint8_t performanceRequests_ = 0;
+  uint8_t displayRequests_ = 0;
+  uint8_t wifiRequests_ = 0;
   DisplayPowerState state_ = DisplayPowerState::Active;
 };
 

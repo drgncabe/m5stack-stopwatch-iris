@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.2.13`
+Current firmware version: `0.2.14`
 
 Before closing the v0.2 architecture baseline, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -66,6 +66,7 @@ Before closing the v0.2 architecture baseline, run the [v0.2 hardware validation
 - Responsive web navigation with a collapsed mobile menu
 - Device and hardware diagnostics with heap, PSRAM, and firmware partition usage
 - Per-app foreground update hints for better CPU/display power behavior
+- PowerManager resource requests for future apps needing performance, display, or WiFi
 - Display dimming, screen sleep, low-power watch face, and WiFi-on-demand settings
 - Developer bootloader/download-mode entry from the device menu
 - BMI270-based auto-rotation option
