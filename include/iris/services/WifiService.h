@@ -48,6 +48,7 @@ class WifiService {
   void handleApiSoundSettings();
   void handleApiThemeSettings();
   void handleApiTimeSettings();
+  void handleApiDeviceInfo();
   void handleApiCommand();
   void handleApiWifiStatus();
   void handleApiWifiNetworks();
