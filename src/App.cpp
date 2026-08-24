@@ -28,6 +28,7 @@ constexpr MenuItem kMainMenuItems[] = {
 constexpr MenuItem kSettingsMenuItems[] = {
     {"Volume", ScreenId::Volume},
     {"WiFi", ScreenId::Wifi},
+    {"Date & Time", ScreenId::DateTime},
     {"Theme & widgets", ScreenId::Background},
     {"Power", ScreenId::Power},
     {"Developer", ScreenId::Developer},
@@ -77,6 +78,7 @@ constexpr AppDescriptor kSettingsAppDefinitions[] = {
     {"system.settings", "Settings", ScreenId::Settings, AppKind::Settings, true},
     {"settings.volume", "Volume", ScreenId::Volume, AppKind::Settings, false},
     {"settings.wifi", "WiFi", ScreenId::Wifi, AppKind::Settings, false},
+    {"settings.date_time", "Date & Time", ScreenId::DateTime, AppKind::Settings, false},
     {"settings.theme", "Theme & widgets", ScreenId::Background, AppKind::Settings, false},
     {"settings.power", "Power", ScreenId::Power, AppKind::Settings, false},
     {"settings.device_info", "Device information", ScreenId::DeviceInfo, AppKind::Settings, false},
@@ -93,7 +95,8 @@ constexpr AppDescriptor kDevelopmentAppDefinitions[] = {
 }  // namespace
 
 App::App()
-    : power_(settings_),
+    : timeService_(settings_),
+      power_(settings_),
       appManager_(screenManager_),
       developmentApp_(screenManager_),
       settingsApp_(screenManager_),
@@ -105,6 +108,7 @@ App::App()
                           sizeof(kSettingsMenuItems) / sizeof(kSettingsMenuItems[0]), settings_),
       volumeScreen_(settings_),
       wifiScreen_(settings_, wifi_),
+      dateTimeScreen_(settings_, timeService_),
       backgroundScreen_(settings_),
       powerScreen_(settings_),
       fidgetsMenuScreen_("Fidgets", kFidgetsMenuItems,
@@ -168,6 +172,7 @@ void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Settings, &settingsMenuScreen_);
   screenManager_.registerScreen(ScreenId::Volume, &volumeScreen_);
   screenManager_.registerScreen(ScreenId::Wifi, &wifiScreen_);
+  screenManager_.registerScreen(ScreenId::DateTime, &dateTimeScreen_);
   screenManager_.registerScreen(ScreenId::Background, &backgroundScreen_);
   screenManager_.registerScreen(ScreenId::Power, &powerScreen_);
   screenManager_.registerScreen(ScreenId::Fidgets, &fidgetsMenuScreen_);
@@ -505,15 +510,15 @@ String App::buildControlSnapshot() const {
   snapshot += wifi_.ipAddress();
   const DateTimeSnapshot time = timeService_.now();
   snapshot += "\nTime: ";
-  if (time.valid) {
-    if (time.hour < 10) snapshot += "0";
-    snapshot += String(time.hour);
-    snapshot += ":";
-    if (time.minute < 10) snapshot += "0";
-    snapshot += String(time.minute);
-  } else {
-    snapshot += "--:--";
-  }
+  snapshot += timeService_.formatTime(time);
+  snapshot += "\nDate: ";
+  snapshot += timeService_.formatDate(time);
+  snapshot += "\nTime zone: ";
+  snapshot += timeZoneIanaName(settings_.timeZone());
+  snapshot += "\nAutomatic time: ";
+  snapshot += settings_.automaticTimeEnabled() ? "On" : "Off";
+  snapshot += "\nLast NTP sync: ";
+  snapshot += timeService_.lastNtpSyncText();
   snapshot += "\nVolume: ";
   snapshot += String((settings_.volume() * 100) / 255);
   snapshot += "%\nTheme: ";
@@ -678,6 +683,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Settings: return "Settings";
     case ScreenId::Volume: return "Volume";
     case ScreenId::Wifi: return "WiFi";
+    case ScreenId::DateTime: return "Date & Time";
     case ScreenId::Background: return "Theme & widgets";
     case ScreenId::Power: return "Power";
     case ScreenId::Fidgets: return "Fidgets";

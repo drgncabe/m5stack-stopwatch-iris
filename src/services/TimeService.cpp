@@ -1,18 +1,40 @@
 #include "iris/services/TimeService.h"
 
 #include <M5Unified.h>
+#include <string.h>
+#include <sys/time.h>
 #include <time.h>
 
 #include "iris/AppConfig.h"
 
 namespace iris {
 
+namespace {
+constexpr const char* kMonthNames[] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+constexpr uint32_t kNtpSettleMs = 1500;
+
+bool snapshotLooksValid(const DateTimeSnapshot& snapshot) {
+  return snapshot.year >= 2024 &&
+         snapshot.month >= 1 && snapshot.month <= 12 &&
+         snapshot.day >= 1 && snapshot.day <= 31 &&
+         snapshot.hour >= 0 && snapshot.hour <= 23 &&
+         snapshot.minute >= 0 && snapshot.minute <= 59 &&
+         snapshot.second >= 0 && snapshot.second <= 59;
+}
+}  // namespace
+
 void TimeService::begin() {
   rtcAvailable_ = M5.Rtc.isEnabled();
+  applyConfiguredTimezone();
+  restoreSystemTimeFromRtc();
   Serial.printf("Iris RTC: %s\n", rtcAvailable_ ? "available" : "not available");
 }
 
 void TimeService::update(uint32_t nowMs, bool wifiConnected) {
+  applyConfiguredTimezone();
+  if (!settings_.automaticTimeEnabled()) return;
   if (!wifiConnected) return;
 
   const bool resyncDue = ntpSynchronized_ &&
@@ -26,6 +48,7 @@ void TimeService::update(uint32_t nowMs, bool wifiConnected) {
   if (ntpRequested_ && copySystemTimeToRtc()) {
     ntpSynchronized_ = true;
     lastNtpSyncMs_ = nowMs;
+    lastNtpSyncEpoch_ = time(nullptr);
   }
 }
 
@@ -63,7 +86,7 @@ DateTimeSnapshot TimeService::now() const {
 }
 
 void TimeService::requestNtp(uint32_t nowMs) {
-  configTzTime(config::kTimezone,
+  configTzTime(timeZonePosix(settings_.timeZone()),
                config::kNtpServer1,
                config::kNtpServer2,
                config::kNtpServer3);
@@ -73,10 +96,199 @@ void TimeService::requestNtp(uint32_t nowMs) {
 }
 
 bool TimeService::copySystemTimeToRtc() {
+  if (millis() - lastNtpRequestMs_ < kNtpSettleMs) return false;
+
   struct tm localTime {};
   if (!getLocalTime(&localTime, 10)) return false;
   if (localTime.tm_year + 1900 < 2024) return false;
 
+  if (rtcAvailable_) {
+    M5.Rtc.setDateTime({
+        {static_cast<int16_t>(localTime.tm_year + 1900),
+         static_cast<int8_t>(localTime.tm_mon + 1),
+         static_cast<int8_t>(localTime.tm_mday)},
+        {static_cast<int8_t>(localTime.tm_hour),
+         static_cast<int8_t>(localTime.tm_min),
+         static_cast<int8_t>(localTime.tm_sec)}});
+  }
+
+  return true;
+}
+
+bool TimeService::syncNow(uint32_t nowMs) {
+  requestNtp(nowMs);
+  if (!copySystemTimeToRtc()) return false;
+  ntpSynchronized_ = true;
+  lastNtpSyncMs_ = nowMs;
+  lastNtpSyncEpoch_ = time(nullptr);
+  return true;
+}
+
+bool TimeService::adjustManualMinutes(int deltaMinutes) {
+  if (settings_.automaticTimeEnabled()) return false;
+
+  const DateTimeSnapshot current = now();
+  if (!snapshotLooksValid(current)) return false;
+
+  struct tm localTime {};
+  localTime.tm_year = current.year - 1900;
+  localTime.tm_mon = current.month - 1;
+  localTime.tm_mday = current.day;
+  localTime.tm_hour = current.hour;
+  localTime.tm_min = current.minute;
+  localTime.tm_sec = current.second;
+  localTime.tm_isdst = -1;
+
+  time_t epoch = mktime(&localTime);
+  if (epoch <= 0) return false;
+  epoch += static_cast<time_t>(deltaMinutes) * 60;
+  ntpSynchronized_ = false;
+  return setSystemAndRtc(epoch);
+}
+
+void TimeService::applyConfiguredTimezone() {
+  setenv("TZ", timeZonePosix(settings_.timeZone()), 1);
+  tzset();
+}
+
+String TimeService::formatDate(const DateTimeSnapshot& value) const {
+  if (!value.valid) return "--";
+
+  char buffer[40];
+  const char* month = kMonthNames[(value.month - 1) % 12];
+  switch (settings_.dateFormat()) {
+    case DateFormat::DayMonthYear:
+      snprintf(buffer, sizeof(buffer), "%02d/%02d/%04d", value.day, value.month, value.year);
+      break;
+    case DateFormat::YearMonthDay:
+      snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d", value.year, value.month, value.day);
+      break;
+    case DateFormat::MonthNameDay:
+      snprintf(buffer, sizeof(buffer), "%s %d, %04d", month, value.day, value.year);
+      break;
+    case DateFormat::DayMonthName:
+      snprintf(buffer, sizeof(buffer), "%d %s %04d", value.day, month, value.year);
+      break;
+    default:
+      snprintf(buffer, sizeof(buffer), "%02d/%02d/%04d", value.month, value.day, value.year);
+      break;
+  }
+  return String(buffer);
+}
+
+String TimeService::formatTime(const DateTimeSnapshot& value, bool includeSeconds) const {
+  if (!value.valid) return "--:--";
+
+  char buffer[24];
+  if (settings_.timeFormat() == TimeFormat::TwentyFourHour) {
+    if (includeSeconds) {
+      snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d", value.hour, value.minute, value.second);
+    } else {
+      snprintf(buffer, sizeof(buffer), "%02d:%02d", value.hour, value.minute);
+    }
+    return String(buffer);
+  }
+
+  int hour = value.hour % 12;
+  if (hour == 0) hour = 12;
+  const char* suffix = value.hour >= 12 ? "PM" : "AM";
+  if (includeSeconds) {
+    snprintf(buffer, sizeof(buffer), "%d:%02d:%02d %s", hour, value.minute, value.second, suffix);
+  } else {
+    snprintf(buffer, sizeof(buffer), "%d:%02d %s", hour, value.minute, suffix);
+  }
+  return String(buffer);
+}
+
+String TimeService::formatDateTime(const DateTimeSnapshot& value) const {
+  if (!value.valid) return "Not set";
+  return formatDate(value) + " " + formatTime(value, true);
+}
+
+String TimeService::utcOffsetText() const {
+  time_t systemNow = time(nullptr);
+  if (systemNow <= 1700000000) return "Unknown";
+
+  struct tm localTime {};
+  localtime_r(&systemNow, &localTime);
+  char offset[8] {};
+  if (strftime(offset, sizeof(offset), "%z", &localTime) == 0) return "Unknown";
+  if (strlen(offset) != 5) return String("UTC") + offset;
+
+  String text("UTC");
+  text += offset[0];
+  text += offset[1];
+  text += offset[2];
+  text += ":";
+  text += offset[3];
+  text += offset[4];
+  return text;
+}
+
+String TimeService::dstText() const {
+  time_t systemNow = time(nullptr);
+  if (systemNow <= 1700000000) return "Unknown";
+
+  struct tm localTime {};
+  localtime_r(&systemNow, &localTime);
+  if (localTime.tm_isdst > 0) return "Active";
+  if (localTime.tm_isdst == 0) return "Inactive";
+  return "Unknown";
+}
+
+String TimeService::lastNtpSyncText() const {
+  if (lastNtpSyncEpoch_ <= 1700000000) return "Never";
+
+  struct tm localTime {};
+  localtime_r(&lastNtpSyncEpoch_, &localTime);
+  DateTimeSnapshot snapshot;
+  snapshot.year = localTime.tm_year + 1900;
+  snapshot.month = localTime.tm_mon + 1;
+  snapshot.day = localTime.tm_mday;
+  snapshot.hour = localTime.tm_hour;
+  snapshot.minute = localTime.tm_min;
+  snapshot.second = localTime.tm_sec;
+  snapshot.weekDay = localTime.tm_wday;
+  snapshot.valid = true;
+  return formatDate(snapshot) + " " + formatTime(snapshot);
+}
+
+bool TimeService::restoreSystemTimeFromRtc() {
+  if (!rtcAvailable_) return false;
+
+  const auto dt = M5.Rtc.getDateTime();
+  DateTimeSnapshot snapshot;
+  snapshot.year = dt.date.year;
+  snapshot.month = dt.date.month;
+  snapshot.day = dt.date.date;
+  snapshot.hour = dt.time.hours;
+  snapshot.minute = dt.time.minutes;
+  snapshot.second = dt.time.seconds;
+  snapshot.weekDay = dt.date.weekDay;
+  snapshot.valid = snapshotLooksValid(snapshot);
+  if (!snapshot.valid) return false;
+
+  struct tm localTime {};
+  localTime.tm_year = snapshot.year - 1900;
+  localTime.tm_mon = snapshot.month - 1;
+  localTime.tm_mday = snapshot.day;
+  localTime.tm_hour = snapshot.hour;
+  localTime.tm_min = snapshot.minute;
+  localTime.tm_sec = snapshot.second;
+  localTime.tm_isdst = -1;
+
+  const time_t epoch = mktime(&localTime);
+  if (epoch <= 0) return false;
+  return setSystemAndRtc(epoch);
+}
+
+bool TimeService::setSystemAndRtc(time_t epoch) {
+  timeval tv {};
+  tv.tv_sec = epoch;
+  settimeofday(&tv, nullptr);
+
+  struct tm localTime {};
+  localtime_r(&epoch, &localTime);
   if (rtcAvailable_) {
     M5.Rtc.setDateTime({
         {static_cast<int16_t>(localTime.tm_year + 1900),
