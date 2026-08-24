@@ -26,6 +26,14 @@ const char* apiFieldForCommand(const char* command) {
   if (strcmp(command, "volume_set") == 0) return "volumePercent";
   return "";
 }
+
+const char* previewStyleForTheme(const String& theme) {
+  if (theme == "Midnight") return "background:#000012;color:#ffffff;border-color:#4b4fff;--muted:#b5b8ff;--accent:#9ea3ff;--panel:#101443";
+  if (theme == "Forest") return "background:#001b09;color:#ffffff;border-color:#76d676;--muted:#c7f5c7;--accent:#94e094;--panel:#0d3417";
+  if (theme == "Plum") return "background:#240024;color:#ffffff;border-color:#e18ce1;--muted:#ffd0ff;--accent:#f4a8f4;--panel:#3a123a";
+  if (theme == "Steel") return "background:#1f2428;color:#ffffff;border-color:#bfcbd3;--muted:#dbe6ec;--accent:#d2dde4;--panel:#30383f";
+  return "background:#000000;color:#ffffff;border-color:#3b433b;--muted:#c9d7c9;--accent:#d9f99d;--panel:#171b17";
+}
 }  // namespace
 
 WifiService::WifiService() : server_(80) {}
@@ -914,7 +922,7 @@ void WifiService::handlePortalSave() {
 void WifiService::appendPageShellStart(String& html, const String& page, const String& snapshot) {
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
   html += F("<title>Iris</title><style>");
-  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;background:#000;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008}.face{text-align:center}.time{font-size:42px;font-weight:800;line-height:1}.date{margin-top:12px;color:#b7c5b8}.chip{display:inline-block;margin-top:14px;border:1px solid #344035;border-radius:999px;padding:5px 10px;color:#c9d7c9;font-size:13px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
+  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
   html += F("<div class='top'>");
   appendWatchPreview(html, snapshot);
   html += F("<div class='title'><h1>Iris</h1><p>Dashboard, device information, settings, and development tools for the M5Stack StopWatch.</p><span id='status' class='status'></span></div></div><div class='layout'>");
@@ -926,7 +934,7 @@ void WifiService::appendPageShellEnd(String& html) {
   html += F("</main></div></div><script>");
   html += F("const statusEl=document.getElementById('status');function note(t){if(statusEl)statusEl.textContent=t||''}");
   html += F("async function sendJson(url,method,payload){const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload||{})});if(!r.ok)throw new Error(await r.text());return r.json()}");
-  html += F("async function refreshPreview(){try{const s=await fetch('/api/settings').then(r=>r.json());const time=document.querySelector('.time');const theme=document.querySelector('.date');const chip=document.querySelector('.chip');if(time&&s.time)time.textContent=s.time;if(theme)theme.textContent=s.theme||'';if(chip)chip.textContent=s.battery||''}catch(e){}}");
+  html += F("async function refreshPreview(){try{const s=await fetch('/api/settings').then(r=>r.json());const time=document.querySelector('.time');const date=document.querySelector('.preview-date');const battery=document.querySelector('[data-preview-battery]');const wifi=document.querySelector('[data-preview-wifi]');const meta=document.querySelector('.preview-meta');if(time&&s.time)time.textContent=s.time;if(date)date.textContent=s.date||'';if(battery)battery.textContent=s.battery||'';if(wifi)wifi.textContent=s.wifi||'';if(meta)meta.textContent=[s.theme,s.layout].filter(Boolean).join(' / ')}catch(e){}}");
   html += F("document.querySelectorAll('form[data-api]').forEach(f=>{const range=f.querySelector('input[type=range]');const number=f.querySelector('input[type=number]');const value=f.querySelector('[data-value]');const sync=v=>{if(range)range.value=v;if(number)number.value=v;if(value)value.textContent=v};if(range)range.addEventListener('input',()=>sync(range.value));if(number)number.addEventListener('input',()=>sync(number.value));f.addEventListener('submit',async e=>{e.preventDefault();const btn=f.querySelector('button');try{btn&&btn.classList.add('busy');note('Applying...');await sendJson(f.dataset.api,'PUT',{[f.dataset.field]:Number(number?number.value:range.value)});btn&&btn.classList.add('saved');note('Saved');refreshPreview()}catch(err){note('Could not apply setting')}finally{btn&&btn.classList.remove('busy');setTimeout(()=>{btn&&btn.classList.remove('saved');note('')},1800)}})});");
   html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();if(a.dataset.confirm&&!confirm(a.dataset.confirm))return;try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');if(a.dataset.command==='bootloader_confirmed'){note('Entering bootloader. Iris will disconnect.');return}note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note(a.dataset.command==='bootloader_confirmed'?'Iris is disconnecting.':'Could not apply command')}finally{a.classList.remove('busy')}}));");
   html += F("setInterval(refreshPreview,15000);</script></body></html>");
@@ -935,12 +943,26 @@ void WifiService::appendPageShellEnd(String& html) {
 void WifiService::appendWatchPreview(String& html, const String& snapshot) {
   String timeText = snapshotValue(snapshot, "Time");
   if (timeText.isEmpty()) timeText = "--:--";
-  html += F("<div class='watch'><div class='face'><div class='time'>");
+  const String theme = snapshotValue(snapshot, "Theme");
+  html += F("<div class='watch' style='");
+  html += previewStyleForTheme(theme);
+  html += F("'><div class='face'><div class='time'>");
   html += escapeHtml(timeText);
-  html += F("</div><div class='date'>");
-  html += escapeHtml(snapshotValue(snapshot, "Theme"));
-  html += F("</div><div class='chip'>");
+  html += F("</div><div class='preview-date'>");
+  html += escapeHtml(snapshotValue(snapshot, "Date"));
+  html += F("</div><div class='preview-row'><span class='chip' data-preview-battery>");
   html += escapeHtml(snapshotValue(snapshot, "Battery"));
+  html += F("</span><span class='chip' data-preview-wifi>");
+  html += escapeHtml(snapshotValue(snapshot, "WiFi"));
+  html += F("</span></div><div class='preview-meta'>");
+  html += escapeHtml(theme);
+  html += F(" / ");
+  html += escapeHtml(snapshotValue(snapshot, "Face layout"));
+  const String complication = snapshotValue(snapshot, "Complication");
+  if (!complication.isEmpty() && complication != "Off") {
+    html += F(" / ");
+    html += escapeHtml(complication);
+  }
   html += F("</div></div></div>");
 }
 
