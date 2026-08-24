@@ -44,6 +44,7 @@ class TimeService {
   bool syncNow(uint32_t nowMs);
   bool adjustManualMinutes(int deltaMinutes);
   bool setManualDateTime(const DateTimeSnapshot& value);
+  bool setManualDateTimeText(const String& value);
   void applyConfiguredTimezone();
   String formatDate(const DateTimeSnapshot& value) const;
   String formatTime(const DateTimeSnapshot& value, bool includeSeconds = false) const;

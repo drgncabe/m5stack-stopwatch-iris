@@ -456,6 +456,8 @@ void App::handleControlCommand(const String& command) {
     settings_.setAutomaticTimeEnabled(!settings_.automaticTimeEnabled());
   } else if (command == "time_sync_now") {
     timeService_.syncNow(nowMs);
+  } else if (command.startsWith("manual_time_set:")) {
+    timeService_.setManualDateTimeText(command.substring(16));
   } else if (command == "wifi_demand_toggle") {
     settings_.setWifiOnDemand(!settings_.wifiOnDemand());
     if (settings_.wifiOnDemand() && wifi_.isEnabled()) wifiDemandStartedMs_ = nowMs;

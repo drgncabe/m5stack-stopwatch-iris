@@ -193,6 +193,29 @@ bool TimeService::setManualDateTime(const DateTimeSnapshot& value) {
   return setSystemAndRtc(epoch);
 }
 
+bool TimeService::setManualDateTimeText(const String& value) {
+  DateTimeSnapshot snapshot;
+  int matched = sscanf(value.c_str(), "%d-%d-%dT%d:%d:%d",
+                       &snapshot.year,
+                       &snapshot.month,
+                       &snapshot.day,
+                       &snapshot.hour,
+                       &snapshot.minute,
+                       &snapshot.second);
+  if (matched < 5) {
+    snapshot.second = 0;
+    matched = sscanf(value.c_str(), "%d-%d-%dT%d:%d",
+                     &snapshot.year,
+                     &snapshot.month,
+                     &snapshot.day,
+                     &snapshot.hour,
+                     &snapshot.minute);
+  }
+  if (matched < 5) return false;
+  snapshot.valid = true;
+  return setManualDateTime(snapshot);
+}
+
 void TimeService::applyConfiguredTimezone() {
   setenv("TZ", timeZonePosix(settings_.timeZone()), 1);
   tzset();
