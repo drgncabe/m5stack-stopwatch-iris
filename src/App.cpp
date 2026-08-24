@@ -66,18 +66,26 @@ bool isMenuScreen(ScreenId id) {
 }
 
 constexpr AppDescriptor kAppDefinitions[] = {
-    {"system.launcher", "Main menu", ScreenId::MainMenu, AppKind::System, false},
-    {"system.fidgets", "Fidgets", ScreenId::Fidgets, AppKind::Fidget, true},
-    {"fidget.wheel", "Wheel", ScreenId::FidgetWheel, AppKind::Fidget, false},
-    {"fidget.poppers", "Poppers", ScreenId::FidgetPoppers, AppKind::Fidget, false},
-    {"fidget.spinner", "Kaleidoscope", ScreenId::FidgetSpinner, AppKind::Fidget, false},
-    {"fidget.gravity_ball", "Gravity ball", ScreenId::FidgetGravityBall, AppKind::Fidget, false},
+    {"system.launcher", "Main menu", ScreenId::MainMenu, AppKind::System, false, nullptr,
+     AppUpdateClass::Interactive},
+    {"system.fidgets", "Fidgets", ScreenId::Fidgets, AppKind::Fidget, true, nullptr,
+     AppUpdateClass::Interactive},
+    {"fidget.wheel", "Wheel", ScreenId::FidgetWheel, AppKind::Fidget, false, nullptr,
+     AppUpdateClass::Realtime},
+    {"fidget.poppers", "Poppers", ScreenId::FidgetPoppers, AppKind::Fidget, false, nullptr,
+     AppUpdateClass::Realtime},
+    {"fidget.spinner", "Kaleidoscope", ScreenId::FidgetSpinner, AppKind::Fidget, false, nullptr,
+     AppUpdateClass::Realtime},
+    {"fidget.gravity_ball", "Gravity ball", ScreenId::FidgetGravityBall, AppKind::Fidget, false,
+     nullptr, AppUpdateClass::Realtime},
 };
 
 constexpr AppDescriptor kSettingsAppDefinitions[] = {
-    {"system.settings", "Settings", ScreenId::Settings, AppKind::Settings, true},
+    {"system.settings", "Settings", ScreenId::Settings, AppKind::Settings, true, nullptr,
+     AppUpdateClass::Interactive},
     {"settings.volume", "Volume", ScreenId::Volume, AppKind::Settings, false},
-    {"settings.wifi", "WiFi", ScreenId::Wifi, AppKind::Settings, false},
+    {"settings.wifi", "WiFi", ScreenId::Wifi, AppKind::Settings, false, nullptr,
+     AppUpdateClass::Interactive},
     {"settings.date_time", "Date & Time", ScreenId::DateTime, AppKind::Settings, false},
     {"settings.theme", "Theme & widgets", ScreenId::Background, AppKind::Settings, false},
     {"settings.power", "Power", ScreenId::Power, AppKind::Settings, false},
@@ -85,12 +93,13 @@ constexpr AppDescriptor kSettingsAppDefinitions[] = {
 };
 
 constexpr AppDescriptor kDevelopmentAppDefinitions[] = {
-    {"system.development", "Development", ScreenId::Developer, AppKind::Developer, false},
+    {"system.development", "Development", ScreenId::Developer, AppKind::Developer, false, nullptr,
+     AppUpdateClass::Interactive},
     {"developer.axis_calibration", "Axis calibration", ScreenId::AxisCalibration,
-     AppKind::Developer, false},
+     AppKind::Developer, false, nullptr, AppUpdateClass::Interactive},
     {"developer.bootloader", "Bootloader", ScreenId::Bootloader, AppKind::Developer, false},
     {"developer.hardware_diagnostics", "Hardware diagnostics", ScreenId::HardwareDiagnostics,
-     AppKind::Developer, false},
+     AppKind::Developer, false, nullptr, AppUpdateClass::Interactive},
 };
 }  // namespace
 
@@ -191,7 +200,7 @@ void App::registerScreens() {
 void App::registerApps() {
   appManager_.registerApp(
       AppDescriptor(watchApp_.id(), watchApp_.name(), ScreenId::Watch, AppKind::System, true,
-                    &watchApp_));
+                    &watchApp_, AppUpdateClass::Normal));
   for (size_t i = 0; i < sizeof(kSettingsAppDefinitions) / sizeof(kSettingsAppDefinitions[0]);
        ++i) {
     AppDescriptor app = kSettingsAppDefinitions[i];
@@ -513,6 +522,8 @@ String App::buildControlSnapshot() const {
   snapshot += currentApp ? appKindName(currentApp->kind) : "Unknown";
   snapshot += "\nApp state: ";
   snapshot += appManager_.currentStateName();
+  snapshot += "\nApp update: ";
+  snapshot += currentApp ? appUpdateClassName(currentApp->updateClass) : "Unknown";
   snapshot += "\nRegistered apps: ";
   snapshot += String(appManager_.count());
   snapshot += "\nApp registry: ";
@@ -529,6 +540,8 @@ String App::buildControlSnapshot() const {
     snapshot += app->visible ? "Visible" : "Hidden";
     snapshot += "|";
     snapshot += appLifecycleStateName(appManager_.stateAt(i));
+    snapshot += "|";
+    snapshot += appUpdateClassName(app->updateClass);
   }
   snapshot += "\nServices: ";
   snapshot += services_.summary();

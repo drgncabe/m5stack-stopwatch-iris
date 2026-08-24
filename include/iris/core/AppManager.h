@@ -21,6 +21,13 @@ enum class AppLifecycleState : uint8_t {
   Stopped,
 };
 
+enum class AppUpdateClass : uint8_t {
+  Normal,
+  Interactive,
+  Realtime,
+  Background,
+};
+
 class IrisApplication {
  public:
   virtual ~IrisApplication() = default;
@@ -46,20 +53,23 @@ struct AppDescriptor {
         screen(ScreenId::Watch),
         kind(AppKind::System),
         visible(false),
-        application(nullptr) {}
+        application(nullptr),
+        updateClass(AppUpdateClass::Normal) {}
 
   constexpr AppDescriptor(const char* appId,
                           const char* appName,
                           ScreenId appScreen,
                           AppKind appKind,
                           bool appVisible,
-                          IrisApplication* appInstance = nullptr)
+                          IrisApplication* appInstance = nullptr,
+                          AppUpdateClass appUpdateClass = AppUpdateClass::Normal)
       : id(appId),
         name(appName),
         screen(appScreen),
         kind(appKind),
         visible(appVisible),
-        application(appInstance) {}
+        application(appInstance),
+        updateClass(appUpdateClass) {}
 
   const char* id;
   const char* name;
@@ -67,6 +77,7 @@ struct AppDescriptor {
   AppKind kind;
   bool visible;
   IrisApplication* application;
+  AppUpdateClass updateClass;
 };
 
 class AppManager {
@@ -117,5 +128,6 @@ class AppManager {
 
 const char* appKindName(AppKind kind);
 const char* appLifecycleStateName(AppLifecycleState state);
+const char* appUpdateClassName(AppUpdateClass updateClass);
 
 }  // namespace iris

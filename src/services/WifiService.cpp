@@ -634,6 +634,8 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "App kind"));
     html += F("</span></p><p><b>State</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "App state"));
+    html += F("</span></p><p><b>Update class</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "App update"));
     html += F("</span></p><p><b>Registered</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Registered apps"));
     html += F("</span></p></div><h3>Registry</h3>");
@@ -870,6 +872,8 @@ void WifiService::handleApiApps() {
   json += escapeJson(snapshotValue(snapshot, "App kind"));
   json += F("\",\"state\":\"");
   json += escapeJson(snapshotValue(snapshot, "App state"));
+  json += F("\",\"updateClass\":\"");
+  json += escapeJson(snapshotValue(snapshot, "App update"));
   json += F("\",\"count\":");
   json += String(snapshotInt(snapshot, "Registered apps", 0));
   json += F(",\"apps\":[");
@@ -883,7 +887,8 @@ void WifiService::handleApiApps() {
     const int p2 = item.indexOf('|', p1 + 1);
     const int p3 = item.indexOf('|', p2 + 1);
     const int p4 = item.indexOf('|', p3 + 1);
-    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3) {
+    const int p5 = item.indexOf('|', p4 + 1);
+    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3 && p5 > p4) {
       if (!first) json += F(",");
       first = false;
       json += F("{\"id\":\"");
@@ -895,7 +900,9 @@ void WifiService::handleApiApps() {
       json += F("\",\"visibility\":\"");
       json += escapeJson(item.substring(p3 + 1, p4));
       json += F("\",\"state\":\"");
-      json += escapeJson(item.substring(p4 + 1));
+      json += escapeJson(item.substring(p4 + 1, p5));
+      json += F("\",\"updateClass\":\"");
+      json += escapeJson(item.substring(p5 + 1));
       json += F("\"}");
     }
     start = end + 1;
@@ -1490,7 +1497,8 @@ void WifiService::appendAppRegistry(String& html, const String& registry) {
     const int p2 = item.indexOf('|', p1 + 1);
     const int p3 = item.indexOf('|', p2 + 1);
     const int p4 = item.indexOf('|', p3 + 1);
-    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3) {
+    const int p5 = item.indexOf('|', p4 + 1);
+    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3 && p5 > p4) {
       any = true;
       html += F("<div class='app-card'><b>");
       html += escapeHtml(item.substring(p1 + 1, p2));
@@ -1501,7 +1509,9 @@ void WifiService::appendAppRegistry(String& html, const String& registry) {
       html += F(" / ");
       html += escapeHtml(item.substring(p3 + 1, p4));
       html += F(" / ");
-      html += escapeHtml(item.substring(p4 + 1));
+      html += escapeHtml(item.substring(p4 + 1, p5));
+      html += F(" / ");
+      html += escapeHtml(item.substring(p5 + 1));
       html += F("</small></div>");
     }
     start = end + 1;
