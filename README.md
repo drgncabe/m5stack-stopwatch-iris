@@ -43,6 +43,8 @@ Iris is early firmware. It builds, runs, and has been tested on a physical M5Sta
 
 Current firmware version: `0.2.13`
 
+Before closing the v0.2 architecture baseline, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
+
 ### Implemented
 
 - Watch face with time, date, battery level, WiFi status, theme support, and configurable widgets
