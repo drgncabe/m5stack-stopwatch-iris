@@ -412,7 +412,7 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
         case 1: return timeService_.rtcAvailable() ? "Available" : "Unavailable";
         case 2: return formatDateTime(timeService_.now());
         case 3: return timeService_.ntpSynchronized() ? "Synced" : "Pending";
-        case 4: return config::kTimezone;
+        case 4: return timeZoneIanaName(settings_.timeZone());
         case 5: return timeService_.now().valid ? "Valid" : "Invalid";
         case 6: return wifi_.isConnected() ? "WiFi ready" : "Needs WiFi";
       }

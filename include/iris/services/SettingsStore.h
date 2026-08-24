@@ -34,11 +34,109 @@ enum class PowerProfile : uint8_t {
   Performance = 2,
 };
 
+enum class CountryRegion : uint8_t {
+  UnitedStates = 0,
+  UnitedKingdom = 1,
+  Europe = 2,
+};
+
+enum class DateFormat : uint8_t {
+  MonthDayYear = 0,
+  DayMonthYear = 1,
+  YearMonthDay = 2,
+  MonthNameDay = 3,
+  DayMonthName = 4,
+};
+
+enum class TimeFormat : uint8_t {
+  TwelveHour = 0,
+  TwentyFourHour = 1,
+};
+
+enum class TimeZoneId : uint8_t {
+  Eastern = 0,
+  Central = 1,
+  Mountain = 2,
+  Pacific = 3,
+  Utc = 4,
+};
+
 inline const char* powerProfileName(PowerProfile profile) {
   switch (profile) {
     case PowerProfile::Runtime: return "Runtime";
     case PowerProfile::Performance: return "Performance";
     default: return "Balanced";
+  }
+}
+
+inline const char* countryRegionName(CountryRegion region) {
+  switch (region) {
+    case CountryRegion::UnitedKingdom: return "United Kingdom";
+    case CountryRegion::Europe: return "Europe";
+    default: return "United States";
+  }
+}
+
+inline const char* countryRegionCode(CountryRegion region) {
+  switch (region) {
+    case CountryRegion::UnitedKingdom: return "GB";
+    case CountryRegion::Europe: return "EU";
+    default: return "US";
+  }
+}
+
+inline const char* localeCode(CountryRegion region) {
+  switch (region) {
+    case CountryRegion::UnitedKingdom: return "en-GB";
+    case CountryRegion::Europe: return "en-150";
+    default: return "en-US";
+  }
+}
+
+inline const char* dateFormatName(DateFormat format) {
+  switch (format) {
+    case DateFormat::DayMonthYear: return "DD/MM/YYYY";
+    case DateFormat::YearMonthDay: return "YYYY-MM-DD";
+    case DateFormat::MonthNameDay: return "Aug 23, 2026";
+    case DateFormat::DayMonthName: return "23 Aug 2026";
+    default: return "MM/DD/YYYY";
+  }
+}
+
+inline const char* timeFormatName(TimeFormat format) {
+  switch (format) {
+    case TimeFormat::TwentyFourHour: return "24-hour";
+    default: return "12-hour";
+  }
+}
+
+inline const char* timeZoneName(TimeZoneId zone) {
+  switch (zone) {
+    case TimeZoneId::Central: return "Central";
+    case TimeZoneId::Mountain: return "Mountain";
+    case TimeZoneId::Pacific: return "Pacific";
+    case TimeZoneId::Utc: return "UTC";
+    default: return "Eastern";
+  }
+}
+
+inline const char* timeZoneIanaName(TimeZoneId zone) {
+  switch (zone) {
+    case TimeZoneId::Central: return "America/Chicago";
+    case TimeZoneId::Mountain: return "America/Denver";
+    case TimeZoneId::Pacific: return "America/Los_Angeles";
+    case TimeZoneId::Utc: return "Etc/UTC";
+    default: return "America/New_York";
+  }
+}
+
+inline const char* timeZonePosix(TimeZoneId zone) {
+  switch (zone) {
+    case TimeZoneId::Central: return "CST6CDT,M3.2.0,M11.1.0";
+    case TimeZoneId::Mountain: return "MST7MDT,M3.2.0,M11.1.0";
+    case TimeZoneId::Pacific: return "PST8PDT,M3.2.0,M11.1.0";
+    case TimeZoneId::Utc: return "UTC0";
+    default: return "EST5EDT,M3.2.0,M11.1.0";
   }
 }
 
@@ -104,6 +202,21 @@ class SettingsStore {
   PowerProfile powerProfile() const { return powerProfile_; }
   void setPowerProfile(PowerProfile profile);
 
+  CountryRegion countryRegion() const { return countryRegion_; }
+  void setCountryRegion(CountryRegion region);
+
+  DateFormat dateFormat() const { return dateFormat_; }
+  void setDateFormat(DateFormat format);
+
+  TimeFormat timeFormat() const { return timeFormat_; }
+  void setTimeFormat(TimeFormat format);
+
+  TimeZoneId timeZone() const { return timeZone_; }
+  void setTimeZone(TimeZoneId zone);
+
+  bool automaticTimeEnabled() const { return automaticTimeEnabled_; }
+  void setAutomaticTimeEnabled(bool enabled);
+
   bool autoRotate() const { return autoRotate_; }
   void setAutoRotate(bool enabled);
 
@@ -135,6 +248,11 @@ class SettingsStore {
   bool wifiOnDemand_ = false;
   bool lowPowerFace_ = false;
   PowerProfile powerProfile_ = PowerProfile::Balanced;
+  CountryRegion countryRegion_ = CountryRegion::UnitedStates;
+  DateFormat dateFormat_ = DateFormat::MonthDayYear;
+  TimeFormat timeFormat_ = TimeFormat::TwelveHour;
+  TimeZoneId timeZone_ = TimeZoneId::Eastern;
+  bool automaticTimeEnabled_ = true;
   bool autoRotate_ = true;
   bool indicatorLightEnabled_ = false;
   uint16_t touchDelayMs_ = 150;

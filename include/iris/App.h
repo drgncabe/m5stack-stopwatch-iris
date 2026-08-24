@@ -9,6 +9,7 @@
 #include "iris/screens/AxisCalibrationScreen.h"
 #include "iris/screens/BootloaderScreen.h"
 #include "iris/screens/BackgroundScreen.h"
+#include "iris/screens/DateTimeScreen.h"
 #include "iris/screens/DeviceInfoScreen.h"
 #include "iris/screens/FidgetScreens.h"
 #include "iris/screens/HardwareDiagnosticsScreen.h"
@@ -82,6 +83,7 @@ class App {
   MenuScreen settingsMenuScreen_;
   VolumeScreen volumeScreen_;
   WifiScreen wifiScreen_;
+  DateTimeScreen dateTimeScreen_;
   BackgroundScreen backgroundScreen_;
   PowerScreen powerScreen_;
   MenuScreen fidgetsMenuScreen_;

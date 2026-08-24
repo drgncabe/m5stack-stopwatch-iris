@@ -191,19 +191,21 @@ void WatchScreen::drawTime(const DateTimeSnapshot& dt) {
   M5.Display.fillRect(60, theme.timeY - 33, 350, 84, bg);
   M5.Display.setTextDatum(middle_center);
 
-  char timeText[16];
   char secondsText[8];
-  snprintf(timeText, sizeof(timeText), "%02d:%02d", dt.hour, dt.minute);
   snprintf(secondsText, sizeof(secondsText), ":%02d", dt.second);
+  const bool showSeconds = settings_.timeFormat() == TimeFormat::TwentyFourHour &&
+                           settings_.widgetEnabled(kWidgetSeconds) &&
+                           !settings_.lowPowerFace();
+  const String timeText = timeService_.formatTime(dt);
 
   M5.Display.setFont(&fonts::FreeSansBold24pt7b);
   M5.Display.setTextColor(settings_.lowPowerFace() ? theme.muted : theme.foreground, bg);
-  const int timeX = settings_.widgetEnabled(kWidgetSeconds) && !settings_.lowPowerFace()
+  const int timeX = showSeconds
                         ? M5.Display.width() / 2 - 12
                         : M5.Display.width() / 2;
   M5.Display.drawString(timeText, timeX, theme.timeY);
 
-  if (settings_.lowPowerFace() || !settings_.widgetEnabled(kWidgetSeconds)) return;
+  if (!showSeconds) return;
 
   M5.Display.setFont(&fonts::FreeSans12pt7b);
   M5.Display.setTextColor(theme.accent, bg);
@@ -211,9 +213,7 @@ void WatchScreen::drawTime(const DateTimeSnapshot& dt) {
 }
 
 void WatchScreen::drawDate(const DateTimeSnapshot& dt) {
-  char dateText[32];
-  snprintf(dateText, sizeof(dateText), "%s, %02d/%02d/%04d",
-           kWeekDays[dt.weekDay % 7], dt.month, dt.day, dt.year);
+  const String dateText = String(kWeekDays[dt.weekDay % 7]) + ", " + timeService_.formatDate(dt);
 
   const Theme theme = currentTheme(settings_);
   const uint16_t bg = settings_.lowPowerFace() ? TFT_BLACK : theme.background;
