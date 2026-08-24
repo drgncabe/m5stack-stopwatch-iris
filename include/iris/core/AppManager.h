@@ -12,6 +12,7 @@ enum class AppKind : uint8_t {
   Settings,
   Developer,
   Fidget,
+  Tool,
 };
 
 enum class AppLifecycleState : uint8_t {
@@ -107,7 +108,7 @@ class AppManager {
   size_t count() const { return count_; }
 
  private:
-  static constexpr size_t kMaxApps = 20;
+  static constexpr size_t kMaxApps = 24;
   static constexpr size_t kNoApp = kMaxApps;
 
   bool activateIndex(size_t index, bool showScreen);

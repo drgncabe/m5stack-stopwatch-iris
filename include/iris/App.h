@@ -2,6 +2,7 @@
 
 #include "iris/apps/development/DevelopmentApp.h"
 #include "iris/apps/settings/SettingsApp.h"
+#include "iris/apps/tools/StopwatchApp.h"
 #include "iris/apps/watch/WatchApp.h"
 #include "iris/core/AppManager.h"
 #include "iris/core/EventBus.h"
@@ -16,6 +17,7 @@
 #include "iris/screens/MenuScreen.h"
 #include "iris/screens/PowerScreen.h"
 #include "iris/screens/ScreenManager.h"
+#include "iris/screens/StopwatchScreens.h"
 #include "iris/screens/VolumeScreen.h"
 #include "iris/screens/WatchScreen.h"
 #include "iris/screens/WifiScreen.h"
@@ -80,6 +82,10 @@ class App {
   SettingsApp settingsApp_;
   WatchScreen watchScreen_;
   WatchApp watchApp_;
+  StopwatchEngine stopwatchEngine_;
+  StopwatchScreen stopwatchScreen_;
+  StopwatchLapHistoryScreen stopwatchLapHistoryScreen_;
+  StopwatchApp stopwatchApp_;
   MenuScreen mainMenuScreen_;
   MenuScreen settingsMenuScreen_;
   VolumeScreen volumeScreen_;
