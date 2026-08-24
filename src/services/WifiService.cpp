@@ -35,6 +35,60 @@ const char* previewStyleForTheme(const String& theme) {
   return "background:#000000;color:#ffffff;border-color:#3b433b;--muted:#c9d7c9;--accent:#d9f99d;--panel:#171b17";
 }
 
+struct WebThemeOption {
+  const char* name;
+  const char* layout;
+  const char* background;
+  const char* foreground;
+  const char* muted;
+  const char* accent;
+  const char* panel;
+};
+
+constexpr WebThemeOption kWebThemeOptions[] = {
+    {"Black", "Classic", "#000000", "#ffffff", "#c9d7c9", "#d9f99d", "#171b17"},
+    {"Midnight", "Focus", "#000012", "#ffffff", "#b5b8ff", "#9ea3ff", "#101443"},
+    {"Forest", "Compact", "#001b09", "#ffffff", "#c7f5c7", "#94e094", "#0d3417"},
+    {"Plum", "Classic", "#240024", "#ffffff", "#ffd0ff", "#f4a8f4", "#3a123a"},
+    {"Steel", "Compact", "#1f2428", "#ffffff", "#dbe6ec", "#d2dde4", "#30383f"},
+};
+
+int themeIdForName(const String& theme) {
+  for (size_t i = 0; i < sizeof(kWebThemeOptions) / sizeof(kWebThemeOptions[0]); ++i) {
+    if (theme == kWebThemeOptions[i].name) return static_cast<int>(i);
+  }
+  return 0;
+}
+
+void appendThemeCard(String& html, size_t index, const String& activeTheme) {
+  const WebThemeOption& theme = kWebThemeOptions[index];
+  const bool active = activeTheme == theme.name;
+  html += F("<a class='theme-card");
+  if (active) html += F(" active");
+  html += F("' href='/control?cmd=theme_");
+  html += String(index);
+  html += F("&page=theme' data-command='theme_");
+  html += String(index);
+  html += F("'><div class='theme-swatch' style='background:");
+  html += theme.background;
+  html += F(";color:");
+  html += theme.foreground;
+  html += F(";border-color:");
+  html += theme.accent;
+  html += F("'><span style='background:");
+  html += theme.accent;
+  html += F("'></span><span style='background:");
+  html += theme.muted;
+  html += F("'></span><span style='background:");
+  html += theme.panel;
+  html += F("'></span></div><b>");
+  html += theme.name;
+  html += F("</b><small>");
+  html += theme.layout;
+  html += active ? F(" / active") : F(" layout");
+  html += F("</small></a>");
+}
+
 const char* encryptionName(wifi_auth_mode_t type) {
   switch (type) {
     case WIFI_AUTH_OPEN: return "open";
@@ -368,13 +422,22 @@ void WifiService::handleControlPanel() {
     appendToggleControl(html, "Automatic rotation", "auto_rotate_toggle", snapshotValue(snapshot, "Auto rotate") != "Off");
     html += F("</section>");
   } else if (page == "theme") {
-    html += F("<section><h2>Theme & Widgets</h2><p class='hint'>Change the active watch theme and visible watch-face widgets.</p>");
-    html += F("<h3>Theme</h3><div class='grid three'>");
-    appendAction(html, "Black", "theme_0");
-    appendAction(html, "Midnight", "theme_1");
-    appendAction(html, "Forest", "theme_2");
-    appendAction(html, "Plum", "theme_3");
-    appendAction(html, "Steel", "theme_4");
+    const String activeTheme = snapshotValue(snapshot, "Theme");
+    html += F("<section><h2>Theme & Widgets</h2><p class='hint'>Change the active watch theme, review its colors, and choose visible watch-face widgets.</p>");
+    html += F("<h3>Active Appearance</h3><div class='facts'>");
+    html += F("<p><b>Theme</b><span>");
+    html += escapeHtml(activeTheme);
+    html += F("</span></p><p><b>Layout</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Face layout"));
+    html += F("</span></p><p><b>Widgets</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Widgets"));
+    html += F("</span></p><p><b>Complication</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Complication"));
+    html += F("</span></p></div><h3>Built-in Themes</h3><div class='theme-list'>");
+    for (size_t i = 0; i < sizeof(kWebThemeOptions) / sizeof(kWebThemeOptions[0]); ++i) {
+      appendThemeCard(html, i, activeTheme);
+    }
+    html += F("</div><div class='grid'>");
     appendAction(html, "Next theme", "bg_next");
     html += F("</div><h3>Widgets</h3><div class='grid'>");
     appendAction(html, "Toggle battery", "widget_battery_toggle");
@@ -964,10 +1027,14 @@ void WifiService::handleApiThemeSettings() {
 
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   const String widgets = snapshotValue(snapshot, "Widgets");
+  const String theme = snapshotValue(snapshot, "Theme");
+  const int themeId = themeIdForName(theme);
   String json;
-  json.reserve(320);
+  json.reserve(620);
   json += F("{\"theme\":\"");
-  json += escapeJson(snapshotValue(snapshot, "Theme"));
+  json += escapeJson(theme);
+  json += F("\",\"themeId\":");
+  json += String(themeId);
   json += F("\",\"layout\":\"");
   json += escapeJson(snapshotValue(snapshot, "Face layout"));
   json += F("\",\"widgets\":\"");
@@ -982,7 +1049,29 @@ void WifiService::handleApiThemeSettings() {
   json += widgets.indexOf("WiFi") >= 0 ? F("true") : F("false");
   json += F(",\"complication\":\"");
   json += escapeJson(snapshotValue(snapshot, "Complication"));
-  json += F("\"}");
+  json += F("\",\"themes\":[");
+  for (size_t i = 0; i < sizeof(kWebThemeOptions) / sizeof(kWebThemeOptions[0]); ++i) {
+    const WebThemeOption& option = kWebThemeOptions[i];
+    if (i > 0) json += F(",");
+    json += F("{\"id\":");
+    json += String(i);
+    json += F(",\"name\":\"");
+    json += option.name;
+    json += F("\",\"layout\":\"");
+    json += option.layout;
+    json += F("\",\"background\":\"");
+    json += option.background;
+    json += F("\",\"foreground\":\"");
+    json += option.foreground;
+    json += F("\",\"muted\":\"");
+    json += option.muted;
+    json += F("\",\"accent\":\"");
+    json += option.accent;
+    json += F("\",\"panel\":\"");
+    json += option.panel;
+    json += F("\"}");
+  }
+  json += F("]}");
   server_.send(200, "application/json", json);
 }
 
@@ -1157,7 +1246,7 @@ void WifiService::handlePortalSave() {
 void WifiService::appendPageShellStart(String& html, const String& page, const String& snapshot) {
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
   html += F("<title>Iris</title><style>");
-  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn,button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}button:disabled{opacity:.45;cursor:not-allowed}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
+  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn,button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}button:disabled{opacity:.45;cursor:not-allowed}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.theme-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.theme-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:10px;text-decoration:none}.theme-card.active{border-color:#d9f99d;background:#182318}.theme-card b{display:block}.theme-card small{display:block;color:#aab5aa;margin-top:4px}.theme-swatch{height:56px;border:2px solid;border-radius:50%;display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:8px;box-sizing:border-box}.theme-swatch span{width:13px;height:13px;border-radius:50%;border:1px solid #fff6}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts,.theme-list{grid-template-columns:1fr}.control form{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
   html += F("<div class='top'>");
   appendWatchPreview(html, snapshot);
   html += F("<div class='title'><h1>Iris</h1><p>Dashboard, device information, settings, and development tools for the M5Stack StopWatch.</p><span id='status' class='status'></span></div></div><div class='layout'>");
