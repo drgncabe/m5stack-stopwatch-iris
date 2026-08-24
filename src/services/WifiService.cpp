@@ -48,6 +48,38 @@ const char* encryptionName(wifi_auth_mode_t type) {
     default: return "unknown";
   }
 }
+
+String formatBytes(uint32_t bytes) {
+  if (bytes >= 1024UL * 1024UL) {
+    return String(bytes / (1024UL * 1024UL)) + " MB";
+  }
+  if (bytes >= 1024UL) {
+    return String(bytes / 1024UL) + " KB";
+  }
+  return String(bytes) + " B";
+}
+
+String formatUptime(uint32_t nowMs) {
+  const uint32_t totalSeconds = nowMs / 1000UL;
+  const uint32_t days = totalSeconds / 86400UL;
+  const uint32_t hours = (totalSeconds / 3600UL) % 24UL;
+  const uint32_t minutes = (totalSeconds / 60UL) % 60UL;
+  const uint32_t seconds = totalSeconds % 60UL;
+  char buffer[24];
+  if (days > 0) {
+    snprintf(buffer, sizeof(buffer), "%lud %02lu:%02lu:%02lu",
+             static_cast<unsigned long>(days),
+             static_cast<unsigned long>(hours),
+             static_cast<unsigned long>(minutes),
+             static_cast<unsigned long>(seconds));
+  } else {
+    snprintf(buffer, sizeof(buffer), "%02lu:%02lu:%02lu",
+             static_cast<unsigned long>(hours),
+             static_cast<unsigned long>(minutes),
+             static_cast<unsigned long>(seconds));
+  }
+  return String(buffer);
+}
 }  // namespace
 
 WifiService::WifiService() : server_(80) {}
@@ -279,6 +311,7 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/settings/theme", HTTP_PUT, [this]() { handleApiThemeSettings(); });
   server_.on("/api/settings/time", HTTP_GET, [this]() { handleApiTimeSettings(); });
   server_.on("/api/settings/time", HTTP_PUT, [this]() { handleApiTimeSettings(); });
+  server_.on("/api/device", HTTP_GET, [this]() { handleApiDeviceInfo(); });
   server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
@@ -432,24 +465,69 @@ void WifiService::handleControlPanel() {
     appendToggleControl(html, "Indicator light", "indicator_toggle", snapshotOn(snapshot, "Indicator light"));
     html += F("</section>");
   } else if (page == "device") {
-    html += F("<section><h2>Device</h2><div class='facts'>");
+    html += F("<section><h2>Device</h2><p class='hint'>Hardware, runtime, connectivity, and firmware details for this Iris build.</p>");
+    html += F("<h3>Identity</h3><div class='facts'>");
+    html += F("<p><b>Project</b><span>Iris</span></p><p><b>Firmware</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Firmware"));
+    html += F("</span></p><p><b>Hardware</b><span>M5Stack StopWatch</span></p><p><b>MCU</b><span>");
+    html += escapeHtml(String(ESP.getChipModel()));
+    html += F("</span></p><p><b>MAC address</b><span>");
+    html += escapeHtml(WiFi.macAddress());
+    html += F("</span></p><p><b>IP address</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "IP"));
+    html += F("</span></p></div><h3>Runtime</h3><div class='facts'>");
     html += F("<p><b>Current screen</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Screen"));
+    html += F("</span></p><p><b>Current app</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "App"));
+    html += F("</span></p><p><b>App state</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "App state"));
+    html += F("</span></p><p><b>Uptime</b><span>");
+    html += formatUptime(millis());
+    html += F("</span></p><p><b>CPU</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "CPU"));
+    html += F("</span></p><p><b>Free heap</b><span>");
+    html += formatBytes(ESP.getFreeHeap());
+    html += F("</span></p></div><h3>Power & Display</h3><div class='facts'>");
+    html += F("<p><b>Battery</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Battery"));
     html += F("</span></p><p><b>Display power</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Display power"));
     html += F("</span></p><p><b>Power profile</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Power profile"));
-    html += F("</span></p><p><b>CPU</b><span>");
-    html += escapeHtml(snapshotValue(snapshot, "CPU"));
-    html += F("</span></p><p><b>Battery</b><span>");
-    html += escapeHtml(snapshotValue(snapshot, "Battery"));
+    html += F("</span></p><p><b>Loop delay</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Loop delay"));
+    html += F("</span></p><p><b>Foreground update</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Foreground update"));
     html += F("</span></p><p><b>Theme</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Theme"));
     html += F("</span></p><p><b>Face layout</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Face layout"));
+    html += F("</span></p></div><h3>Memory & Services</h3><div class='facts'>");
+    html += F("<p><b>Flash</b><span>");
+    html += formatBytes(ESP.getFlashChipSize());
+    html += F("</span></p><p><b>PSRAM</b><span>");
+    html += formatBytes(ESP.getPsramSize());
+    html += F("</span></p><p><b>Registered apps</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Registered apps"));
+    html += F("</span></p><p><b>Services</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Services"));
+    html += F("</span></p><p><b>Events</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Events"));
+    html += F("</span></p><p><b>WiFi service</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "WiFi service"));
+    html += F("</span></p></div><h3>Connectivity</h3><div class='facts'>");
+    html += F("<p><b>WiFi</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "WiFi"));
+    html += F("</span></p><p><b>SSID</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "SSID"));
+    html += F("</span></p><p><b>IP</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "IP"));
+    html += F("</span></p><p><b>MAC</b><span>");
+    html += escapeHtml(WiFi.macAddress());
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
   } else if (page == "development") {
     html += F("<section><h2>Development</h2><h3>Tools</h3><div class='grid'>");
     appendAction(html, "Hardware Diagnostics", "hardware_diagnostics");
@@ -595,6 +673,62 @@ void WifiService::handleApiSettings() {
   json += F(",\"touchDelayMs\":");
   json += String(snapshotInt(snapshot, "Touch delay", 0));
   json += F("}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiDeviceInfo() {
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(960);
+  json += F("{\"project\":\"Iris\",\"firmware\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Firmware"));
+  json += F("\",\"hardware\":\"M5Stack StopWatch\",\"mcu\":\"");
+  json += escapeJson(String(ESP.getChipModel()));
+  json += F("\",\"mac\":\"");
+  json += escapeJson(WiFi.macAddress());
+  json += F("\",\"screen\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Screen"));
+  json += F("\",\"app\":\"");
+  json += escapeJson(snapshotValue(snapshot, "App"));
+  json += F("\",\"appKind\":\"");
+  json += escapeJson(snapshotValue(snapshot, "App kind"));
+  json += F("\",\"appState\":\"");
+  json += escapeJson(snapshotValue(snapshot, "App state"));
+  json += F("\",\"registeredApps\":");
+  json += snapshotInt(snapshot, "Registered apps", 0);
+  json += F(",\"uptime\":\"");
+  json += formatUptime(millis());
+  json += F("\",\"cpu\":\"");
+  json += escapeJson(snapshotValue(snapshot, "CPU"));
+  json += F("\",\"freeHeapBytes\":");
+  json += String(ESP.getFreeHeap());
+  json += F(",\"freeHeap\":\"");
+  json += formatBytes(ESP.getFreeHeap());
+  json += F("\",\"flashBytes\":");
+  json += String(ESP.getFlashChipSize());
+  json += F(",\"flash\":\"");
+  json += formatBytes(ESP.getFlashChipSize());
+  json += F("\",\"psramBytes\":");
+  json += String(ESP.getPsramSize());
+  json += F(",\"psram\":\"");
+  json += formatBytes(ESP.getPsramSize());
+  json += F("\",\"battery\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Battery"));
+  json += F("\",\"displayPower\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Display power"));
+  json += F("\",\"powerProfile\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Power profile"));
+  json += F("\",\"wifi\":\"");
+  json += escapeJson(snapshotValue(snapshot, "WiFi"));
+  json += F("\",\"ssid\":\"");
+  json += escapeJson(snapshotValue(snapshot, "SSID"));
+  json += F("\",\"ip\":\"");
+  json += escapeJson(snapshotValue(snapshot, "IP"));
+  json += F("\",\"services\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Services"));
+  json += F("\",\"events\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Events"));
+  json += F("\"}");
   server_.send(200, "application/json", json);
 }
 
