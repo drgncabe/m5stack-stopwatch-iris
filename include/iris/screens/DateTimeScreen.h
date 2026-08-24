@@ -1,6 +1,7 @@
 #pragma once
 
 #include "iris/screens/Screen.h"
+#include "iris/core/EventBus.h"
 #include "iris/services/SettingsStore.h"
 #include "iris/services/TimeService.h"
 
@@ -8,8 +9,8 @@ namespace iris {
 
 class DateTimeScreen : public Screen {
  public:
-  DateTimeScreen(SettingsStore& settings, TimeService& timeService)
-      : settings_(settings), timeService_(timeService) {}
+  DateTimeScreen(SettingsStore& settings, TimeService& timeService, EventBus& events)
+      : settings_(settings), timeService_(timeService), events_(events) {}
 
   void enter() override;
   void update(uint32_t nowMs) override;
@@ -57,6 +58,7 @@ class DateTimeScreen : public Screen {
 
   SettingsStore& settings_;
   TimeService& timeService_;
+  EventBus& events_;
   Page page_ = Page::Settings;
   ManualField manualField_ = ManualField::Year;
   DateTimeSnapshot manualDraft_;

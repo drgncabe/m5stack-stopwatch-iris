@@ -13,6 +13,12 @@ enum class EventType : uint8_t {
   WifiDisconnected,
   BatteryLow,
   ImuOrientationChanged,
+  TimeSynchronized,
+  TimeSyncFailed,
+  TimeChanged,
+  TimeZoneChanged,
+  LocaleChanged,
+  RtcTimeInvalid,
 };
 
 struct Event {

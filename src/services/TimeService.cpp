@@ -29,7 +29,9 @@ bool snapshotLooksValid(const DateTimeSnapshot& snapshot) {
 void TimeService::begin() {
   rtcAvailable_ = M5.Rtc.isEnabled();
   applyConfiguredTimezone();
-  restoreSystemTimeFromRtc();
+  if (!restoreSystemTimeFromRtc() && events_) {
+    events_->publish(EventType::RtcTimeInvalid, "TimeService", rtcAvailable_ ? "Invalid" : "Unavailable");
+  }
   Serial.printf("Iris RTC: %s\n", rtcAvailable_ ? "available" : "not available");
 }
 
@@ -47,21 +49,26 @@ void TimeService::update(uint32_t nowMs, bool wifiConnected) {
       (nowMs - lastNtpSyncMs_ >= config::kNtpResyncMs);
   const bool manualNeedsRequest = manualSyncRequested_ &&
       (!ntpRequested_ || syncState_ == TimeSyncState::WaitingForWifi);
+  const bool retryDue = !ntpSynchronized_ &&
+      (lastNtpRequestMs_ == 0 || nowMs - lastNtpRequestMs_ >= config::kNtpRetryMs);
 
-  if (manualNeedsRequest || !ntpRequested_ || resyncDue ||
-      (!ntpSynchronized_ && nowMs - lastNtpRequestMs_ >= config::kNtpRetryMs)) {
+  if (manualNeedsRequest || resyncDue || (!ntpRequested_ && retryDue)) {
     requestNtp(nowMs);
   }
 
   if (ntpRequested_ && copySystemTimeToRtc()) {
     ntpSynchronized_ = true;
     manualSyncRequested_ = false;
+    ntpRequested_ = false;
     syncState_ = TimeSyncState::Synchronized;
     lastNtpSyncMs_ = nowMs;
     lastNtpSyncEpoch_ = time(nullptr);
+    if (events_) events_->publish(EventType::TimeSynchronized, "TimeService", "NTP");
   } else if (ntpRequested_ && nowMs - lastNtpRequestMs_ >= kNtpTimeoutMs) {
     syncState_ = TimeSyncState::Failed;
     manualSyncRequested_ = false;
+    ntpRequested_ = false;
+    if (events_) events_->publish(EventType::TimeSyncFailed, "TimeService", "NTP timeout");
   }
 }
 
@@ -171,7 +178,9 @@ bool TimeService::adjustManualMinutes(int deltaMinutes) {
   if (epoch <= 0) return false;
   epoch += static_cast<time_t>(deltaMinutes) * 60;
   ntpSynchronized_ = false;
-  return setSystemAndRtc(epoch);
+  const bool saved = setSystemAndRtc(epoch);
+  if (saved && events_) events_->publish(EventType::TimeChanged, "TimeService", "Manual adjust");
+  return saved;
 }
 
 bool TimeService::setManualDateTime(const DateTimeSnapshot& value) {
@@ -190,7 +199,9 @@ bool TimeService::setManualDateTime(const DateTimeSnapshot& value) {
   const time_t epoch = mktime(&localTime);
   if (epoch <= 0) return false;
   ntpSynchronized_ = false;
-  return setSystemAndRtc(epoch);
+  const bool saved = setSystemAndRtc(epoch);
+  if (saved && events_) events_->publish(EventType::TimeChanged, "TimeService", "Manual");
+  return saved;
 }
 
 bool TimeService::setManualDateTimeText(const String& value) {
