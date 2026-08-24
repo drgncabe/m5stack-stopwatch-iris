@@ -16,6 +16,9 @@ constexpr int kRowStartY = 76;
 constexpr int kRowLeft = 38;
 constexpr int kRowWidth = 390;
 constexpr int kRowRectHeight = 29;
+constexpr int kRowValueLeft = 222;
+constexpr int kRowValueRightPadding = 16;
+constexpr int kRowValueWidth = kRowLeft + kRowWidth - kRowValueLeft - kRowValueRightPadding;
 constexpr size_t kItemCount = 8;
 constexpr size_t kPageCount = 9;
 constexpr uint32_t kShortTestMs = 5000;
@@ -101,8 +104,12 @@ void HardwareDiagnosticsScreen::update(uint32_t nowMs) {
     M5.Imu.update();
   }
 
-  if (shouldRedraw || nowMs - lastStatusDrawMs_ >= kStatusRefreshMs) {
+  if (shouldRedraw) {
     draw();
+    lastStatusDrawMs_ = nowMs;
+  } else if (nowMs - lastStatusDrawMs_ >= kStatusRefreshMs) {
+    drawLiveValues();
+    drawFooter();
     lastStatusDrawMs_ = nowMs;
   }
 }
@@ -223,7 +230,34 @@ void HardwareDiagnosticsScreen::drawRow(size_t index, bool selected) {
   M5.Display.drawString(label, kRowLeft + 16, y + (kRowRectHeight / 2));
   M5.Display.setTextDatum(middle_right);
   M5.Display.setTextColor(theme.muted, fill);
-  M5.Display.drawString(fitTextToWidth(value, 190), kRowLeft + kRowWidth - 16,
+  M5.Display.drawString(fitTextToWidth(value, kRowValueWidth), kRowLeft + kRowWidth - 16,
+                        y + (kRowRectHeight / 2));
+}
+
+void HardwareDiagnosticsScreen::drawLiveValues() {
+  if (displayOffUntilMs_ != 0) return;
+
+  for (size_t i = 1; i < kItemCount - 1; ++i) {
+    drawRowValue(i);
+  }
+}
+
+void HardwareDiagnosticsScreen::drawRowValue(size_t index) {
+  if (index >= kItemCount || displayOffUntilMs_ != 0) return;
+
+  const Theme theme = currentTheme(settings_);
+  const int y = kRowStartY + static_cast<int>(index) * kRowHeight;
+  const bool selected = index == selected_;
+  const uint16_t fill = selected ? theme.selected : theme.background;
+
+  M5.Display.fillRect(kRowValueLeft, y + 2,
+                      kRowLeft + kRowWidth - kRowValueLeft - 2,
+                      kRowRectHeight - 4, fill);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextDatum(middle_right);
+  M5.Display.setTextColor(theme.muted, fill);
+  M5.Display.drawString(fitTextToWidth(rowValue(index), kRowValueWidth),
+                        kRowLeft + kRowWidth - kRowValueRightPadding,
                         y + (kRowRectHeight / 2));
 }
 

@@ -47,6 +47,8 @@ class HardwareDiagnosticsScreen : public Screen {
   void selectRow(size_t index);
   void nextPage();
   void drawRow(size_t index, bool selected);
+  void drawLiveValues();
+  void drawRowValue(size_t index);
   void drawFooter();
   int rowAt(int32_t x, int32_t y) const;
   const char* pageName() const;
