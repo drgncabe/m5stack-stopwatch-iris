@@ -180,6 +180,26 @@ void WifiService::stopProvisioning() {
   }
 }
 
+void WifiService::forgetSavedNetwork() {
+  savedSsid_ = "";
+  savedPassword_ = "";
+  prefs_.remove("ssid");
+  prefs_.remove("password");
+
+  if (portalRunning_) {
+    return;
+  }
+
+  WiFi.disconnect(true, false);
+  if (enabled_) {
+    WiFi.mode(WIFI_STA);
+    ensureServer();
+  } else {
+    WiFi.setSleep(false);
+    WiFi.mode(WIFI_OFF);
+  }
+}
+
 void WifiService::shutdownForBootloader() {
   Serial.println("[BOOT] Stopping web server and WiFi before bootloader transition");
   if (serverRunning_) {
@@ -264,6 +284,7 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/networks", HTTP_GET, [this]() { handleApiWifiNetworks(); });
   server_.on("/api/wifi/scan", HTTP_POST, [this]() { handleApiWifiNetworks(); });
+  server_.on("/api/wifi/forget", HTTP_POST, [this]() { handleApiWifiForget(); });
   server_.on("/api/wifi/setup", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/display.txt", HTTP_GET, [this]() { handleDisplaySnapshot(); });
   server_.on("/setup", HTTP_GET, [this]() { handleWifiSetup(); });
@@ -387,6 +408,15 @@ void WifiService::handleControlPanel() {
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
     appendAction(html, "Start setup AP", "wifi_setup", "warn");
     html += F("<a class='button' href='/setup'>Choose network</a>");
+    html += F("<h3>Saved Network</h3><div class='control'><label>Saved credentials<span>");
+    if (hasSavedNetwork()) {
+      html += escapeHtml(savedSsid_);
+    } else {
+      html += F("None");
+    }
+    html += F("</span></label><button type='button' class='warn' id='wifi-forget-button'");
+    if (!hasSavedNetwork()) html += F(" disabled");
+    html += F(">Forget saved network</button><p class='hint'>This removes the saved SSID and password from Iris. If you are using this WiFi connection now, the web page may disconnect after it succeeds.</p></div>");
     html += F("<h3>Nearby Networks</h3><div class='control'><label>Network scan<span id='wifi-scan-status'>Ready</span></label><button type='button' id='wifi-scan-button'>Scan networks</button><div id='wifi-networks' class='network-list'></div><p class='hint'>Passwords are never displayed. Use Choose network to save credentials.</p><a class='button' href='/api/wifi/networks'>Nearby networks JSON</a></div>");
     html += F("</section>");
   } else if (page == "power") {
@@ -865,17 +895,21 @@ void WifiService::handleApiWifiStatus() {
 
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
-  json.reserve(260);
+  json.reserve(320);
   json += F("{\"enabled\":");
   json += isEnabled() ? F("true") : F("false");
   json += F(",\"connected\":");
   json += isConnected() ? F("true") : F("false");
   json += F(",\"provisioning\":");
   json += isProvisioning() ? F("true") : F("false");
+  json += F(",\"hasSavedNetwork\":");
+  json += hasSavedNetwork() ? F("true") : F("false");
   json += F(",\"status\":\"");
   json += escapeJson(snapshotValue(snapshot, "WiFi"));
   json += F("\",\"ssid\":\"");
   json += escapeJson(snapshotValue(snapshot, "SSID"));
+  json += F("\",\"savedSsid\":\"");
+  json += escapeJson(savedSsid_);
   json += F("\",\"ip\":\"");
   json += escapeJson(snapshotValue(snapshot, "IP"));
   json += F("\"}");
@@ -919,6 +953,17 @@ void WifiService::handleApiWifiNetworks() {
   WiFi.scanDelete();
   json += F("]}");
   server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiWifiForget() {
+  if (!hasSavedNetwork()) {
+    sendApiOk("No saved WiFi network to forget.");
+    return;
+  }
+
+  sendApiOk("Saved WiFi credentials removed.");
+  delay(150);
+  forgetSavedNetwork();
 }
 
 void WifiService::handleDisplaySnapshot() {
@@ -978,7 +1023,7 @@ void WifiService::handlePortalSave() {
 void WifiService::appendPageShellStart(String& html, const String& page, const String& snapshot) {
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
   html += F("<title>Iris</title><style>");
-  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
+  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn,button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}button:disabled{opacity:.45;cursor:not-allowed}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
   html += F("<div class='top'>");
   appendWatchPreview(html, snapshot);
   html += F("<div class='title'><h1>Iris</h1><p>Dashboard, device information, settings, and development tools for the M5Stack StopWatch.</p><span id='status' class='status'></span></div></div><div class='layout'>");
@@ -994,6 +1039,7 @@ void WifiService::appendPageShellEnd(String& html) {
   html += F("async function loadWifiNetworks(){const list=document.getElementById('wifi-networks');const state=document.getElementById('wifi-scan-status');if(!list)return;state&&(state.textContent='Scanning...');list.innerHTML='<p class=\"hint\">Scanning nearby networks...</p>';try{const s=await fetch('/api/wifi/networks').then(r=>r.json());if(!s.scanAvailable){state&&(state.textContent='Unavailable');list.innerHTML='<p class=\"hint\">'+(s.message||'Scan unavailable')+'</p>';return}state&&(state.textContent=String(s.count||0)+' found');if(!s.networks||!s.networks.length){list.innerHTML='<p class=\"hint\">No networks found.</p>';return}list.innerHTML=s.networks.map(n=>'<div class=\"network\"><div><b>'+String(n.ssid||'(hidden)').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</b><span>'+n.encryption+' / ch '+n.channel+'</span></div><span>'+n.rssi+' dBm</span></div>').join('')}catch(e){state&&(state.textContent='Failed');list.innerHTML='<p class=\"hint\">Could not scan networks.</p>'}}");
   html += F("document.querySelectorAll('form[data-api]').forEach(f=>{const range=f.querySelector('input[type=range]');const number=f.querySelector('input[type=number]');const value=f.querySelector('[data-value]');const sync=v=>{if(range)range.value=v;if(number)number.value=v;if(value)value.textContent=v};if(range)range.addEventListener('input',()=>sync(range.value));if(number)number.addEventListener('input',()=>sync(number.value));f.addEventListener('submit',async e=>{e.preventDefault();const btn=f.querySelector('button');try{btn&&btn.classList.add('busy');note('Applying...');await sendJson(f.dataset.api,'PUT',{[f.dataset.field]:Number(number?number.value:range.value)});btn&&btn.classList.add('saved');note('Saved');refreshPreview()}catch(err){note('Could not apply setting')}finally{btn&&btn.classList.remove('busy');setTimeout(()=>{btn&&btn.classList.remove('saved');note('')},1800)}})});");
   html += F("const wifiScanButton=document.getElementById('wifi-scan-button');wifiScanButton&&wifiScanButton.addEventListener('click',loadWifiNetworks);if(document.getElementById('wifi-networks'))loadWifiNetworks();");
+  html += F("const wifiForgetButton=document.getElementById('wifi-forget-button');wifiForgetButton&&wifiForgetButton.addEventListener('click',async()=>{if(!confirm('Forget the saved WiFi network? Iris may disconnect from this page.'))return;try{wifiForgetButton.classList.add('busy');note('Forgetting saved network...');await sendJson('/api/wifi/forget','POST',{});wifiForgetButton.classList.add('saved');note('Saved network removed');setTimeout(()=>location.reload(),700)}catch(e){note('Saved network removed. Iris may be reconnecting.')}});");
   html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();if(a.dataset.confirm&&!confirm(a.dataset.confirm))return;try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');if(a.dataset.command==='bootloader_confirmed'){note('Entering bootloader. Iris will disconnect.');return}note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note(a.dataset.command==='bootloader_confirmed'?'Iris is disconnecting.':'Could not apply command')}finally{a.classList.remove('busy')}}));");
   html += F("setInterval(refreshPreview,15000);</script></body></html>");
 }
