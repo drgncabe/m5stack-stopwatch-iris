@@ -15,6 +15,8 @@ constexpr int kPlayTop = 62;
 constexpr int kPlayBottom = 410;
 constexpr int kPlayLeft = 24;
 constexpr int kPlayRight = 442;
+constexpr int kPlayWidth = kPlayRight - kPlayLeft + 1;
+constexpr int kPlayHeight = kPlayBottom - kPlayTop + 1;
 constexpr uint32_t kFrameMs = 66;
 
 float clampFloat(float value, float low, float high) {
@@ -33,6 +35,14 @@ float distanceSquared(float ax, float ay, float bx, float by) {
   const float dx = ax - bx;
   const float dy = ay - by;
   return dx * dx + dy * dy;
+}
+
+int localX(float x) {
+  return static_cast<int>(x) - kPlayLeft;
+}
+
+int localY(float y) {
+  return static_cast<int>(y) - kPlayTop;
 }
 
 void readGravity(const SettingsStore& settings, float* gx, float* gy) {
@@ -85,7 +95,7 @@ void FidgetScreenBase::enter() {
   if (!canvas_.getBuffer()) {
     canvas_.setPsram(true);
     canvas_.setColorDepth(16);
-    canvasReady_ = canvas_.createSprite(M5.Display.width(), M5.Display.height()) != nullptr;
+    canvasReady_ = canvas_.createSprite(kPlayWidth, kPlayHeight) != nullptr;
   }
   M5.Display.fillScreen(currentTheme(settings_).background);
   reset();
@@ -106,11 +116,16 @@ void FidgetScreenBase::update(uint32_t nowMs) {
 
 void FidgetScreenBase::draw() {
   const Theme theme = currentTheme(settings_);
+  if (chromeDirty_) {
+    M5.Display.fillScreen(theme.background);
+    drawChrome();
+    chromeDirty_ = false;
+  }
+  if (!canvasReady_) return;
+
   canvas().fillScreen(theme.background);
-  chromeDirty_ = false;
   drawFidget();
-  canvas().pushSprite(0, 0);
-  drawChrome();
+  canvas().pushSprite(kPlayLeft, kPlayTop);
 }
 
 void FidgetScreenBase::onButtonA() {
@@ -172,9 +187,9 @@ void WheelFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
 void WheelFidgetScreen::drawFidget() {
   const Theme theme = currentTheme(settings_);
   constexpr int radius = 58;
-  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), radius + 8, theme.panel);
-  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), radius, theme.button);
-  canvas().drawCircle(static_cast<int>(x_), static_cast<int>(y_), radius, theme.foreground);
+  canvas().fillCircle(localX(x_), localY(y_), radius + 8, theme.panel);
+  canvas().fillCircle(localX(x_), localY(y_), radius, theme.button);
+  canvas().drawCircle(localX(x_), localY(y_), radius, theme.foreground);
 
   for (int i = 0; i < 12; ++i) {
     const float a = angle_ + (2.0f * kPi * i / 12.0f);
@@ -182,9 +197,9 @@ void WheelFidgetScreen::drawFidget() {
     const int y1 = static_cast<int>(y_ + sinf(a) * 14.0f);
     const int x2 = static_cast<int>(x_ + cosf(a) * 52.0f);
     const int y2 = static_cast<int>(y_ + sinf(a) * 52.0f);
-    canvas().drawLine(x1, y1, x2, y2, theme.foreground);
+    canvas().drawLine(localX(x1), localY(y1), localX(x2), localY(y2), theme.foreground);
   }
-  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), 14, theme.accent);
+  canvas().fillCircle(localX(x_), localY(y_), 14, theme.accent);
 }
 
 void WheelFidgetScreen::moveWheel(int32_t x, int32_t y, bool feedback) {
@@ -285,11 +300,11 @@ void PoppersFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
 
 void PoppersFidgetScreen::drawFidget() {
   const Theme theme = currentTheme(settings_);
-  canvas().drawCircle(kScreenCenter, 236, 188, theme.panel);
+  canvas().drawCircle(localX(kScreenCenter), localY(236), 188, theme.panel);
   for (size_t i = 0; i < kBallCount; ++i) {
     const Ball& ball = balls_[i];
-    const int x = static_cast<int>(ball.x);
-    const int y = static_cast<int>(ball.y);
+    const int x = localX(ball.x);
+    const int y = localY(ball.y);
     if (ball.popped) {
       canvas().drawCircle(x, y, static_cast<int>(ball.radius + 8), ball.color);
       canvas().drawCircle(x, y, static_cast<int>(ball.radius + 16), theme.muted);
@@ -365,12 +380,13 @@ void SpinnerFidgetScreen::drawFidget() {
     const int y1 = static_cast<int>(236 + sinf(a1) * radius);
     const int x2 = static_cast<int>(kScreenCenter + cosf(a2) * radius * 0.62f);
     const int y2 = static_cast<int>(236 + sinf(a2) * radius * 0.62f);
-    canvas().fillTriangle(kScreenCenter, 236, x1, y1, x2, y2, colors[i % 6]);
+    canvas().fillTriangle(localX(kScreenCenter), localY(236), localX(x1), localY(y1),
+                          localX(x2), localY(y2), colors[i % 6]);
   }
-  canvas().fillCircle(kScreenCenter, 236, 42, 0x0000);
-  canvas().drawCircle(kScreenCenter, 236, 154, 0xFFFF);
-  canvas().drawCircle(kScreenCenter, 236, 88, 0xFFFF);
-  canvas().fillCircle(kScreenCenter, 236, 18, 0xFFFF);
+  canvas().fillCircle(localX(kScreenCenter), localY(236), 42, 0x0000);
+  canvas().drawCircle(localX(kScreenCenter), localY(236), 154, 0xFFFF);
+  canvas().drawCircle(localX(kScreenCenter), localY(236), 88, 0xFFFF);
+  canvas().fillCircle(localX(kScreenCenter), localY(236), 18, 0xFFFF);
 }
 
 float SpinnerFidgetScreen::touchAngle(int32_t x, int32_t y) const {
@@ -434,11 +450,11 @@ void GravityBallFidgetScreen::updateFidget(uint32_t nowMs, float dt) {
 
 void GravityBallFidgetScreen::drawFidget() {
   const Theme theme = currentTheme(settings_);
-  canvas().drawCircle(kScreenCenter, 236, 174, theme.panel);
-  canvas().drawCircle(kScreenCenter, 236, 175, theme.muted);
-  canvas().fillCircle(static_cast<int>(x_ + 6), static_cast<int>(y_ + 8), 26, theme.panel);
-  canvas().fillCircle(static_cast<int>(x_), static_cast<int>(y_), 26, theme.accent);
-  canvas().fillCircle(static_cast<int>(x_ - 8), static_cast<int>(y_ - 9), 7, 0xFFFF);
+  canvas().drawCircle(localX(kScreenCenter), localY(236), 174, theme.panel);
+  canvas().drawCircle(localX(kScreenCenter), localY(236), 175, theme.muted);
+  canvas().fillCircle(localX(x_ + 6), localY(y_ + 8), 26, theme.panel);
+  canvas().fillCircle(localX(x_), localY(y_), 26, theme.accent);
+  canvas().fillCircle(localX(x_ - 8), localY(y_ - 9), 7, 0xFFFF);
 }
 
 }  // namespace iris
