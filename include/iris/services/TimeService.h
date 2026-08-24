@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "iris/core/EventBus.h"
 #include "iris/services/SettingsStore.h"
 
 namespace iris {
@@ -29,6 +30,7 @@ class TimeService {
  public:
   explicit TimeService(SettingsStore& settings) : settings_(settings) {}
 
+  void setEventBus(EventBus* events) { events_ = events; }
   void begin();
   void update(uint32_t nowMs, bool wifiConnected);
   DateTimeSnapshot now() const;
@@ -63,6 +65,7 @@ class TimeService {
   bool snapshotToEpoch(const DateTimeSnapshot& snapshot, time_t* epoch) const;
 
   SettingsStore& settings_;
+  EventBus* events_ = nullptr;
   bool rtcAvailable_ = false;
   bool ntpRequested_ = false;
   bool manualSyncRequested_ = false;

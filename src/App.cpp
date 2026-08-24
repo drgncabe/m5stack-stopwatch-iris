@@ -108,7 +108,7 @@ App::App()
                           sizeof(kSettingsMenuItems) / sizeof(kSettingsMenuItems[0]), settings_),
       volumeScreen_(settings_),
       wifiScreen_(settings_, wifi_),
-      dateTimeScreen_(settings_, timeService_),
+      dateTimeScreen_(settings_, timeService_, events_),
       backgroundScreen_(settings_),
       powerScreen_(settings_),
       fidgetsMenuScreen_("Fidgets", kFidgetsMenuItems,
@@ -136,6 +136,7 @@ void App::begin() {
   settings_.begin();
   M5.Speaker.setVolume(settings_.volume());
   appManager_.setEventBus(&events_);
+  timeService_.setEventBus(&events_);
   power_.begin();
   statusLight_.begin(settings_.indicatorLightEnabled());
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
@@ -442,10 +443,12 @@ void App::handleControlCommand(const String& command) {
   } else if (command == "country_next") {
     settings_.setCountryRegion(static_cast<CountryRegion>(
         (static_cast<uint8_t>(settings_.countryRegion()) + 1) % kCountryRegionCount));
+    events_.publish(EventType::LocaleChanged, "App", localeCode(settings_.countryRegion()));
   } else if (command == "timezone_next") {
     settings_.setTimeZone(static_cast<TimeZoneId>(
         (static_cast<uint8_t>(settings_.timeZone()) + 1) % kTimeZoneCount));
     timeService_.applyConfiguredTimezone();
+    events_.publish(EventType::TimeZoneChanged, "App", timeZoneIanaName(settings_.timeZone()));
   } else if (command == "date_format_next") {
     settings_.setDateFormat(static_cast<DateFormat>(
         (static_cast<uint8_t>(settings_.dateFormat()) + 1) % kDateFormatCount));

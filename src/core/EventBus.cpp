@@ -82,6 +82,12 @@ const char* EventBus::eventName(EventType type) const {
     case EventType::WifiDisconnected: return "WIFI_DISCONNECTED";
     case EventType::BatteryLow: return "BATTERY_LOW";
     case EventType::ImuOrientationChanged: return "IMU_ORIENTATION_CHANGED";
+    case EventType::TimeSynchronized: return "TIME_SYNCHRONIZED";
+    case EventType::TimeSyncFailed: return "TIME_SYNC_FAILED";
+    case EventType::TimeChanged: return "TIME_CHANGED";
+    case EventType::TimeZoneChanged: return "TIMEZONE_CHANGED";
+    case EventType::LocaleChanged: return "LOCALE_CHANGED";
+    case EventType::RtcTimeInvalid: return "RTC_TIME_INVALID";
   }
   return "UNKNOWN";
 }

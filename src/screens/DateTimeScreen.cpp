@@ -438,6 +438,7 @@ void DateTimeScreen::cycleCountry() {
                        kCountryRegionCount;
   settings_.setCountryRegion(static_cast<CountryRegion>(next));
   status_ = String(localeCode(settings_.countryRegion())) + " defaults";
+  events_.publish(EventType::LocaleChanged, "DateTimeScreen", localeCode(settings_.countryRegion()));
 }
 
 void DateTimeScreen::cycleDateFormat() {
@@ -458,6 +459,7 @@ void DateTimeScreen::cycleTimeZone() {
   const uint8_t next = (static_cast<uint8_t>(settings_.timeZone()) + 1) % kTimeZoneCount;
   settings_.setTimeZone(static_cast<TimeZoneId>(next));
   status_ = timeZoneIanaName(settings_.timeZone());
+  events_.publish(EventType::TimeZoneChanged, "DateTimeScreen", timeZoneIanaName(settings_.timeZone()));
 }
 
 void DateTimeScreen::goBack() {
