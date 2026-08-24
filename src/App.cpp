@@ -365,6 +365,8 @@ void App::handleControlCommand(const String& command) {
     appManager_.launch("system.watch");
   } else if (command == "settings") {
     appManager_.launch("system.settings");
+  } else if (command == "date_time") {
+    appManager_.launch("settings.date_time");
   } else if (command == "development") {
     appManager_.launch("system.development");
   } else if (command == "hardware_diagnostics") {
@@ -437,6 +439,23 @@ void App::handleControlCommand(const String& command) {
     settings_.setAutoRotate(!settings_.autoRotate());
   } else if (command == "indicator_toggle") {
     setIndicatorLight(!settings_.indicatorLightEnabled());
+  } else if (command == "country_next") {
+    settings_.setCountryRegion(static_cast<CountryRegion>(
+        (static_cast<uint8_t>(settings_.countryRegion()) + 1) % kCountryRegionCount));
+  } else if (command == "timezone_next") {
+    settings_.setTimeZone(static_cast<TimeZoneId>(
+        (static_cast<uint8_t>(settings_.timeZone()) + 1) % kTimeZoneCount));
+    timeService_.applyConfiguredTimezone();
+  } else if (command == "date_format_next") {
+    settings_.setDateFormat(static_cast<DateFormat>(
+        (static_cast<uint8_t>(settings_.dateFormat()) + 1) % kDateFormatCount));
+  } else if (command == "time_format_next") {
+    settings_.setTimeFormat(static_cast<TimeFormat>(
+        (static_cast<uint8_t>(settings_.timeFormat()) + 1) % kTimeFormatCount));
+  } else if (command == "auto_time_toggle") {
+    settings_.setAutomaticTimeEnabled(!settings_.automaticTimeEnabled());
+  } else if (command == "time_sync_now") {
+    timeService_.syncNow(nowMs);
   } else if (command == "wifi_demand_toggle") {
     settings_.setWifiOnDemand(!settings_.wifiOnDemand());
     if (settings_.wifiOnDemand() && wifi_.isEnabled()) wifiDemandStartedMs_ = nowMs;
@@ -523,6 +542,14 @@ String App::buildControlSnapshot() const {
   snapshot += timeService_.formatTime(time);
   snapshot += "\nDate: ";
   snapshot += timeService_.formatDate(time);
+  snapshot += "\nCountry: ";
+  snapshot += countryRegionName(settings_.countryRegion());
+  snapshot += "\nLocale: ";
+  snapshot += localeCode(settings_.countryRegion());
+  snapshot += "\nDate format: ";
+  snapshot += dateFormatName(settings_.dateFormat());
+  snapshot += "\nTime format: ";
+  snapshot += timeFormatName(settings_.timeFormat());
   snapshot += "\nTime zone: ";
   snapshot += timeZoneIanaName(settings_.timeZone());
   snapshot += "\nAutomatic time: ";

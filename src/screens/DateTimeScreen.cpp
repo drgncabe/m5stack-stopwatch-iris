@@ -435,28 +435,27 @@ String DateTimeScreen::manualFieldValue() const {
 
 void DateTimeScreen::cycleCountry() {
   const uint8_t next = (static_cast<uint8_t>(settings_.countryRegion()) + 1) %
-                       (static_cast<uint8_t>(CountryRegion::Europe) + 1);
+                       kCountryRegionCount;
   settings_.setCountryRegion(static_cast<CountryRegion>(next));
   status_ = String(localeCode(settings_.countryRegion())) + " defaults";
 }
 
 void DateTimeScreen::cycleDateFormat() {
   const uint8_t next = (static_cast<uint8_t>(settings_.dateFormat()) + 1) %
-                       (static_cast<uint8_t>(DateFormat::DayMonthName) + 1);
+                       kDateFormatCount;
   settings_.setDateFormat(static_cast<DateFormat>(next));
   status_ = "Date format saved";
 }
 
 void DateTimeScreen::cycleTimeFormat() {
   const uint8_t next = (static_cast<uint8_t>(settings_.timeFormat()) + 1) %
-                       (static_cast<uint8_t>(TimeFormat::TwentyFourHour) + 1);
+                       kTimeFormatCount;
   settings_.setTimeFormat(static_cast<TimeFormat>(next));
   status_ = "Time format saved";
 }
 
 void DateTimeScreen::cycleTimeZone() {
-  const uint8_t next = (static_cast<uint8_t>(settings_.timeZone()) + 1) %
-                       (static_cast<uint8_t>(TimeZoneId::Utc) + 1);
+  const uint8_t next = (static_cast<uint8_t>(settings_.timeZone()) + 1) % kTimeZoneCount;
   settings_.setTimeZone(static_cast<TimeZoneId>(next));
   status_ = timeZoneIanaName(settings_.timeZone());
 }

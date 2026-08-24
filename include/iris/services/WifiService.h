@@ -47,6 +47,7 @@ class WifiService {
   void handleApiTouchSettings();
   void handleApiSoundSettings();
   void handleApiThemeSettings();
+  void handleApiTimeSettings();
   void handleApiCommand();
   void handleApiWifiStatus();
   void handleDisplaySnapshot();

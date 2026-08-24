@@ -20,22 +20,22 @@ void SettingsStore::begin() {
   }
   countryRegion_ = static_cast<CountryRegion>(
       prefs_.getUChar("country", static_cast<uint8_t>(CountryRegion::UnitedStates)));
-  if (static_cast<uint8_t>(countryRegion_) > static_cast<uint8_t>(CountryRegion::Europe)) {
+  if (static_cast<uint8_t>(countryRegion_) >= kCountryRegionCount) {
     countryRegion_ = CountryRegion::UnitedStates;
   }
   dateFormat_ = static_cast<DateFormat>(
       prefs_.getUChar("date_fmt", static_cast<uint8_t>(DateFormat::MonthDayYear)));
-  if (static_cast<uint8_t>(dateFormat_) > static_cast<uint8_t>(DateFormat::DayMonthName)) {
+  if (static_cast<uint8_t>(dateFormat_) >= kDateFormatCount) {
     dateFormat_ = DateFormat::MonthDayYear;
   }
   timeFormat_ = static_cast<TimeFormat>(
       prefs_.getUChar("time_fmt", static_cast<uint8_t>(TimeFormat::TwelveHour)));
-  if (static_cast<uint8_t>(timeFormat_) > static_cast<uint8_t>(TimeFormat::TwentyFourHour)) {
+  if (static_cast<uint8_t>(timeFormat_) >= kTimeFormatCount) {
     timeFormat_ = TimeFormat::TwelveHour;
   }
   timeZone_ = static_cast<TimeZoneId>(
       prefs_.getUChar("tz_id", static_cast<uint8_t>(TimeZoneId::Eastern)));
-  if (static_cast<uint8_t>(timeZone_) > static_cast<uint8_t>(TimeZoneId::Utc)) {
+  if (static_cast<uint8_t>(timeZone_) >= kTimeZoneCount) {
     timeZone_ = TimeZoneId::Eastern;
   }
   automaticTimeEnabled_ = prefs_.getBool("auto_time", true);
