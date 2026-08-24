@@ -14,6 +14,7 @@ constexpr const char* kMonthNames[] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 constexpr uint32_t kNtpSettleMs = 1500;
+constexpr uint32_t kNtpTimeoutMs = 15000;
 
 bool snapshotLooksValid(const DateTimeSnapshot& snapshot) {
   return snapshot.year >= 2024 &&
@@ -34,21 +35,33 @@ void TimeService::begin() {
 
 void TimeService::update(uint32_t nowMs, bool wifiConnected) {
   applyConfiguredTimezone();
-  if (!settings_.automaticTimeEnabled()) return;
-  if (!wifiConnected) return;
+  const bool syncAllowed = settings_.automaticTimeEnabled() || manualSyncRequested_;
+  if (!syncAllowed) return;
+
+  if (!wifiConnected) {
+    if (manualSyncRequested_) syncState_ = TimeSyncState::WaitingForWifi;
+    return;
+  }
 
   const bool resyncDue = ntpSynchronized_ &&
       (nowMs - lastNtpSyncMs_ >= config::kNtpResyncMs);
+  const bool manualNeedsRequest = manualSyncRequested_ &&
+      (!ntpRequested_ || syncState_ == TimeSyncState::WaitingForWifi);
 
-  if (!ntpRequested_ || resyncDue ||
+  if (manualNeedsRequest || !ntpRequested_ || resyncDue ||
       (!ntpSynchronized_ && nowMs - lastNtpRequestMs_ >= config::kNtpRetryMs)) {
     requestNtp(nowMs);
   }
 
   if (ntpRequested_ && copySystemTimeToRtc()) {
     ntpSynchronized_ = true;
+    manualSyncRequested_ = false;
+    syncState_ = TimeSyncState::Synchronized;
     lastNtpSyncMs_ = nowMs;
     lastNtpSyncEpoch_ = time(nullptr);
+  } else if (ntpRequested_ && nowMs - lastNtpRequestMs_ >= kNtpTimeoutMs) {
+    syncState_ = TimeSyncState::Failed;
+    manualSyncRequested_ = false;
   }
 }
 
@@ -105,6 +118,7 @@ void TimeService::requestNtp(uint32_t nowMs) {
                config::kNtpServer2,
                config::kNtpServer3);
   ntpRequested_ = true;
+  syncState_ = TimeSyncState::Requested;
   lastNtpRequestMs_ = nowMs;
   Serial.println("Iris time: NTP synchronization requested");
 }
@@ -130,11 +144,11 @@ bool TimeService::copySystemTimeToRtc() {
 }
 
 bool TimeService::syncNow(uint32_t nowMs) {
-  requestNtp(nowMs);
-  if (!copySystemTimeToRtc()) return false;
-  ntpSynchronized_ = true;
-  lastNtpSyncMs_ = nowMs;
-  lastNtpSyncEpoch_ = time(nullptr);
+  manualSyncRequested_ = true;
+  ntpRequested_ = false;
+  syncState_ = TimeSyncState::WaitingForWifi;
+  lastNtpRequestMs_ = nowMs;
+  Serial.println("Iris time: manual NTP synchronization queued");
   return true;
 }
 
@@ -267,6 +281,24 @@ String TimeService::dstText() const {
   if (localTime.tm_isdst > 0) return "Active";
   if (localTime.tm_isdst == 0) return "Inactive";
   return "Unknown";
+}
+
+String TimeService::syncStatusText() const {
+  switch (syncState_) {
+    case TimeSyncState::WaitingForWifi:
+      return "Waiting for WiFi";
+    case TimeSyncState::Requested:
+      return "Sync requested";
+    case TimeSyncState::Synchronized:
+      return "Synchronized";
+    case TimeSyncState::Failed:
+      return "Sync failed";
+    default:
+      break;
+  }
+
+  if (ntpSynchronized_) return "Synchronized";
+  return settings_.automaticTimeEnabled() ? "Not synced" : "Manual time";
 }
 
 String TimeService::lastNtpSyncText() const {

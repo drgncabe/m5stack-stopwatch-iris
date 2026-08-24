@@ -63,6 +63,7 @@ class DateTimeScreen : public Screen {
   size_t selected_ = 0;
   uint32_t lastRefreshMs_ = 0;
   String status_;
+  bool pendingSyncRefresh_ = false;
 };
 
 }  // namespace iris

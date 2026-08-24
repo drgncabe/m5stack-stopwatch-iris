@@ -39,12 +39,21 @@ void DateTimeScreen::enter() {
   selected_ = 0;
   lastRefreshMs_ = 0;
   status_ = "";
+  pendingSyncRefresh_ = false;
 }
 
 void DateTimeScreen::update(uint32_t nowMs) {
-  if (page_ != Page::RtcInfo && page_ != Page::Manual) return;
+  if (page_ != Page::RtcInfo && page_ != Page::Manual &&
+      !(page_ == Page::Settings && selected_ == 5 &&
+        (timeService_.syncInProgress() || pendingSyncRefresh_))) {
+    return;
+  }
   if (lastRefreshMs_ == 0 || nowMs - lastRefreshMs_ >= kRefreshMs) {
     lastRefreshMs_ = nowMs;
+    if (page_ == Page::Settings && selected_ == 5) {
+      status_ = timeService_.syncStatusText();
+      if (!timeService_.syncInProgress()) pendingSyncRefresh_ = false;
+    }
     draw();
   }
 }
@@ -143,7 +152,10 @@ void DateTimeScreen::activateSelected() {
       status_ = settings_.automaticTimeEnabled() ? "Auto time on" : "Manual enabled";
       break;
     case 5:
-      status_ = timeService_.syncNow(millis()) ? "Sync successful" : "Sync pending";
+      timeService_.syncNow(millis());
+      status_ = timeService_.syncStatusText();
+      lastRefreshMs_ = 0;
+      pendingSyncRefresh_ = true;
       break;
     case 6:
       openManualEditor();
@@ -298,7 +310,7 @@ String DateTimeScreen::rowValue(size_t index) const {
     case 4:
       return settings_.automaticTimeEnabled() ? "On" : "Off";
     case 5:
-      return timeService_.ntpSynchronized() ? "Synced" : "Run";
+      return timeService_.syncStatusText();
     case 6:
     case 7:
       return "Open";

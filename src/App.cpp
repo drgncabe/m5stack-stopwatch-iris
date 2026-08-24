@@ -527,6 +527,8 @@ String App::buildControlSnapshot() const {
   snapshot += timeZoneIanaName(settings_.timeZone());
   snapshot += "\nAutomatic time: ";
   snapshot += settings_.automaticTimeEnabled() ? "On" : "Off";
+  snapshot += "\nTime sync: ";
+  snapshot += timeService_.syncStatusText();
   snapshot += "\nLast NTP sync: ";
   snapshot += timeService_.lastNtpSyncText();
   snapshot += "\nVolume: ";
