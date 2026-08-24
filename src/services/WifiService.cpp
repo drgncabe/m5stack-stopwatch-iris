@@ -189,6 +189,34 @@ void WifiService::configurePortalRoutes() {
     server_.sendHeader("Location", "/?page=settings", true);
     server_.send(302, "text/plain", "");
   });
+  server_.on("/display", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=display", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/theme", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=theme", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/datetime", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=datetime", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/touch", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=touch", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/sound", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=sound", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/wifi", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=wifi", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/power", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=power", true);
+    server_.send(302, "text/plain", "");
+  });
   server_.on("/development", HTTP_GET, [this]() {
     server_.sendHeader("Location", "/?page=development", true);
     server_.send(302, "text/plain", "");
@@ -235,18 +263,24 @@ void WifiService::handleControlPanel() {
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("No snapshot available");
   String page = server_.arg("page");
   if (page.isEmpty()) page = "dashboard";
-  if (page == "display" || page == "touch" || page == "sound" ||
-      page == "wifi" || page == "theme" || page == "power") {
-    page = "settings";
-  }
 
   String html;
   html.reserve(18000);
   appendPageShellStart(html, page, snapshot);
 
   if (page == "settings") {
-    html += F("<section><h2>Settings</h2><p class='hint'>Normal user-facing configuration lives here. Device information and diagnostics stay on their own pages.</p>");
-
+    html += F("<section><h2>Settings</h2><p class='hint'>Choose a settings area. These pages use the same Iris settings model as the watch UI, but leave more room for precise controls.</p><div class='grid'>");
+    html += F("<a class='button' href='/?page=display'>Display</a>");
+    html += F("<a class='button' href='/?page=theme'>Theme & Widgets</a>");
+    html += F("<a class='button' href='/?page=datetime'>Date & Time</a>");
+    html += F("<a class='button' href='/?page=touch'>Touch</a>");
+    html += F("<a class='button' href='/?page=sound'>Sound</a>");
+    html += F("<a class='button' href='/?page=wifi'>WiFi</a>");
+    html += F("<a class='button' href='/?page=power'>Power</a>");
+    html += F("<a class='button' href='/?page=device'>Device</a>");
+    html += F("</div></section>");
+  } else if (page == "display") {
+    html += F("<section><h2>Display</h2><p class='hint'>Fine tune the AMOLED display and watch-face power behavior.</p>");
     html += F("<h3>Display</h3>");
     appendRangeControl(html, "Brightness", "brightness_set", snapshotInt(snapshot, "Brightness", 96), 16, 255, 1, "/255");
     appendRangeControl(html, "Dim brightness", "dim_brightness_set", snapshotInt(snapshot, "Dim brightness", 18), 1, 96, 1, "/255");
@@ -254,7 +288,9 @@ void WifiService::handleControlPanel() {
     appendRangeControl(html, "Sleep timeout", "sleep_set", snapshotInt(snapshot, "Sleep timeout", 90), 0, 600, 5, " sec");
     appendToggleControl(html, "Low-power watch face", "low_face_toggle", snapshotOn(snapshot, "Low-power face"));
     appendToggleControl(html, "Automatic rotation", "auto_rotate_toggle", snapshotValue(snapshot, "Auto rotate") != "Off");
-
+    html += F("</section>");
+  } else if (page == "theme") {
+    html += F("<section><h2>Theme & Widgets</h2><p class='hint'>Change the active watch theme and visible watch-face widgets.</p>");
     html += F("<h3>Theme</h3><div class='grid three'>");
     appendAction(html, "Black", "theme_0");
     appendAction(html, "Midnight", "theme_1");
@@ -269,7 +305,9 @@ void WifiService::handleControlPanel() {
     appendAction(html, "Toggle WiFi", "widget_wifi_toggle");
     appendAction(html, "Next complication", "complication_next");
     html += F("</div>");
-
+    html += F("</section>");
+  } else if (page == "datetime") {
+    html += F("<section><h2>Date & Time</h2><p class='hint'>Configure regional formats, timezone, NTP sync, manual time, and RTC behavior.</p>");
     html += F("<h3>Date & Time</h3><div class='facts'>");
     html += F("<p><b>Country</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Country"));
@@ -293,20 +331,26 @@ void WifiService::handleControlPanel() {
     html += F("</div>");
     appendToggleControl(html, "Automatic date & time", "auto_time_toggle",
                         snapshotOn(snapshot, "Automatic time"));
-    html += F("<div class='control'><form method='get' action='/control'><input type='hidden' name='cmd' value='manual_time_set'><input type='hidden' name='page' value='settings'><label>Manual date & time<span>");
+    html += F("<div class='control'><form method='get' action='/control'><input type='hidden' name='cmd' value='manual_time_set'><input type='hidden' name='page' value='datetime'><label>Manual date & time<span>");
     html += snapshotOn(snapshot, "Automatic time") ? F("Turn auto off first") : F("System + RTC");
     html += F("</span></label><input name='value' type='datetime-local'><button type='submit'>Apply</button></form></div>");
     html += F("<p class='hint'>Country applies date and time format defaults only. Time zone remains a separate setting. Manual date/time applies only when automatic date & time is off.</p>");
-
+    html += F("</section>");
+  } else if (page == "touch") {
+    html += F("<section><h2>Touch</h2><p class='hint'>Tune touch delay and selection feel for the small round display.</p>");
     html += F("<h3>Touch</h3>");
     appendRangeControl(html, "Touch delay", "touch_set", snapshotInt(snapshot, "Touch delay", 150), 50, 500, 5, " ms");
     html += F("<p class='hint'>Menu screens still enforce a slightly longer minimum hold so scrolling does not accidentally select an item.</p>");
-
+    html += F("</section>");
+  } else if (page == "sound") {
+    html += F("<section><h2>Sound</h2><p class='hint'>Adjust master audio output and quick volume controls.</p>");
     html += F("<h3>Sound</h3>");
     appendRangeControl(html, "Master volume", "volume_set", snapshotInt(snapshot, "Volume", 38), 0, 100, 1, "%");
     appendAction(html, "Volume -", "vol_down");
     appendAction(html, "Volume +", "vol_up");
-
+    html += F("</section>");
+  } else if (page == "wifi") {
+    html += F("<section><h2>WiFi</h2><p class='hint'>Manage connection state, on-demand radio behavior, and setup portal access.</p>");
     html += F("<h3>WiFi</h3><div class='facts'>");
     html += F("<p><b>Status</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "WiFi"));
@@ -319,7 +363,9 @@ void WifiService::handleControlPanel() {
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
     appendAction(html, "Start setup AP", "wifi_setup", "warn");
     html += F("<a class='button' href='/setup'>Choose network</a>");
-
+    html += F("</section>");
+  } else if (page == "power") {
+    html += F("<section><h2>Power</h2><p class='hint'>Balance responsiveness, heat, and battery life.</p>");
     html += F("<h3>Power</h3>");
     html += F("<div class='control'><label>Power profile<span>");
     html += escapeHtml(snapshotValue(snapshot, "Power profile"));
@@ -899,8 +945,10 @@ void WifiService::appendWatchPreview(String& html, const String& snapshot) {
 }
 
 void WifiService::appendNavigation(String& html, const String& page) {
-  constexpr const char* pages[] = {"dashboard", "device", "settings", "development"};
-  constexpr const char* labels[] = {"Dashboard", "Device", "Settings", "Development"};
+  constexpr const char* pages[] = {"dashboard", "settings", "display", "theme", "datetime",
+                                   "touch", "sound", "wifi", "power", "device", "development"};
+  constexpr const char* labels[] = {"Dashboard", "Settings", "Display", "Theme", "Date & Time",
+                                    "Touch", "Sound", "WiFi", "Power", "Device", "Development"};
   html += F("<nav>");
   for (size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); ++i) {
     html += F("<a class='nav");
