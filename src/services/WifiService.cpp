@@ -221,6 +221,7 @@ void WifiService::connectSaved() {
 
   if (portalRunning_) {
     server_.stop();
+    serverRunning_ = false;
     WiFi.softAPdisconnect(true);
     portalRunning_ = false;
   }
@@ -231,6 +232,18 @@ void WifiService::connectSaved() {
   ensureServer();
   lastConnectAttemptMs_ = millis();
   Serial.printf("Iris WiFi: connecting to %s\n", savedSsid_.c_str());
+}
+
+void WifiService::disconnectStation() {
+  if (!enabled_) return;
+
+  WiFi.disconnect(false, false);
+  lastConnectAttemptMs_ = millis();
+
+  if (!portalRunning_) {
+    WiFi.mode(WIFI_STA);
+    ensureServer();
+  }
 }
 
 void WifiService::startProvisioning() {
@@ -371,6 +384,9 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/networks", HTTP_GET, [this]() { handleApiWifiNetworks(); });
   server_.on("/api/wifi/scan", HTTP_POST, [this]() { handleApiWifiNetworks(); });
+  server_.on("/api/wifi/connect", HTTP_POST, [this]() { handleApiWifiConnect(); });
+  server_.on("/api/wifi/disconnect", HTTP_POST, [this]() { handleApiWifiDisconnect(); });
+  server_.on("/api/wifi/reconnect", HTTP_POST, [this]() { handleApiWifiReconnect(); });
   server_.on("/api/wifi/forget", HTTP_POST, [this]() { handleApiWifiForget(); });
   server_.on("/api/wifi/setup", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/display.txt", HTTP_GET, [this]() { handleDisplaySnapshot(); });
@@ -502,6 +518,11 @@ void WifiService::handleControlPanel() {
     html += F("</span></p></div>");
     appendToggleControl(html, "WiFi enabled", "wifi_toggle", isEnabled());
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
+    html += F("<h3>Connection Actions</h3><div class='grid'>");
+    html += F("<button type='button' data-wifi-action='/api/wifi/connect'>Connect saved</button>");
+    html += F("<button type='button' data-wifi-action='/api/wifi/reconnect'>Reconnect</button>");
+    html += F("<button type='button' class='warn' data-wifi-action='/api/wifi/disconnect' data-confirm='Disconnect from the current WiFi network? The web page may disconnect until Iris reconnects.'>Disconnect</button>");
+    html += F("</div>");
     appendAction(html, "Start setup AP", "wifi_setup", "warn");
     html += F("<a class='button' href='/setup'>Choose network</a>");
     html += F("<h3>Saved Network</h3><div class='control'><label>Saved credentials<span>");
@@ -1178,6 +1199,42 @@ void WifiService::handleApiWifiNetworks() {
   server_.send(200, "application/json", json);
 }
 
+void WifiService::handleApiWifiConnect() {
+  if (!hasSavedNetwork()) {
+    sendApiError(409, "No saved WiFi network.");
+    return;
+  }
+
+  enabled_ = true;
+  sendApiOk("Connecting to saved WiFi network.");
+  delay(150);
+  connectSaved();
+}
+
+void WifiService::handleApiWifiDisconnect() {
+  if (!enabled_) {
+    sendApiOk("WiFi is already disabled.");
+    return;
+  }
+
+  sendApiOk("Disconnecting from WiFi.");
+  delay(150);
+  disconnectStation();
+}
+
+void WifiService::handleApiWifiReconnect() {
+  if (!hasSavedNetwork()) {
+    sendApiError(409, "No saved WiFi network.");
+    return;
+  }
+
+  enabled_ = true;
+  sendApiOk("Reconnecting to saved WiFi network.");
+  delay(150);
+  disconnectStation();
+  connectSaved();
+}
+
 void WifiService::handleApiWifiForget() {
   if (!hasSavedNetwork()) {
     sendApiOk("No saved WiFi network to forget.");
@@ -1262,6 +1319,7 @@ void WifiService::appendPageShellEnd(String& html) {
   html += F("async function loadWifiNetworks(){const list=document.getElementById('wifi-networks');const state=document.getElementById('wifi-scan-status');if(!list)return;state&&(state.textContent='Scanning...');list.innerHTML='<p class=\"hint\">Scanning nearby networks...</p>';try{const s=await fetch('/api/wifi/networks').then(r=>r.json());if(!s.scanAvailable){state&&(state.textContent='Unavailable');list.innerHTML='<p class=\"hint\">'+(s.message||'Scan unavailable')+'</p>';return}state&&(state.textContent=String(s.count||0)+' found');if(!s.networks||!s.networks.length){list.innerHTML='<p class=\"hint\">No networks found.</p>';return}list.innerHTML=s.networks.map(n=>'<div class=\"network\"><div><b>'+String(n.ssid||'(hidden)').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</b><span>'+n.encryption+' / ch '+n.channel+'</span></div><span>'+n.rssi+' dBm</span></div>').join('')}catch(e){state&&(state.textContent='Failed');list.innerHTML='<p class=\"hint\">Could not scan networks.</p>'}}");
   html += F("document.querySelectorAll('form[data-api]').forEach(f=>{const range=f.querySelector('input[type=range]');const number=f.querySelector('input[type=number]');const value=f.querySelector('[data-value]');const sync=v=>{if(range)range.value=v;if(number)number.value=v;if(value)value.textContent=v};if(range)range.addEventListener('input',()=>sync(range.value));if(number)number.addEventListener('input',()=>sync(number.value));f.addEventListener('submit',async e=>{e.preventDefault();const btn=f.querySelector('button');try{btn&&btn.classList.add('busy');note('Applying...');await sendJson(f.dataset.api,'PUT',{[f.dataset.field]:Number(number?number.value:range.value)});btn&&btn.classList.add('saved');note('Saved');refreshPreview()}catch(err){note('Could not apply setting')}finally{btn&&btn.classList.remove('busy');setTimeout(()=>{btn&&btn.classList.remove('saved');note('')},1800)}})});");
   html += F("const wifiScanButton=document.getElementById('wifi-scan-button');wifiScanButton&&wifiScanButton.addEventListener('click',loadWifiNetworks);if(document.getElementById('wifi-networks'))loadWifiNetworks();");
+  html += F("document.querySelectorAll('[data-wifi-action]').forEach(b=>b.addEventListener('click',async()=>{if(b.dataset.confirm&&!confirm(b.dataset.confirm))return;try{b.classList.add('busy');note('Applying WiFi action...');await sendJson(b.dataset.wifiAction,'POST',{});b.classList.add('saved');note('WiFi action sent');setTimeout(()=>location.reload(),900)}catch(e){note('WiFi action could not be applied')}}));");
   html += F("const wifiForgetButton=document.getElementById('wifi-forget-button');wifiForgetButton&&wifiForgetButton.addEventListener('click',async()=>{if(!confirm('Forget the saved WiFi network? Iris may disconnect from this page.'))return;try{wifiForgetButton.classList.add('busy');note('Forgetting saved network...');await sendJson('/api/wifi/forget','POST',{});wifiForgetButton.classList.add('saved');note('Saved network removed');setTimeout(()=>location.reload(),700)}catch(e){note('Saved network removed. Iris may be reconnecting.')}});");
   html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();if(a.dataset.confirm&&!confirm(a.dataset.confirm))return;try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');if(a.dataset.command==='bootloader_confirmed'){note('Entering bootloader. Iris will disconnect.');return}note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note(a.dataset.command==='bootloader_confirmed'?'Iris is disconnecting.':'Could not apply command')}finally{a.classList.remove('busy')}}));");
   html += F("setInterval(refreshPreview,15000);</script></body></html>");

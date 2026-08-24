@@ -52,6 +52,9 @@ class WifiService {
   void handleApiCommand();
   void handleApiWifiStatus();
   void handleApiWifiNetworks();
+  void handleApiWifiConnect();
+  void handleApiWifiDisconnect();
+  void handleApiWifiReconnect();
   void handleApiWifiForget();
   void handleDisplaySnapshot();
   void handleWifiSetup();
@@ -71,6 +74,7 @@ class WifiService {
   int snapshotInt(const String& snapshot, const char* key, int fallback) const;
   bool snapshotOn(const String& snapshot, const char* key) const;
   bool dispatchControlCommand(const String& command);
+  void disconnectStation();
   void forgetSavedNetwork();
   String apiArg(const char* name);
   bool apiIntArg(const char* name, int* value);
