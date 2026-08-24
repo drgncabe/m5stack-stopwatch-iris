@@ -158,6 +158,21 @@ void WifiService::stopProvisioning() {
   }
 }
 
+void WifiService::shutdownForBootloader() {
+  Serial.println("[BOOT] Stopping web server and WiFi before bootloader transition");
+  if (serverRunning_) {
+    server_.stop();
+    serverRunning_ = false;
+  }
+  if (portalRunning_) {
+    WiFi.softAPdisconnect(true);
+    portalRunning_ = false;
+  }
+  WiFi.disconnect(true, false);
+  WiFi.setSleep(false);
+  WiFi.mode(WIFI_OFF);
+}
+
 void WifiService::configurePortalRoutes() {
   if (routesConfigured_) return;
 
@@ -307,10 +322,10 @@ void WifiService::handleControlPanel() {
   } else if (page == "development") {
     html += F("<section><h2>Development</h2><h3>Tools</h3><div class='grid'>");
     appendAction(html, "Hardware Diagnostics", "hardware_diagnostics");
-    appendAction(html, "Boot into Bootloader", "bootloader", "warn");
+    appendAction(html, "Boot into Bootloader", "bootloader_confirmed", "warn");
     appendAction(html, "Development screen", "development");
     appendAction(html, "Settings screen", "settings");
-    html += F("</div><p class='hint'>Bootloader opens the on-device USB download confirmation screen. The browser asks for confirmation before sending that command.</p>");
+    html += F("</div><p class='hint'>Bootloader restarts Iris into ESP32-S3 USB download mode. WiFi and this web page will disconnect.</p>");
     html += F("<h3>Remote Input</h3><div class='grid'>");
     appendAction(html, "Watch screen", "watch");
     appendAction(html, "BtnA", "btn_a");
@@ -369,6 +384,16 @@ void WifiService::handleControlCommand() {
   if (server_.hasArg("value")) {
     command += ":";
     command += server_.arg("value");
+  }
+  if (command == "bootloader_confirmed") {
+    server_.send(200, "text/html",
+                 "<!doctype html><html><body style='font-family:system-ui;background:#111;color:#eee;padding:28px'>"
+                 "<h1>Entering Bootloader</h1>"
+                 "<p>Iris is restarting into firmware download mode. WiFi and this page will disconnect.</p>"
+                 "</body></html>");
+    delay(200);
+    dispatchControlCommand(command);
+    return;
   }
   dispatchControlCommand(command);
 
@@ -632,6 +657,12 @@ void WifiService::handleApiCommand() {
     sendApiError(400, "Missing command.");
     return;
   }
+  if (command == "bootloader_confirmed") {
+    sendApiOk("Entering bootloader. Iris will disconnect.");
+    delay(200);
+    dispatchControlCommand(command);
+    return;
+  }
   if (!dispatchControlCommand(command)) {
     sendApiError(503, "Control command handler unavailable.");
     return;
@@ -745,7 +776,7 @@ void WifiService::appendPageShellEnd(String& html) {
   html += F("async function sendJson(url,method,payload){const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload||{})});if(!r.ok)throw new Error(await r.text());return r.json()}");
   html += F("async function refreshPreview(){try{const s=await fetch('/api/settings').then(r=>r.json());const time=document.querySelector('.time');const theme=document.querySelector('.date');const chip=document.querySelector('.chip');if(time&&s.time)time.textContent=s.time;if(theme)theme.textContent=s.theme||'';if(chip)chip.textContent=s.battery||''}catch(e){}}");
   html += F("document.querySelectorAll('form[data-api]').forEach(f=>{const range=f.querySelector('input[type=range]');const number=f.querySelector('input[type=number]');const value=f.querySelector('[data-value]');const sync=v=>{if(range)range.value=v;if(number)number.value=v;if(value)value.textContent=v};if(range)range.addEventListener('input',()=>sync(range.value));if(number)number.addEventListener('input',()=>sync(number.value));f.addEventListener('submit',async e=>{e.preventDefault();const btn=f.querySelector('button');try{btn&&btn.classList.add('busy');note('Applying...');await sendJson(f.dataset.api,'PUT',{[f.dataset.field]:Number(number?number.value:range.value)});btn&&btn.classList.add('saved');note('Saved');refreshPreview()}catch(err){note('Could not apply setting')}finally{btn&&btn.classList.remove('busy');setTimeout(()=>{btn&&btn.classList.remove('saved');note('')},1800)}})});");
-  html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();if(a.dataset.confirm&&!confirm(a.dataset.confirm))return;try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note('Could not apply command')}finally{a.classList.remove('busy')}}));");
+  html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();if(a.dataset.confirm&&!confirm(a.dataset.confirm))return;try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');if(a.dataset.command==='bootloader_confirmed'){note('Entering bootloader. Iris will disconnect.');return}note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note(a.dataset.command==='bootloader_confirmed'?'Iris is disconnecting.':'Could not apply command')}finally{a.classList.remove('busy')}}));");
   html += F("setInterval(refreshPreview,15000);</script></body></html>");
 }
 
@@ -843,8 +874,8 @@ void WifiService::appendAction(String& html, const char* label, const char* comm
   html += F("' data-command='");
   html += command;
   html += F("'");
-  if (strcmp(command, "bootloader") == 0) {
-    html += F(" data-confirm='Boot Iris into the on-device bootloader confirmation screen? The current web session may disconnect if you continue on the device.'");
+  if (strcmp(command, "bootloader_confirmed") == 0) {
+    html += F(" data-confirm='Boot Iris into bootloader mode? WiFi and the web configurator will disconnect until Iris is restarted.'");
   }
   html += F(">");
   html += label;

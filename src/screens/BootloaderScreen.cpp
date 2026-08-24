@@ -56,7 +56,7 @@ void BootloaderScreen::handleTouch(int32_t x, int32_t y) {
   if (x >= kCancelX && x <= kCancelX + kButtonWidth) {
     goBack();
   } else if (x >= kConfirmX && x <= kConfirmX + kButtonWidth) {
-    rebootToBootloader();
+    requestBootloader();
   }
 }
 
@@ -65,25 +65,33 @@ void BootloaderScreen::onButtonA() {
 }
 
 void BootloaderScreen::onButtonB() {
-  if (!rebooting_) rebootToBootloader();
+  if (!rebooting_) requestBootloader();
 }
 
 void BootloaderScreen::goBack() {
   if (manager_) manager_->show(ScreenId::Developer);
 }
 
-void BootloaderScreen::rebootToBootloader() {
+void BootloaderScreen::requestBootloader() {
+  if (rebooting_) return;
+
+  Serial.println("[BOOT] Bootloader mode requested");
   rebooting_ = true;
   draw();
   delay(300);
 
+  Serial.println("[BOOT] Trying M5PM1 download-mode command");
   if (M5.Power.getType() == m5::Power_Class::pmic_m5pm1 &&
       M5.Power.M5pm1.writeRegister8(kM5Pm1SysCmdReg, kM5Pm1DownloadModeCmd)) {
+    Serial.println("[BOOT] M5PM1 accepted download-mode command");
+    Serial.flush();
     while (true) {
       delay(1000);
     }
   }
 
+  Serial.println("[BOOT] Falling back to USB persistent bootloader restart");
+  Serial.flush();
   usb_persist_restart(RESTART_BOOTLOADER);
 }
 

@@ -52,6 +52,7 @@ class App {
   void adjustSleepTimeout(int delta);
   void adjustTouchDelay(int delta);
   void setIndicatorLight(bool enabled);
+  void enterBootloaderFromWeb();
   void nextTheme();
   void nextComplication();
   void resetTouch();

@@ -15,10 +15,10 @@ class BootloaderScreen : public Screen {
   void handleTouch(int32_t x, int32_t y) override;
   void onButtonA() override;
   void onButtonB() override;
+  void requestBootloader();
 
  private:
   void goBack();
-  void rebootToBootloader();
   void drawButton(int x, int y, int w, int h, const char* label, uint16_t fill, uint16_t text);
 
   SettingsStore& settings_;
