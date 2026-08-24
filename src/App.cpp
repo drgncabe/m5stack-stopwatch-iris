@@ -501,7 +501,7 @@ void App::handleControlCommand(const String& command) {
 
 String App::buildControlSnapshot() const {
   String snapshot;
-  snapshot.reserve(620);
+  snapshot.reserve(1600);
   snapshot += "Screen: ";
   snapshot += currentScreenName();
   snapshot += "\nFirmware: ";
@@ -515,6 +515,21 @@ String App::buildControlSnapshot() const {
   snapshot += appManager_.currentStateName();
   snapshot += "\nRegistered apps: ";
   snapshot += String(appManager_.count());
+  snapshot += "\nApp registry: ";
+  for (size_t i = 0; i < appManager_.count(); ++i) {
+    const AppDescriptor* app = appManager_.appAt(i);
+    if (!app) continue;
+    if (i > 0) snapshot += ";";
+    snapshot += app->id;
+    snapshot += "|";
+    snapshot += app->name;
+    snapshot += "|";
+    snapshot += appKindName(app->kind);
+    snapshot += "|";
+    snapshot += app->visible ? "Visible" : "Hidden";
+    snapshot += "|";
+    snapshot += appLifecycleStateName(appManager_.stateAt(i));
+  }
   snapshot += "\nServices: ";
   snapshot += services_.summary();
   snapshot += "\nEvents: ";

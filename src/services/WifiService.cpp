@@ -326,6 +326,10 @@ void WifiService::configurePortalRoutes() {
     server_.sendHeader("Location", "/?page=device", true);
     server_.send(302, "text/plain", "");
   });
+  server_.on("/apps", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=apps", true);
+    server_.send(302, "text/plain", "");
+  });
   server_.on("/settings", HTTP_GET, [this]() {
     server_.sendHeader("Location", "/?page=settings", true);
     server_.send(302, "text/plain", "");
@@ -379,6 +383,7 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/settings/time", HTTP_GET, [this]() { handleApiTimeSettings(); });
   server_.on("/api/settings/time", HTTP_PUT, [this]() { handleApiTimeSettings(); });
   server_.on("/api/device", HTTP_GET, [this]() { handleApiDeviceInfo(); });
+  server_.on("/api/apps", HTTP_GET, [this]() { handleApiApps(); });
   server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
@@ -611,7 +616,21 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(WiFi.macAddress());
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/apps'>Apps API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
+  } else if (page == "apps") {
+    html += F("<section><h2>Apps</h2><p class='hint'>Registered Iris apps and app-facing screens. Future app settings can use this same web surface.</p>");
+    html += F("<h3>Current App</h3><div class='facts'>");
+    html += F("<p><b>ID</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "App"));
+    html += F("</span></p><p><b>Kind</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "App kind"));
+    html += F("</span></p><p><b>State</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "App state"));
+    html += F("</span></p><p><b>Registered</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Registered apps"));
+    html += F("</span></p></div><h3>Registry</h3>");
+    appendAppRegistry(html, snapshotValue(snapshot, "App registry"));
+    html += F("<a class='button' href='/api/apps'>Apps API</a></section>");
   } else if (page == "development") {
     html += F("<section><h2>Development</h2><h3>Tools</h3><div class='grid'>");
     appendAction(html, "Hardware Diagnostics", "hardware_diagnostics");
@@ -813,6 +832,51 @@ void WifiService::handleApiDeviceInfo() {
   json += F("\",\"events\":\"");
   json += escapeJson(snapshotValue(snapshot, "Events"));
   json += F("\"}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiApps() {
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  const String registry = snapshotValue(snapshot, "App registry");
+  String json;
+  json.reserve(1200);
+  json += F("{\"current\":\"");
+  json += escapeJson(snapshotValue(snapshot, "App"));
+  json += F("\",\"kind\":\"");
+  json += escapeJson(snapshotValue(snapshot, "App kind"));
+  json += F("\",\"state\":\"");
+  json += escapeJson(snapshotValue(snapshot, "App state"));
+  json += F("\",\"count\":");
+  json += String(snapshotInt(snapshot, "Registered apps", 0));
+  json += F(",\"apps\":[");
+  int start = 0;
+  bool first = true;
+  while (start < registry.length()) {
+    int end = registry.indexOf(';', start);
+    if (end < 0) end = registry.length();
+    const String item = registry.substring(start, end);
+    const int p1 = item.indexOf('|');
+    const int p2 = item.indexOf('|', p1 + 1);
+    const int p3 = item.indexOf('|', p2 + 1);
+    const int p4 = item.indexOf('|', p3 + 1);
+    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3) {
+      if (!first) json += F(",");
+      first = false;
+      json += F("{\"id\":\"");
+      json += escapeJson(item.substring(0, p1));
+      json += F("\",\"name\":\"");
+      json += escapeJson(item.substring(p1 + 1, p2));
+      json += F("\",\"kind\":\"");
+      json += escapeJson(item.substring(p2 + 1, p3));
+      json += F("\",\"visibility\":\"");
+      json += escapeJson(item.substring(p3 + 1, p4));
+      json += F("\",\"state\":\"");
+      json += escapeJson(item.substring(p4 + 1));
+      json += F("\"}");
+    }
+    start = end + 1;
+  }
+  json += F("]}");
   server_.send(200, "application/json", json);
 }
 
@@ -1303,7 +1367,7 @@ void WifiService::handlePortalSave() {
 void WifiService::appendPageShellStart(String& html, const String& page, const String& snapshot) {
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
   html += F("<title>Iris</title><style>");
-  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn,button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}button:disabled{opacity:.45;cursor:not-allowed}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control.dirty{border-color:#f0c36a;background:#111008}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center}.dirty-message{display:none;grid-column:1/-1;color:#f0c36a;margin:0;font-size:13px}.control.dirty .dirty-message{display:block}.theme-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.theme-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:10px;text-decoration:none}.theme-card.active{border-color:#d9f99d;background:#182318}.theme-card b{display:block}.theme-card small{display:block;color:#aab5aa;margin-top:4px}.theme-swatch{height:56px;border:2px solid;border-radius:50%;display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:8px;box-sizing:border-box}.theme-swatch span{width:13px;height:13px;border-radius:50%;border:1px solid #fff6}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts,.theme-list{grid-template-columns:1fr}.control form{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
+  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn,button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}button:disabled{opacity:.45;cursor:not-allowed}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control.dirty{border-color:#f0c36a;background:#111008}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center}.dirty-message{display:none;grid-column:1/-1;color:#f0c36a;margin:0;font-size:13px}.control.dirty .dirty-message{display:block}.app-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.app-card{border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:12px}.app-card b,.app-card span,.app-card small{display:block;overflow-wrap:anywhere}.app-card span{color:#aab5aa;margin-top:5px}.app-card small{color:#9faf9f;margin-top:8px}.theme-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.theme-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:10px;text-decoration:none}.theme-card.active{border-color:#d9f99d;background:#182318}.theme-card b{display:block}.theme-card small{display:block;color:#aab5aa;margin-top:4px}.theme-swatch{height:56px;border:2px solid;border-radius:50%;display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:8px;box-sizing:border-box}.theme-swatch span{width:13px;height:13px;border-radius:50%;border:1px solid #fff6}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts,.theme-list,.app-list{grid-template-columns:1fr}.control form{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
   html += F("<div class='top'>");
   appendWatchPreview(html, snapshot);
   html += F("<div class='title'><h1>Iris</h1><p>Dashboard, device information, settings, and development tools for the M5Stack StopWatch.</p><span id='status' class='status'></span></div></div><div class='layout'>");
@@ -1353,9 +1417,9 @@ void WifiService::appendWatchPreview(String& html, const String& snapshot) {
 
 void WifiService::appendNavigation(String& html, const String& page) {
   constexpr const char* pages[] = {"dashboard", "settings", "display", "theme", "datetime",
-                                   "touch", "sound", "wifi", "power", "device", "development"};
+                                   "touch", "sound", "wifi", "power", "device", "apps", "development"};
   constexpr const char* labels[] = {"Dashboard", "Settings", "Display", "Theme", "Date & Time",
-                                    "Touch", "Sound", "WiFi", "Power", "Device", "Development"};
+                                    "Touch", "Sound", "WiFi", "Power", "Device", "Apps", "Development"};
   html += F("<nav>");
   for (size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); ++i) {
     html += F("<a class='nav");
@@ -1367,6 +1431,38 @@ void WifiService::appendNavigation(String& html, const String& page) {
     html += F("</a>");
   }
   html += F("</nav>");
+}
+
+void WifiService::appendAppRegistry(String& html, const String& registry) {
+  html += F("<div class='app-list'>");
+  int start = 0;
+  bool any = false;
+  while (start < registry.length()) {
+    int end = registry.indexOf(';', start);
+    if (end < 0) end = registry.length();
+    const String item = registry.substring(start, end);
+    const int p1 = item.indexOf('|');
+    const int p2 = item.indexOf('|', p1 + 1);
+    const int p3 = item.indexOf('|', p2 + 1);
+    const int p4 = item.indexOf('|', p3 + 1);
+    if (p1 > 0 && p2 > p1 && p3 > p2 && p4 > p3) {
+      any = true;
+      html += F("<div class='app-card'><b>");
+      html += escapeHtml(item.substring(p1 + 1, p2));
+      html += F("</b><span>");
+      html += escapeHtml(item.substring(0, p1));
+      html += F("</span><small>");
+      html += escapeHtml(item.substring(p2 + 1, p3));
+      html += F(" / ");
+      html += escapeHtml(item.substring(p3 + 1, p4));
+      html += F(" / ");
+      html += escapeHtml(item.substring(p4 + 1));
+      html += F("</small></div>");
+    }
+    start = end + 1;
+  }
+  if (!any) html += F("<p class='hint'>No app registry details available.</p>");
+  html += F("</div>");
 }
 
 void WifiService::appendRangeControl(String& html, const char* label, const char* command,
