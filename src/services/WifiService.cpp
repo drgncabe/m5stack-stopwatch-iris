@@ -162,6 +162,22 @@ void WifiService::configurePortalRoutes() {
   if (routesConfigured_) return;
 
   server_.on("/", HTTP_GET, [this]() { handleControlPanel(); });
+  server_.on("/dashboard", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=dashboard", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/device", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=device", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/settings", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=settings", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/development", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=development", true);
+    server_.send(302, "text/plain", "");
+  });
   server_.on("/control", HTTP_GET, [this]() { handleControlCommand(); });
   server_.on("/api/settings", HTTP_GET, [this]() { handleApiSettings(); });
   server_.on("/api/settings/display", HTTP_GET, [this]() { handleApiDisplaySettings(); });
@@ -202,45 +218,27 @@ void WifiService::handleControlPanel() {
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("No snapshot available");
   String page = server_.arg("page");
   if (page.isEmpty()) page = "dashboard";
+  if (page == "display" || page == "touch" || page == "sound" ||
+      page == "wifi" || page == "theme" || page == "power") {
+    page = "settings";
+  }
 
   String html;
-  html.reserve(14200);
+  html.reserve(18000);
   appendPageShellStart(html, page, snapshot);
 
-  if (page == "display") {
-    html += F("<section><h2>Display</h2>");
+  if (page == "settings") {
+    html += F("<section><h2>Settings</h2><p class='hint'>Normal user-facing configuration lives here. Device information and diagnostics stay on their own pages.</p>");
+
+    html += F("<h3>Display</h3>");
     appendRangeControl(html, "Brightness", "brightness_set", snapshotInt(snapshot, "Brightness", 96), 16, 255, 1, "/255");
     appendRangeControl(html, "Dim brightness", "dim_brightness_set", snapshotInt(snapshot, "Dim brightness", 18), 1, 96, 1, "/255");
     appendRangeControl(html, "Dim timeout", "dim_set", snapshotInt(snapshot, "Dim timeout", 20), 5, 120, 1, " sec");
     appendRangeControl(html, "Sleep timeout", "sleep_set", snapshotInt(snapshot, "Sleep timeout", 90), 0, 600, 5, " sec");
     appendToggleControl(html, "Low-power watch face", "low_face_toggle", snapshotOn(snapshot, "Low-power face"));
     appendToggleControl(html, "Automatic rotation", "auto_rotate_toggle", snapshotValue(snapshot, "Auto rotate") != "Off");
-    html += F("</section>");
-  } else if (page == "touch") {
-    html += F("<section><h2>Touch</h2>");
-    appendRangeControl(html, "Touch delay", "touch_set", snapshotInt(snapshot, "Touch delay", 150), 50, 500, 5, " ms");
-    html += F("<p class='hint'>Menu screens still enforce a slightly longer minimum hold so scrolling does not accidentally select an item.</p></section>");
-  } else if (page == "sound") {
-    html += F("<section><h2>Sound</h2>");
-    appendRangeControl(html, "Master volume", "volume_set", snapshotInt(snapshot, "Volume", 38), 0, 100, 1, "%");
-    appendAction(html, "Volume -", "vol_down");
-    appendAction(html, "Volume +", "vol_up");
-    html += F("</section>");
-  } else if (page == "wifi") {
-    html += F("<section><h2>WiFi</h2><div class='facts'>");
-    html += F("<p><b>Status</b><span>");
-    html += escapeHtml(snapshotValue(snapshot, "WiFi"));
-    html += F("</span></p><p><b>Network</b><span>");
-    html += escapeHtml(snapshotValue(snapshot, "SSID"));
-    html += F("</span></p><p><b>IP Address</b><span>");
-    html += escapeHtml(snapshotValue(snapshot, "IP"));
-    html += F("</span></p></div>");
-    appendToggleControl(html, "WiFi enabled", "wifi_toggle", isEnabled());
-    appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
-    appendAction(html, "Start setup AP", "wifi_setup", "warn");
-    html += F("<a class='button' href='/setup'>Choose network</a></section>");
-  } else if (page == "theme") {
-    html += F("<section><h2>Theme</h2><div class='grid three'>");
+
+    html += F("<h3>Theme</h3><div class='grid three'>");
     appendAction(html, "Black", "theme_0");
     appendAction(html, "Midnight", "theme_1");
     appendAction(html, "Forest", "theme_2");
@@ -253,13 +251,31 @@ void WifiService::handleControlPanel() {
     appendAction(html, "Toggle seconds", "widget_seconds_toggle");
     appendAction(html, "Toggle WiFi", "widget_wifi_toggle");
     appendAction(html, "Next complication", "complication_next");
-    html += F("</div></section>");
-  } else if (page == "power") {
-    html += F("<section><h2>Power</h2>");
-    appendRangeControl(html, "Brightness", "brightness_set", snapshotInt(snapshot, "Brightness", 96), 16, 255, 1, "/255");
-    appendRangeControl(html, "Dim brightness", "dim_brightness_set", snapshotInt(snapshot, "Dim brightness", 18), 1, 96, 1, "/255");
-    appendRangeControl(html, "Dim timeout", "dim_set", snapshotInt(snapshot, "Dim timeout", 20), 5, 120, 1, " sec");
-    appendRangeControl(html, "Screen-off timeout", "sleep_set", snapshotInt(snapshot, "Sleep timeout", 90), 0, 600, 5, " sec");
+    html += F("</div>");
+
+    html += F("<h3>Touch</h3>");
+    appendRangeControl(html, "Touch delay", "touch_set", snapshotInt(snapshot, "Touch delay", 150), 50, 500, 5, " ms");
+    html += F("<p class='hint'>Menu screens still enforce a slightly longer minimum hold so scrolling does not accidentally select an item.</p>");
+
+    html += F("<h3>Sound</h3>");
+    appendRangeControl(html, "Master volume", "volume_set", snapshotInt(snapshot, "Volume", 38), 0, 100, 1, "%");
+    appendAction(html, "Volume -", "vol_down");
+    appendAction(html, "Volume +", "vol_up");
+
+    html += F("<h3>WiFi</h3><div class='facts'>");
+    html += F("<p><b>Status</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "WiFi"));
+    html += F("</span></p><p><b>Network</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "SSID"));
+    html += F("</span></p><p><b>IP Address</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "IP"));
+    html += F("</span></p></div>");
+    appendToggleControl(html, "WiFi enabled", "wifi_toggle", isEnabled());
+    appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
+    appendAction(html, "Start setup AP", "wifi_setup", "warn");
+    html += F("<a class='button' href='/setup'>Choose network</a>");
+
+    html += F("<h3>Power</h3>");
     html += F("<div class='control'><label>Power profile<span>");
     html += escapeHtml(snapshotValue(snapshot, "Power profile"));
     html += F("</span></label>");
@@ -289,28 +305,59 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshot);
     html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a></section>");
   } else if (page == "development") {
-    html += F("<section><h2>Development</h2><div class='grid'>");
-    appendAction(html, "Watch screen", "watch");
+    html += F("<section><h2>Development</h2><h3>Tools</h3><div class='grid'>");
+    appendAction(html, "Hardware Diagnostics", "hardware_diagnostics");
+    appendAction(html, "Boot into Bootloader", "bootloader", "warn");
+    appendAction(html, "Development screen", "development");
     appendAction(html, "Settings screen", "settings");
+    html += F("</div><p class='hint'>Bootloader opens the on-device USB download confirmation screen. The browser asks for confirmation before sending that command.</p>");
+    html += F("<h3>Remote Input</h3><div class='grid'>");
+    appendAction(html, "Watch screen", "watch");
     appendAction(html, "BtnA", "btn_a");
     appendAction(html, "BtnB", "btn_b");
-    html += F("</div><p class='hint'>Remote screen control lives here now so normal settings pages stay focused on configuration.</p></section>");
+    html += F("</div><h3>Hardware Diagnostics</h3><div class='facts'>");
+    html += F("<p><b>System</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "CPU"));
+    html += F("</span></p><p><b>Power</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Battery"));
+    html += F("</span></p><p><b>WiFi</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "WiFi"));
+    html += F("</span></p><p><b>RTC</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Time"));
+    html += F("</span></p></div><p class='hint'>Open Hardware Diagnostics on the device for raw IMU, touch, audio, display, RTC, haptic, and power tests.</p></section>");
   } else {
-    html += F("<section><h2>Dashboard</h2><div class='facts'>");
+    html += F("<section><h2>Dashboard</h2><h3>Device Status</h3><div class='facts'>");
     html += F("<p><b>Battery</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Battery"));
     html += F("</span></p><p><b>WiFi</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "WiFi"));
     html += F("</span></p><p><b>Network</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "SSID"));
-    html += F("</span></p><p><b>Theme</b><span>");
-    html += escapeHtml(snapshotValue(snapshot, "Theme"));
+    html += F("</span></p><p><b>IP Address</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "IP"));
+    html += F("</span></p><p><b>Date</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Date"));
+    html += F("</span></p><p><b>Time</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Time"));
+    html += F("</span></p><p><b>RTC / NTP</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Last NTP sync"));
     html += F("</span></p><p><b>Screen</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Screen"));
-    html += F("</span></p></div><div class='grid'>");
-    html += F("<a class='button' href='/?page=display'>Display</a><a class='button' href='/?page=wifi'>WiFi</a>");
-    html += F("<a class='button' href='/?page=theme'>Theme</a><a class='button' href='/?page=power'>Power</a>");
-    html += F("</div></section>");
+    html += F("</span></p></div><h3>System Resources</h3><div class='facts'>");
+    html += F("<p><b>CPU</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "CPU"));
+    html += F("</span></p><p><b>Loop delay</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Loop delay"));
+    html += F("</span></p><p><b>Foreground update</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Foreground update"));
+    html += F("</span></p><p><b>Services</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Services"));
+    html += F("</span></p></div><h3>About Iris</h3><div class='facts'>");
+    html += F("<p><b>Project</b><span>Iris</span></p><p><b>Firmware</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Firmware"));
+    html += F("</span></p><p><b>Hardware</b><span>M5Stack StopWatch</span></p><p><b>Display</b><span>1.75&quot; AMOLED</span></p><p><b>Resolution</b><span>466 x 466</span></p><p><b>MCU</b><span>ESP32-S3</span></p><p><b>IMU</b><span>BMI270 6-axis</span></p><p><b>Theme</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Theme"));
+    html += F("</span></p></div></section>");
   }
 
   appendPageShellEnd(html);
@@ -684,10 +731,10 @@ void WifiService::handlePortalSave() {
 void WifiService::appendPageShellStart(String& html, const String& page, const String& snapshot) {
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
   html += F("<title>Iris</title><style>");
-  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;background:#000;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008}.face{text-align:center}.time{font-size:42px;font-weight:800;line-height:1}.date{margin-top:12px;color:#b7c5b8}.chip{display:inline-block;margin-top:14px;border:1px solid #344035;border-radius:999px;padding:5px 10px;color:#c9d7c9;font-size:13px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number]{width:82px;background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
+  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;background:#000;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008}.face{text-align:center}.time{font-size:42px;font-weight:800;line-height:1}.date{margin-top:12px;color:#b7c5b8}.chip{display:inline-block;margin-top:14px;border:1px solid #344035;border-radius:999px;padding:5px 10px;color:#c9d7c9;font-size:13px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}nav{display:flex;flex-direction:column;gap:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number]{width:82px;background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control form{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid,.grid.three,.facts{grid-template-columns:1fr}.control form{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
   html += F("<div class='top'>");
   appendWatchPreview(html, snapshot);
-  html += F("<div class='title'><h1>Iris</h1><p>Web configurator for display, touch, sound, WiFi, theme, power, device, and development controls.</p><span id='status' class='status'></span></div></div><div class='layout'>");
+  html += F("<div class='title'><h1>Iris</h1><p>Dashboard, device information, settings, and development tools for the M5Stack StopWatch.</p><span id='status' class='status'></span></div></div><div class='layout'>");
   appendNavigation(html, page);
   html += F("<main>");
 }
@@ -698,7 +745,7 @@ void WifiService::appendPageShellEnd(String& html) {
   html += F("async function sendJson(url,method,payload){const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload||{})});if(!r.ok)throw new Error(await r.text());return r.json()}");
   html += F("async function refreshPreview(){try{const s=await fetch('/api/settings').then(r=>r.json());const time=document.querySelector('.time');const theme=document.querySelector('.date');const chip=document.querySelector('.chip');if(time&&s.time)time.textContent=s.time;if(theme)theme.textContent=s.theme||'';if(chip)chip.textContent=s.battery||''}catch(e){}}");
   html += F("document.querySelectorAll('form[data-api]').forEach(f=>{const range=f.querySelector('input[type=range]');const number=f.querySelector('input[type=number]');const value=f.querySelector('[data-value]');const sync=v=>{if(range)range.value=v;if(number)number.value=v;if(value)value.textContent=v};if(range)range.addEventListener('input',()=>sync(range.value));if(number)number.addEventListener('input',()=>sync(number.value));f.addEventListener('submit',async e=>{e.preventDefault();const btn=f.querySelector('button');try{btn&&btn.classList.add('busy');note('Applying...');await sendJson(f.dataset.api,'PUT',{[f.dataset.field]:Number(number?number.value:range.value)});btn&&btn.classList.add('saved');note('Saved');refreshPreview()}catch(err){note('Could not apply setting')}finally{btn&&btn.classList.remove('busy');setTimeout(()=>{btn&&btn.classList.remove('saved');note('')},1800)}})});");
-  html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note('Could not apply command')}finally{a.classList.remove('busy')}}));");
+  html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();if(a.dataset.confirm&&!confirm(a.dataset.confirm))return;try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note('Could not apply command')}finally{a.classList.remove('busy')}}));");
   html += F("setInterval(refreshPreview,15000);</script></body></html>");
 }
 
@@ -715,8 +762,8 @@ void WifiService::appendWatchPreview(String& html, const String& snapshot) {
 }
 
 void WifiService::appendNavigation(String& html, const String& page) {
-  constexpr const char* pages[] = {"dashboard", "display", "touch", "sound", "wifi", "theme", "power", "device", "development"};
-  constexpr const char* labels[] = {"Dashboard", "Display", "Touch", "Sound", "WiFi", "Theme", "Power", "Device", "Development"};
+  constexpr const char* pages[] = {"dashboard", "device", "settings", "development"};
+  constexpr const char* labels[] = {"Dashboard", "Device", "Settings", "Development"};
   html += F("<nav>");
   for (size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); ++i) {
     html += F("<a class='nav");
@@ -795,7 +842,11 @@ void WifiService::appendAction(String& html, const char* label, const char* comm
   html += escapeHtml(page);
   html += F("' data-command='");
   html += command;
-  html += F("'>");
+  html += F("'");
+  if (strcmp(command, "bootloader") == 0) {
+    html += F(" data-confirm='Boot Iris into the on-device bootloader confirmation screen? The current web session may disconnect if you continue on the device.'");
+  }
+  html += F(">");
   html += label;
   html += F("</a>");
 }
