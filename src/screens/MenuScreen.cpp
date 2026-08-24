@@ -206,14 +206,11 @@ void MenuScreen::drawRow(size_t index, int relativePosition) {
   const int y = kListCenterY + relativePosition * kRowHeight;
   const int displayCenterX = M5.Display.width() / 2;
   const int inset = distance == 0 ? 40 : (distance == 1 ? 66 : 108);
-  const int sideShift = distance == 0 ? 0 : (relativePosition < 0 ? 12 : -12) * distance;
   const int maxSafeWidth = circularSafeWidthAtY(y, kScreenSafeMarginPx);
   const int rowHeight = distance == 0 ? 52 : (distance == 1 ? 42 : 34);
   const int desiredRowW = M5.Display.width() - (inset * 2);
-  const int shiftedSafeWidth = max(0, maxSafeWidth - (abs(sideShift) * 2));
-  const int rowW = min(desiredRowW, shiftedSafeWidth);
-  const int rowX = displayCenterX - (rowW / 2) + sideShift;
-  const int textCenterX = rowX + (rowW / 2);
+  const int rowW = min(desiredRowW, maxSafeWidth);
+  const int rowX = displayCenterX - (rowW / 2);
   const int textMaxWidth = max(0, rowW - (kTextSafePaddingPx * 2));
   const uint8_t brightness = distance == 0 ? 255 : (distance == 1 ? 175 : 105);
   const uint16_t text = blend565(theme.foreground, theme.background, brightness);
@@ -231,7 +228,7 @@ void MenuScreen::drawRow(size_t index, int relativePosition) {
     M5.Display.setFont(&fonts::FreeSans9pt7b);
   }
   M5.Display.setTextColor(text, selected ? theme.selected : theme.background);
-  M5.Display.drawString(fitTextToWidth(items_[index].label, textMaxWidth), textCenterX, y);
+  M5.Display.drawString(fitTextToWidth(items_[index].label, textMaxWidth), displayCenterX, y);
 }
 
 void MenuScreen::drawScrollBar(uint32_t nowMs) {
