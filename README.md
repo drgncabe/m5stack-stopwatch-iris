@@ -43,7 +43,7 @@ Iris is early firmware. It builds, runs, and has been tested on a physical M5Sta
 
 Current firmware version: `0.2.14`
 
-Before closing the v0.2 architecture baseline, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
+Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
 ### Implemented
 
