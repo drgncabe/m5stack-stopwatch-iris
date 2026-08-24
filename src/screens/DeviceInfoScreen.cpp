@@ -10,6 +10,17 @@
 
 namespace iris {
 
+namespace {
+String formatBytes(uint32_t bytes) {
+  if (bytes >= 1024UL * 1024UL) {
+    return String(bytes / (1024UL * 1024UL)) + "." +
+           String((bytes % (1024UL * 1024UL)) / 104858UL) + " MB";
+  }
+  if (bytes >= 1024UL) return String(bytes / 1024UL) + " KB";
+  return String(bytes) + " B";
+}
+}  // namespace
+
 void DeviceInfoScreen::enter() {}
 void DeviceInfoScreen::update(uint32_t) {}
 
@@ -24,22 +35,25 @@ void DeviceInfoScreen::draw() {
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextDatum(top_left);
 
-  int y = 96;
-  const int x = 72;
+  int y = 82;
+  const int x = 58;
   auto line = [&](const String& label, const String& value) {
     M5.Display.setTextColor(theme.muted, theme.background);
     M5.Display.drawString(label, x, y);
     M5.Display.setTextColor(theme.foreground, theme.background);
-    M5.Display.drawString(value, 190, y);
-    y += 30;
+    M5.Display.drawString(value, 184, y);
+    y += 24;
   };
 
   line("Project", String(config::kProjectName));
   line("Version", String(config::kVersion));
   line("Chip", String(ESP.getChipModel()));
   line("CPU", String(ESP.getCpuFreqMHz()) + " MHz");
-  line("Flash", String(ESP.getFlashChipSize() / (1024 * 1024)) + " MB");
-  line("PSRAM", String(ESP.getPsramSize() / (1024 * 1024)) + " MB");
+  line("Heap", formatBytes(ESP.getFreeHeap()));
+  line("Min heap", formatBytes(ESP.getMinFreeHeap()));
+  line("Sketch", formatBytes(ESP.getSketchSize()));
+  line("App free", formatBytes(ESP.getFreeSketchSpace()));
+  line("PSRAM", formatBytes(ESP.getFreePsram()) + " / " + formatBytes(ESP.getPsramSize()));
   line("Battery", battery_.statusText());
   line("RTC", timeService_.rtcAvailable() ? "Available" : "Unavailable");
   line("WiFi", wifi_.statusText());
