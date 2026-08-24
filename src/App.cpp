@@ -371,6 +371,8 @@ void App::handleControlCommand(const String& command) {
     appManager_.launch("developer.hardware_diagnostics");
   } else if (command == "bootloader") {
     appManager_.launch("developer.bootloader");
+  } else if (command == "bootloader_confirmed") {
+    enterBootloaderFromWeb();
   } else if (command == "btn_a") {
     if (!appManager_.onButtonA()) screenManager_.onButtonA();
   } else if (command == "btn_b") {
@@ -610,6 +612,16 @@ void App::adjustTouchDelay(int delta) {
 void App::setIndicatorLight(bool enabled) {
   settings_.setIndicatorLightEnabled(enabled);
   statusLight_.setEnabled(enabled);
+}
+
+void App::enterBootloaderFromWeb() {
+  Serial.println("[BOOT] Web configurator requested ROM download mode");
+  appManager_.launch("developer.bootloader");
+  statusLight_.clearNotification();
+  wifi_.shutdownForBootloader();
+  Serial.println("[BOOT] Entering ESP32-S3 bootloader");
+  Serial.flush();
+  bootloaderScreen_.requestBootloader();
 }
 
 void App::nextTheme() {

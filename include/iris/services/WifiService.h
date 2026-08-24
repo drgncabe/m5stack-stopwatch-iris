@@ -33,6 +33,7 @@ class WifiService {
 
   void startProvisioning();
   void stopProvisioning();
+  void shutdownForBootloader();
 
  private:
   void connectSaved();
