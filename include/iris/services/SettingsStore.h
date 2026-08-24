@@ -233,6 +233,9 @@ class SettingsStore {
   bool automaticTimeEnabled() const { return automaticTimeEnabled_; }
   void setAutomaticTimeEnabled(bool enabled);
 
+  uint32_t lastNtpSyncEpoch() const { return lastNtpSyncEpoch_; }
+  void setLastNtpSyncEpoch(uint32_t epoch);
+
   bool autoRotate() const { return autoRotate_; }
   void setAutoRotate(bool enabled);
 
@@ -269,6 +272,7 @@ class SettingsStore {
   TimeFormat timeFormat_ = TimeFormat::TwelveHour;
   TimeZoneId timeZone_ = TimeZoneId::Eastern;
   bool automaticTimeEnabled_ = true;
+  uint32_t lastNtpSyncEpoch_ = 0;
   bool autoRotate_ = true;
   bool indicatorLightEnabled_ = false;
   uint16_t touchDelayMs_ = 150;
