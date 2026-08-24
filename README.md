@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.2.4`
+Current firmware version: `0.2.5`
 
 ### Implemented
 
@@ -57,7 +57,7 @@ Current firmware version: `0.2.4`
 - Date & Time settings with country/region defaults, date format, time format, timezone, automatic NTP sync, Sync Now, manual date/time, and RTC information
 - WiFi client mode with saved credentials
 - WiFi setup access point for provisioning
-- Lightweight web control panel while WiFi is active
+- Lightweight web control panel while WiFi is active, including saved WiFi management
 - Display dimming, screen sleep, low-power watch face, and WiFi-on-demand settings
 - Developer bootloader/download-mode entry from the device menu
 - BMI270-based auto-rotation option
@@ -293,6 +293,7 @@ Current web/API routes include:
 - `/api/settings/power` for power-focused JSON settings
 - `/api/wifi/status` for WiFi status JSON
 - `/api/wifi/networks` for nearby WiFi network scan results
+- `/api/wifi/forget` for clearing saved WiFi credentials
 
 ## ESP32-C5-Zero Companion Nodes
 
