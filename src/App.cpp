@@ -365,6 +365,12 @@ void App::handleControlCommand(const String& command) {
     appManager_.launch("system.watch");
   } else if (command == "settings") {
     appManager_.launch("system.settings");
+  } else if (command == "development") {
+    appManager_.launch("system.development");
+  } else if (command == "hardware_diagnostics") {
+    appManager_.launch("developer.hardware_diagnostics");
+  } else if (command == "bootloader") {
+    appManager_.launch("developer.bootloader");
   } else if (command == "btn_a") {
     if (!appManager_.onButtonA()) screenManager_.onButtonA();
   } else if (command == "btn_b") {
@@ -472,6 +478,8 @@ String App::buildControlSnapshot() const {
   snapshot.reserve(620);
   snapshot += "Screen: ";
   snapshot += currentScreenName();
+  snapshot += "\nFirmware: ";
+  snapshot += config::kVersion;
   const AppDescriptor* currentApp = appManager_.current();
   snapshot += "\nApp: ";
   snapshot += currentApp ? currentApp->id : "unknown";
