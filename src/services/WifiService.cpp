@@ -586,6 +586,8 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "Display power"));
     html += F("</span></p><p><b>Power profile</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Power profile"));
+    html += F("</span></p><p><b>Power requests</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Power requests"));
     html += F("</span></p><p><b>Loop delay</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Loop delay"));
     html += F("</span></p><p><b>Foreground update</b><span>");
@@ -739,6 +741,8 @@ void WifiService::handleApiSettings() {
   json += escapeJson(snapshotValue(snapshot, "Display power"));
   json += F("\",\"powerProfile\":\"");
   json += escapeJson(snapshotValue(snapshot, "Power profile"));
+  json += F("\",\"powerRequests\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Power requests"));
   json += F("\",\"cpu\":\"");
   json += escapeJson(snapshotValue(snapshot, "CPU"));
   json += F("\",\"battery\":\"");
@@ -847,6 +851,8 @@ void WifiService::handleApiDeviceInfo() {
   json += escapeJson(snapshotValue(snapshot, "Display power"));
   json += F("\",\"powerProfile\":\"");
   json += escapeJson(snapshotValue(snapshot, "Power profile"));
+  json += F("\",\"powerRequests\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Power requests"));
   json += F("\",\"wifi\":\"");
   json += escapeJson(snapshotValue(snapshot, "WiFi"));
   json += F("\",\"ssid\":\"");
@@ -1057,6 +1063,8 @@ void WifiService::handleApiPowerSettings() {
   json += escapeJson(snapshotValue(snapshot, "Display power"));
   json += F("\",\"powerProfile\":\"");
   json += escapeJson(snapshotValue(snapshot, "Power profile"));
+  json += F("\",\"powerRequests\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Power requests"));
   json += F("\",\"cpu\":\"");
   json += escapeJson(snapshotValue(snapshot, "CPU"));
   json += F("\",\"dimBrightness\":");

@@ -23,6 +23,14 @@ constexpr uint16_t kNormalForegroundUpdateMs = 250;
 constexpr uint16_t kBackgroundForegroundUpdateMs = 1000;
 constexpr uint16_t kDimForegroundUpdateMs = 1000;
 constexpr uint16_t kPerformanceForegroundUpdateMs = 100;
+
+void incrementRequest(uint8_t& count) {
+  if (count < UINT8_MAX) count++;
+}
+
+void decrementRequest(uint8_t& count) {
+  if (count > 0) count--;
+}
 }  // namespace
 
 void PowerManager::begin() {
@@ -47,9 +55,11 @@ void PowerManager::userActivity(uint32_t nowMs) {
 void PowerManager::update(uint32_t nowMs, const AppDescriptor* app) {
   const uint32_t idle = idleMs(nowMs);
   const uint16_t sleepSeconds = settings_.sleepTimeoutSeconds();
+  const bool keepDisplayAwake = displayRequested();
 
   if (sleepSeconds > 0 &&
       state_ != DisplayPowerState::Sleeping &&
+      !keepDisplayAwake &&
       idle >= static_cast<uint32_t>(sleepSeconds) * 1000UL) {
     state_ = DisplayPowerState::Sleeping;
     applySleepDisplay();
@@ -58,6 +68,7 @@ void PowerManager::update(uint32_t nowMs, const AppDescriptor* app) {
   }
 
   if (state_ == DisplayPowerState::Active &&
+      !keepDisplayAwake &&
       idle >= static_cast<uint32_t>(settings_.dimTimeoutSeconds()) * 1000UL) {
     state_ = DisplayPowerState::Dimmed;
     applyDimDisplay();
@@ -74,6 +85,36 @@ void PowerManager::wake(uint32_t nowMs) {
   applyCpuMhz(activeCpuMhz(nullptr));
 }
 
+void PowerManager::requestPerformanceMode() {
+  incrementRequest(performanceRequests_);
+}
+
+void PowerManager::releasePerformanceMode() {
+  decrementRequest(performanceRequests_);
+}
+
+void PowerManager::requestDisplay() {
+  incrementRequest(displayRequests_);
+  if (state_ == DisplayPowerState::Sleeping) {
+    wake(millis());
+  } else if (state_ == DisplayPowerState::Dimmed) {
+    state_ = DisplayPowerState::Active;
+    applyActiveDisplay();
+  }
+}
+
+void PowerManager::releaseDisplay() {
+  decrementRequest(displayRequests_);
+}
+
+void PowerManager::requestWifi() {
+  incrementRequest(wifiRequests_);
+}
+
+void PowerManager::releaseWifi() {
+  decrementRequest(wifiRequests_);
+}
+
 const char* PowerManager::stateName() const {
   switch (state_) {
     case DisplayPowerState::Active: return "Active";
@@ -81,6 +122,18 @@ const char* PowerManager::stateName() const {
     case DisplayPowerState::Sleeping: return "Sleeping";
   }
   return "Unknown";
+}
+
+String PowerManager::requestSummary() const {
+  String summary;
+  summary.reserve(32);
+  summary += "Perf ";
+  summary += String(performanceRequests_);
+  summary += " Display ";
+  summary += String(displayRequests_);
+  summary += " WiFi ";
+  summary += String(wifiRequests_);
+  return summary;
 }
 
 uint16_t PowerManager::loopDelayMs(const AppDescriptor* app) const {
@@ -120,6 +173,7 @@ uint16_t PowerManager::foregroundUpdateIntervalMs(const AppDescriptor* app) cons
 }
 
 bool PowerManager::appNeedsPerformance(const AppDescriptor* app) const {
+  if (performanceRequested()) return true;
   if (!app) return false;
   return app->updateClass == AppUpdateClass::Realtime;
 }

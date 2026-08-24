@@ -553,6 +553,8 @@ String App::buildControlSnapshot() const {
   snapshot += power_.stateName();
   snapshot += "\nPower profile: ";
   snapshot += power_.profileName();
+  snapshot += "\nPower requests: ";
+  snapshot += power_.requestSummary();
   snapshot += "\nCPU: ";
   snapshot += String(power_.currentCpuMhz());
   snapshot += " MHz";
@@ -728,6 +730,10 @@ void App::updateDisplayPower(uint32_t nowMs) {
 
 void App::updateWifiPower(uint32_t nowMs) {
   if (!settings_.wifiOnDemand() || !wifi_.isEnabled()) return;
+  if (power_.wifiRequested()) {
+    wifiDemandStartedMs_ = nowMs;
+    return;
+  }
   if (wifi_.isProvisioning()) {
     wifiDemandStartedMs_ = nowMs;
     return;
