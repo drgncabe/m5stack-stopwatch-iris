@@ -17,6 +17,14 @@ struct DateTimeSnapshot {
   bool valid = false;
 };
 
+enum class TimeSyncState : uint8_t {
+  Idle = 0,
+  WaitingForWifi = 1,
+  Requested = 2,
+  Synchronized = 3,
+  Failed = 4,
+};
+
 class TimeService {
  public:
   explicit TimeService(SettingsStore& settings) : settings_(settings) {}
@@ -28,6 +36,11 @@ class TimeService {
   DateTimeSnapshot rtcNow() const;
   bool rtcAvailable() const { return rtcAvailable_; }
   bool ntpSynchronized() const { return ntpSynchronized_; }
+  bool syncInProgress() const {
+    return manualSyncRequested_ ||
+           syncState_ == TimeSyncState::WaitingForWifi ||
+           syncState_ == TimeSyncState::Requested;
+  }
   bool syncNow(uint32_t nowMs);
   bool adjustManualMinutes(int deltaMinutes);
   bool setManualDateTime(const DateTimeSnapshot& value);
@@ -37,6 +50,7 @@ class TimeService {
   String formatDateTime(const DateTimeSnapshot& value) const;
   String utcOffsetText() const;
   String dstText() const;
+  String syncStatusText() const;
   String lastNtpSyncText() const;
   String rtcSystemDifferenceText() const;
 
@@ -50,7 +64,9 @@ class TimeService {
   SettingsStore& settings_;
   bool rtcAvailable_ = false;
   bool ntpRequested_ = false;
+  bool manualSyncRequested_ = false;
   bool ntpSynchronized_ = false;
+  TimeSyncState syncState_ = TimeSyncState::Idle;
   uint32_t lastNtpRequestMs_ = 0;
   uint32_t lastNtpSyncMs_ = 0;
   time_t lastNtpSyncEpoch_ = 0;
