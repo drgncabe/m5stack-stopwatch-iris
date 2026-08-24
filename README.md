@@ -41,6 +41,8 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
+Current firmware version: `0.2.0`
+
 ### Implemented
 
 - Watch face with time, date, battery level, WiFi status, theme support, and configurable widgets
@@ -52,6 +54,7 @@ Iris is early firmware. It builds, runs, and has been tested on a physical M5Sta
 - Five-position wheel-style menu UI optimized for the circular display
 - Touch scrolling with press-and-hold selection behavior and haptic feedback
 - Volume, display, touch delay, theme/widget, power, WiFi, and developer settings
+- Date & Time settings with country/region defaults, date format, time format, timezone, automatic NTP sync, Sync Now, manual date/time, and RTC information
 - WiFi client mode with saved credentials
 - WiFi setup access point for provisioning
 - Lightweight web control panel while WiFi is active
@@ -283,6 +286,10 @@ Current web/API routes include:
 - `/display.txt` for the plain-text device snapshot
 - `/api/settings` for the combined JSON settings snapshot
 - `/api/settings/display` for display-focused JSON settings
+- `/api/settings/time` for Date & Time JSON settings
+- `/api/settings/touch` for touch-focused JSON settings
+- `/api/settings/sound` for sound-focused JSON settings
+- `/api/settings/theme` for theme-focused JSON settings
 - `/api/settings/power` for power-focused JSON settings
 - `/api/wifi/status` for WiFi status JSON
 
