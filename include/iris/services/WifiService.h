@@ -50,6 +50,7 @@ class WifiService {
   void handleApiTimeSettings();
   void handleApiCommand();
   void handleApiWifiStatus();
+  void handleApiWifiNetworks();
   void handleDisplaySnapshot();
   void handleWifiSetup();
   void handlePortalSave();

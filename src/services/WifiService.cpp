@@ -34,6 +34,20 @@ const char* previewStyleForTheme(const String& theme) {
   if (theme == "Steel") return "background:#1f2428;color:#ffffff;border-color:#bfcbd3;--muted:#dbe6ec;--accent:#d2dde4;--panel:#30383f";
   return "background:#000000;color:#ffffff;border-color:#3b433b;--muted:#c9d7c9;--accent:#d9f99d;--panel:#171b17";
 }
+
+const char* encryptionName(wifi_auth_mode_t type) {
+  switch (type) {
+    case WIFI_AUTH_OPEN: return "open";
+    case WIFI_AUTH_WEP: return "wep";
+    case WIFI_AUTH_WPA_PSK: return "wpa";
+    case WIFI_AUTH_WPA2_PSK: return "wpa2";
+    case WIFI_AUTH_WPA_WPA2_PSK: return "wpa/wpa2";
+    case WIFI_AUTH_WPA2_ENTERPRISE: return "wpa2-enterprise";
+    case WIFI_AUTH_WPA3_PSK: return "wpa3";
+    case WIFI_AUTH_WPA2_WPA3_PSK: return "wpa2/wpa3";
+    default: return "unknown";
+  }
+}
 }  // namespace
 
 WifiService::WifiService() : server_(80) {}
@@ -248,6 +262,8 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
+  server_.on("/api/wifi/networks", HTTP_GET, [this]() { handleApiWifiNetworks(); });
+  server_.on("/api/wifi/scan", HTTP_POST, [this]() { handleApiWifiNetworks(); });
   server_.on("/api/wifi/setup", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/display.txt", HTTP_GET, [this]() { handleDisplaySnapshot(); });
   server_.on("/setup", HTTP_GET, [this]() { handleWifiSetup(); });
@@ -371,6 +387,7 @@ void WifiService::handleControlPanel() {
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
     appendAction(html, "Start setup AP", "wifi_setup", "warn");
     html += F("<a class='button' href='/setup'>Choose network</a>");
+    html += F("<a class='button' href='/api/wifi/networks'>Nearby networks JSON</a>");
     html += F("</section>");
   } else if (page == "power") {
     html += F("<section><h2>Power</h2><p class='hint'>Balance responsiveness, heat, and battery life.</p>");
@@ -402,7 +419,7 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "Face layout"));
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
   } else if (page == "development") {
     html += F("<section><h2>Development</h2><h3>Tools</h3><div class='grid'>");
     appendAction(html, "Hardware Diagnostics", "hardware_diagnostics");
@@ -862,6 +879,45 @@ void WifiService::handleApiWifiStatus() {
   json += F("\",\"ip\":\"");
   json += escapeJson(snapshotValue(snapshot, "IP"));
   json += F("\"}");
+  server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiWifiNetworks() {
+  String json;
+  json.reserve(1200);
+  json += F("{\"enabled\":");
+  json += isEnabled() ? F("true") : F("false");
+  json += F(",\"connected\":");
+  json += isConnected() ? F("true") : F("false");
+  json += F(",\"provisioning\":");
+  json += isProvisioning() ? F("true") : F("false");
+
+  if (!isEnabled()) {
+    json += F(",\"scanAvailable\":false,\"message\":\"WiFi is disabled\",\"networks\":[]}");
+    server_.send(200, "application/json", json);
+    return;
+  }
+
+  const int count = WiFi.scanNetworks(false, true);
+  json += F(",\"scanAvailable\":true,\"count\":");
+  json += String(count > 0 ? count : 0);
+  json += F(",\"networks\":[");
+  for (int i = 0; i < count; ++i) {
+    if (i > 0) json += F(",");
+    json += F("{\"ssid\":\"");
+    json += escapeJson(WiFi.SSID(i));
+    json += F("\",\"rssi\":");
+    json += String(WiFi.RSSI(i));
+    json += F(",\"channel\":");
+    json += String(WiFi.channel(i));
+    json += F(",\"encryption\":\"");
+    json += encryptionName(WiFi.encryptionType(i));
+    json += F("\",\"open\":");
+    json += WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? F("true") : F("false");
+    json += F("}");
+  }
+  WiFi.scanDelete();
+  json += F("]}");
   server_.send(200, "application/json", json);
 }
 
