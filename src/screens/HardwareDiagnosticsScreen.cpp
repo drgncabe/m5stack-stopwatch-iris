@@ -20,7 +20,7 @@ constexpr int kRowValueLeft = 222;
 constexpr int kRowValueRightPadding = 16;
 constexpr int kRowValueWidth = kRowLeft + kRowWidth - kRowValueLeft - kRowValueRightPadding;
 constexpr size_t kItemCount = 8;
-constexpr size_t kPageCount = 9;
+constexpr size_t kPageCount = 10;
 constexpr uint32_t kShortTestMs = 5000;
 constexpr uint32_t kHapticTestMs = 650;
 constexpr uint32_t kStatusRefreshMs = 500;
@@ -289,6 +289,7 @@ int HardwareDiagnosticsScreen::rowAt(int32_t x, int32_t y) const {
 const char* HardwareDiagnosticsScreen::pageName() const {
   switch (page_) {
     case Page::System: return "System";
+    case Page::Memory: return "Memory";
     case Page::Display: return "Display";
     case Page::Audio: return "Audio";
     case Page::Input: return "Input";
@@ -308,6 +309,10 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
   switch (page_) {
     case Page::System: {
       constexpr const char* labels[] = {"", "Firmware", "CPU", "Uptime", "Heap", "PSRAM", "Flash", ""};
+      return labels[index];
+    }
+    case Page::Memory: {
+      constexpr const char* labels[] = {"", "Heap", "Min heap", "PSRAM free", "PSRAM total", "Sketch used", "Sketch free", ""};
       return labels[index];
     }
     case Page::Display: {
@@ -359,6 +364,16 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
         case 4: return formatBytes(ESP.getFreeHeap());
         case 5: return psramFound() ? formatBytes(ESP.getFreePsram()) : "Unavailable";
         case 6: return formatBytes(ESP.getFlashChipSize());
+      }
+      break;
+    case Page::Memory:
+      switch (index) {
+        case 1: return formatBytes(ESP.getFreeHeap());
+        case 2: return formatBytes(ESP.getMinFreeHeap());
+        case 3: return psramFound() ? formatBytes(ESP.getFreePsram()) : "Unavailable";
+        case 4: return psramFound() ? formatBytes(ESP.getPsramSize()) : "Unavailable";
+        case 5: return formatBytes(ESP.getSketchSize());
+        case 6: return formatBytes(ESP.getFreeSketchSpace());
       }
       break;
     case Page::Display:

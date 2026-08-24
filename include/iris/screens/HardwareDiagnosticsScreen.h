@@ -33,6 +33,7 @@ class HardwareDiagnosticsScreen : public Screen {
  private:
   enum class Page : uint8_t {
     System,
+    Memory,
     Display,
     Audio,
     Input,
