@@ -5,7 +5,7 @@
 namespace iris::config {
 
 constexpr char kProjectName[] = "Iris";
-constexpr char kVersion[] = "0.1.0-phase1";
+constexpr char kVersion[] = "0.2.0";
 
 // POSIX timezone string for US Eastern time. Change this in later deployments
 // if the device should operate in another timezone.
