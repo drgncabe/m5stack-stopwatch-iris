@@ -39,6 +39,7 @@ void SettingsStore::begin() {
     timeZone_ = TimeZoneId::Eastern;
   }
   automaticTimeEnabled_ = prefs_.getBool("auto_time", true);
+  lastNtpSyncEpoch_ = prefs_.getULong("ntp_epoch", 0);
   autoRotate_ = prefs_.getBool("auto_rotate", true);
   indicatorLightEnabled_ = prefs_.getBool("light_on", false);
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
@@ -182,6 +183,11 @@ void SettingsStore::setTimeZone(TimeZoneId zone) {
 void SettingsStore::setAutomaticTimeEnabled(bool enabled) {
   automaticTimeEnabled_ = enabled;
   prefs_.putBool("auto_time", automaticTimeEnabled_);
+}
+
+void SettingsStore::setLastNtpSyncEpoch(uint32_t epoch) {
+  lastNtpSyncEpoch_ = epoch;
+  prefs_.putULong("ntp_epoch", lastNtpSyncEpoch_);
 }
 
 void SettingsStore::setAutoRotate(bool enabled) {

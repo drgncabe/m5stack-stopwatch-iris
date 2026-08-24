@@ -28,6 +28,7 @@ bool snapshotLooksValid(const DateTimeSnapshot& snapshot) {
 
 void TimeService::begin() {
   rtcAvailable_ = M5.Rtc.isEnabled();
+  lastNtpSyncEpoch_ = static_cast<time_t>(settings_.lastNtpSyncEpoch());
   applyConfiguredTimezone();
   if (!restoreSystemTimeFromRtc() && events_) {
     events_->publish(EventType::RtcTimeInvalid, "TimeService", rtcAvailable_ ? "Invalid" : "Unavailable");
@@ -63,6 +64,9 @@ void TimeService::update(uint32_t nowMs, bool wifiConnected) {
     syncState_ = TimeSyncState::Synchronized;
     lastNtpSyncMs_ = nowMs;
     lastNtpSyncEpoch_ = time(nullptr);
+    if (lastNtpSyncEpoch_ > 1700000000) {
+      settings_.setLastNtpSyncEpoch(static_cast<uint32_t>(lastNtpSyncEpoch_));
+    }
     if (events_) events_->publish(EventType::TimeSynchronized, "TimeService", "NTP");
   } else if (ntpRequested_ && nowMs - lastNtpRequestMs_ >= kNtpTimeoutMs) {
     syncState_ = TimeSyncState::Failed;
