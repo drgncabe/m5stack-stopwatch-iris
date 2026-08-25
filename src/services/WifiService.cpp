@@ -2,6 +2,8 @@
 
 #include "iris/AppConfig.h"
 
+#include <SPIFFS.h>
+
 namespace iris {
 
 namespace {
@@ -189,6 +191,10 @@ void WifiService::setEnabled(bool enabled) {
   connectSaved();
 }
 
+void WifiService::setBadgeService(BadgeService* badge) {
+  badge_ = badge;
+}
+
 void WifiService::setControlCallbacks(void* context,
                                       ControlCommandHandler commandHandler,
                                       ControlSnapshotHandler snapshotHandler) {
@@ -330,6 +336,10 @@ void WifiService::configurePortalRoutes() {
     server_.sendHeader("Location", "/?page=apps", true);
     server_.send(302, "text/plain", "");
   });
+  server_.on("/badge", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=badge", true);
+    server_.send(302, "text/plain", "");
+  });
   server_.on("/settings", HTTP_GET, [this]() {
     server_.sendHeader("Location", "/?page=settings", true);
     server_.send(302, "text/plain", "");
@@ -384,6 +394,9 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/settings/time", HTTP_PUT, [this]() { handleApiTimeSettings(); });
   server_.on("/api/device", HTTP_GET, [this]() { handleApiDeviceInfo(); });
   server_.on("/api/apps", HTTP_GET, [this]() { handleApiApps(); });
+  server_.on("/api/badge", HTTP_GET, [this]() { handleApiBadge(); });
+  server_.on("/api/badge", HTTP_PUT, [this]() { handleApiBadge(); });
+  server_.on("/api/badge/delete", HTTP_POST, [this]() { handleApiBadgeDelete(); });
   server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
@@ -395,6 +408,10 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/wifi/forget", HTTP_POST, [this]() { handleApiWifiForget(); });
   server_.on("/api/wifi/setup", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/display.txt", HTTP_GET, [this]() { handleDisplaySnapshot(); });
+  server_.on("/badge/asset", HTTP_GET, [this]() { handleBadgeAsset(); });
+  server_.on("/badge/upload", HTTP_POST,
+             [this]() { handleBadgeUploadDone(); },
+             [this]() { handleBadgeUpload(); });
   server_.on("/setup", HTTP_GET, [this]() { handleWifiSetup(); });
   server_.on("/save", HTTP_POST, [this]() { handlePortalSave(); });
   server_.onNotFound([this]() {
@@ -425,6 +442,7 @@ void WifiService::handleControlPanel() {
     html += F("<section><h2>Settings</h2><p class='hint'>Choose a settings area. These pages use the same Iris settings model as the watch UI, but leave more room for precise controls.</p><div class='grid'>");
     html += F("<a class='button' href='/?page=display'>Display</a>");
     html += F("<a class='button' href='/?page=theme'>Theme & Widgets</a>");
+    html += F("<a class='button' href='/?page=badge'>Badge</a>");
     html += F("<a class='button' href='/?page=datetime'>Date & Time</a>");
     html += F("<a class='button' href='/?page=touch'>Touch</a>");
     html += F("<a class='button' href='/?page=sound'>Sound</a>");
@@ -468,6 +486,8 @@ void WifiService::handleControlPanel() {
     appendAction(html, "Next complication", "complication_next");
     html += F("</div>");
     html += F("</section>");
+  } else if (page == "badge") {
+    appendBadgePage(html);
   } else if (page == "datetime") {
     html += F("<section><h2>Date & Time</h2><p class='hint'>Configure regional formats, timezone, NTP sync, manual time, and RTC behavior.</p>");
     html += F("<h3>Date & Time</h3><div class='facts'>");
@@ -626,7 +646,7 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(WiFi.macAddress());
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/apps'>Apps API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/apps'>Apps API</a><a class='button' href='/api/badge'>Badge API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
   } else if (page == "apps") {
     html += F("<section><h2>Apps</h2><p class='hint'>Registered Iris apps and app-facing screens. Future app settings can use this same web surface.</p>");
     html += F("<h3>Current App</h3><div class='facts'>");
@@ -915,6 +935,89 @@ void WifiService::handleApiApps() {
   }
   json += F("]}");
   server_.send(200, "application/json", json);
+}
+
+void WifiService::handleApiBadge() {
+  if (!badge_) {
+    sendApiError(503, "Badge service unavailable.");
+    return;
+  }
+
+  if (server_.method() == HTTP_PUT) {
+    String mode;
+    bool keepAwake = false;
+    if (apiStringArg("mode", &mode)) {
+      mode.toLowerCase();
+      if (mode == "fit") {
+        badge_->setMode(BadgeDisplayMode::Fit);
+      } else if (mode == "fill") {
+        badge_->setMode(BadgeDisplayMode::Fill);
+      } else if (mode == "center") {
+        badge_->setMode(BadgeDisplayMode::Center);
+      }
+    }
+    if (apiBoolArg("keepAwake", &keepAwake) && keepAwake != badge_->keepAwake()) {
+      dispatchControlCommand("badge_keep_awake_toggle");
+    }
+  }
+
+  server_.send(200, "application/json", badge_->json());
+}
+
+void WifiService::handleApiBadgeDelete() {
+  if (!badge_) {
+    sendApiError(503, "Badge service unavailable.");
+    return;
+  }
+  if (!badge_->deleteBadge()) {
+    sendApiError(500, "Badge could not be deleted.");
+    return;
+  }
+  sendApiOk("Badge deleted.");
+}
+
+void WifiService::handleBadgeAsset() {
+  if (!badge_ || !badge_->hasAsset()) {
+    server_.send(404, "text/plain", "No badge asset stored.");
+    return;
+  }
+  const BadgeMetadata& meta = badge_->metadata();
+  fs::File file = SPIFFS.open(meta.path, FILE_READ);
+  if (!file) {
+    server_.send(404, "text/plain", "Badge asset unavailable.");
+    return;
+  }
+  server_.streamFile(file, meta.contentType);
+  file.close();
+}
+
+void WifiService::handleBadgeUploadDone() {
+  if (!badge_) {
+    sendApiError(503, "Badge service unavailable.");
+    return;
+  }
+  if (!badgeUploadOk_) {
+    sendApiError(400, "Badge upload failed. Use PNG, JPEG, or GIF under 4 MB.");
+    return;
+  }
+  server_.sendHeader("Location", "/?page=badge", true);
+  server_.send(303, "text/plain", "Badge uploaded.");
+}
+
+void WifiService::handleBadgeUpload() {
+  if (!badge_) return;
+
+  HTTPUpload& upload = server_.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    badgeUploadOk_ = badge_->beginUpload(upload.filename, upload.type);
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    badgeUploadOk_ = badgeUploadOk_ && badge_->writeUpload(upload.buf, upload.currentSize);
+  } else if (upload.status == UPLOAD_FILE_END) {
+    badgeUploadOk_ = badgeUploadOk_ && badge_->finishUpload();
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
+    badge_->abortUpload();
+    badgeUploadOk_ = false;
+  }
 }
 
 void WifiService::handleApiTimeSettings() {
@@ -1406,7 +1509,7 @@ void WifiService::handlePortalSave() {
 void WifiService::appendPageShellStart(String& html, const String& page, const String& snapshot) {
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
   html += F("<title>Iris</title><style>");
-  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}.desktop-nav{display:flex;flex-direction:column;gap:8px}.mobile-nav{display:none}.mobile-nav summary{padding:12px 14px;border:1px solid #3a453a;border-radius:8px;background:#111611;color:#fff;cursor:pointer;font-weight:800}.mobile-nav[open] summary{border-color:#d9f99d}.mobile-nav .mobile-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn,button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}button:disabled{opacity:.45;cursor:not-allowed}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control.dirty{border-color:#f0c36a;background:#111008}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center}.dirty-message{display:none;grid-column:1/-1;color:#f0c36a;margin:0;font-size:13px}.control.dirty .dirty-message{display:block}.app-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.app-card{border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:12px}.app-card b,.app-card span,.app-card small{display:block;overflow-wrap:anywhere}.app-card span{color:#aab5aa;margin-top:5px}.app-card small{color:#9faf9f;margin-top:8px}.theme-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.theme-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:10px;text-decoration:none}.theme-card.active{border-color:#d9f99d;background:#182318}.theme-card b{display:block}.theme-card small{display:block;color:#aab5aa;margin-top:4px}.theme-swatch{height:56px;border:2px solid;border-radius:50%;display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:8px;box-sizing:border-box}.theme-swatch span{width:13px;height:13px;border-radius:50%;border:1px solid #fff6}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout{grid-template-columns:1fr}.watch{margin:auto}.desktop-nav{display:none}.mobile-nav{display:block}.grid,.grid.three,.facts,.theme-list,.app-list{grid-template-columns:1fr}.control form{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
+  html += F(":root{color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#080908;color:#f5f7f2;margin:0}a{color:inherit}.wrap{max-width:1080px;margin:0 auto;padding:20px}.top{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}.watch{width:190px;height:190px;border-radius:50%;border:8px solid #202420;display:grid;place-items:center;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008;overflow:hidden}.face{box-sizing:border-box;width:100%;height:100%;padding:28px 18px;text-align:center;display:flex;flex-direction:column;justify-content:center}.time{font-size:42px;font-weight:800;line-height:1}.preview-date{margin-top:10px;color:var(--muted);font-size:15px}.preview-row{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:12px}.chip{display:inline-block;border:1px solid var(--panel);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:12px}.preview-meta{margin-top:9px;color:var(--accent);font-size:12px}.title h1{margin:0;font-size:36px}.title p{color:#aab5aa;max-width:680px}.status{display:inline-block;min-height:20px;margin-top:6px;color:#d9f99d;font-size:14px}.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;margin-top:22px}.desktop-nav{display:flex;flex-direction:column;gap:8px}.mobile-nav{display:none}.mobile-nav summary{padding:12px 14px;border:1px solid #3a453a;border-radius:8px;background:#111611;color:#fff;cursor:pointer;font-weight:800}.mobile-nav[open] summary{border-color:#d9f99d}.mobile-nav .mobile-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}.nav{padding:12px 14px;border:1px solid #283028;border-radius:8px;text-decoration:none;background:#111611;color:#d8e2d8}.nav.active{background:#d9f99d;color:#111;border-color:#d9f99d;font-weight:800}section{background:#101410;border:1px solid #283028;border-radius:8px;padding:18px}h2{margin:0 0 16px}h3{margin:20px 0 10px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.button,button{display:block;box-sizing:border-box;width:100%;padding:12px 13px;border-radius:8px;border:1px solid #3a453a;background:#1a211a;color:#fff;text-align:center;text-decoration:none;font-size:15px;cursor:pointer}.button.warn,button.warn{border-color:#f0c36a;background:#342710}.button.busy,button.busy{opacity:.7}.button.saved,button.saved{border-color:#d9f99d}button:disabled{opacity:.45;cursor:not-allowed}.control{border:1px solid #283028;border-radius:8px;padding:14px;margin:12px 0;background:#0b0e0b}.control.dirty{border-color:#f0c36a;background:#111008}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.control input[type=range]{width:100%;margin:14px 0}.control input[type=file]{width:100%;margin-top:8px}.control input[type=number],.control input[type=datetime-local]{background:#050605;color:#fff;border:1px solid #3a453a;border-radius:8px;padding:9px}.control input[type=number]{width:82px}.control form{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center}.control form.badge-upload{grid-template-columns:1fr auto}.dirty-message{display:none;grid-column:1/-1;color:#f0c36a;margin:0;font-size:13px}.control.dirty .dirty-message{display:block}.app-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.app-card{border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:12px}.app-card b,.app-card span,.app-card small{display:block;overflow-wrap:anywhere}.app-card span{color:#aab5aa;margin-top:5px}.app-card small{color:#9faf9f;margin-top:8px}.badge-stage{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:center}.badge-preview{width:214px;height:214px;border-radius:50%;border:8px solid #202420;background:#020302;display:grid;place-items:center;overflow:hidden;box-shadow:0 0 0 1px #3b433b,0 16px 36px #0008}.badge-preview img{width:100%;height:100%;object-fit:contain}.badge-preview.fill img{object-fit:cover}.badge-preview.center img{width:auto;height:auto;max-width:none;max-height:none}.badge-default{font-size:32px;font-weight:900;color:#d9f99d;letter-spacing:0}.theme-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.theme-card{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;border:1px solid #283028;border-radius:8px;background:#0b0e0b;padding:10px;text-decoration:none}.theme-card.active{border-color:#d9f99d;background:#182318}.theme-card b{display:block}.theme-card small{display:block;color:#aab5aa;margin-top:4px}.theme-swatch{height:56px;border:2px solid;border-radius:50%;display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:8px;box-sizing:border-box}.theme-swatch span{width:13px;height:13px;border-radius:50%;border:1px solid #fff6}.network-list{display:grid;gap:8px;margin:12px 0}.network{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #283028;border-radius:8px;background:#070a07;padding:11px}.network b{overflow-wrap:anywhere}.network span{color:#aab5aa;font-size:13px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.facts p{margin:0;padding:12px;border:1px solid #283028;border-radius:8px;background:#0b0e0b}.facts b{display:block;color:#9faf9f;font-size:12px;text-transform:uppercase}.facts span{display:block;margin-top:6px;font-size:18px;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#050605;border:1px solid #283028;border-radius:8px;padding:12px;color:#cfd8cf}.hint{color:#aab5aa;font-size:14px}.on{border-color:#9ee493;background:#18321d}@media(max-width:760px){.top,.layout,.badge-stage{grid-template-columns:1fr}.watch,.badge-preview{margin:auto}.desktop-nav{display:none}.mobile-nav{display:block}.grid,.grid.three,.facts,.theme-list,.app-list{grid-template-columns:1fr}.control form,.control form.badge-upload{grid-template-columns:1fr}.network{grid-template-columns:1fr}}</style></head><body><div class='wrap'>");
   html += F("<div class='top'>");
   appendWatchPreview(html, snapshot);
   html += F("<div class='title'><h1>Iris</h1><p>Dashboard, device information, settings, and development tools for the M5Stack StopWatch.</p><span id='status' class='status'></span></div></div><div class='layout'>");
@@ -1424,6 +1527,8 @@ void WifiService::appendPageShellEnd(String& html) {
   html += F("const wifiScanButton=document.getElementById('wifi-scan-button');wifiScanButton&&wifiScanButton.addEventListener('click',loadWifiNetworks);if(document.getElementById('wifi-networks'))loadWifiNetworks();");
   html += F("document.querySelectorAll('[data-wifi-action]').forEach(b=>b.addEventListener('click',async()=>{if(b.dataset.confirm&&!confirm(b.dataset.confirm))return;try{b.classList.add('busy');note('Applying WiFi action...');await sendJson(b.dataset.wifiAction,'POST',{});b.classList.add('saved');note('WiFi action sent');setTimeout(()=>location.reload(),900)}catch(e){note('WiFi action could not be applied')}}));");
   html += F("const wifiForgetButton=document.getElementById('wifi-forget-button');wifiForgetButton&&wifiForgetButton.addEventListener('click',async()=>{if(!confirm('Forget the saved WiFi network? Iris may disconnect from this page.'))return;try{wifiForgetButton.classList.add('busy');note('Forgetting saved network...');await sendJson('/api/wifi/forget','POST',{});wifiForgetButton.classList.add('saved');note('Saved network removed');setTimeout(()=>location.reload(),700)}catch(e){note('Saved network removed. Iris may be reconnecting.')}});");
+  html += F("const badgeFile=document.getElementById('badge-file');const badgeImg=document.getElementById('badge-preview-img');badgeFile&&badgeFile.addEventListener('change',()=>{const f=badgeFile.files&&badgeFile.files[0];if(!f)return;note(f.size>4194304?'File is larger than 4 MB':'Ready to upload');if(badgeImg&&f.type.indexOf('image/')===0){badgeImg.src=URL.createObjectURL(f);badgeImg.hidden=false}});");
+  html += F("const badgeDelete=document.getElementById('badge-delete-button');badgeDelete&&badgeDelete.addEventListener('click',async()=>{if(!confirm('Delete the stored badge image?'))return;try{badgeDelete.classList.add('busy');note('Deleting badge...');await sendJson('/api/badge/delete','POST',{});note('Badge deleted');setTimeout(()=>location.reload(),500)}catch(e){note('Badge could not be deleted')}finally{badgeDelete.classList.remove('busy')}});");
   html += F("document.querySelectorAll('[data-command]').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();if(a.dataset.confirm&&!confirm(a.dataset.confirm))return;try{a.classList.add('busy');note('Applying...');await sendJson('/api/command','POST',{command:a.dataset.command});a.classList.add('saved');if(a.dataset.command==='bootloader_confirmed'){note('Entering bootloader. Iris will disconnect.');return}note('Saved');setTimeout(()=>location.reload(),350)}catch(err){note(a.dataset.command==='bootloader_confirmed'?'Iris is disconnecting.':'Could not apply command')}finally{a.classList.remove('busy')}}));");
   html += F("setInterval(refreshPreview,15000);</script></body></html>");
 }
@@ -1455,9 +1560,9 @@ void WifiService::appendWatchPreview(String& html, const String& snapshot) {
 }
 
 void WifiService::appendNavigation(String& html, const String& page) {
-  constexpr const char* pages[] = {"dashboard", "settings", "display", "theme", "datetime",
+  constexpr const char* pages[] = {"dashboard", "settings", "display", "theme", "badge", "datetime",
                                    "touch", "sound", "wifi", "power", "device", "apps", "development"};
-  constexpr const char* labels[] = {"Dashboard", "Settings", "Display", "Theme", "Date & Time",
+  constexpr const char* labels[] = {"Dashboard", "Settings", "Display", "Theme", "Badge", "Date & Time",
                                     "Touch", "Sound", "WiFi", "Power", "Device", "Apps", "Development"};
   html += F("<nav class='desktop-nav'>");
   for (size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); ++i) {
@@ -1526,6 +1631,68 @@ void WifiService::appendAppRegistry(String& html, const String& registry) {
   }
   if (!any) html += F("<p class='hint'>No app registry details available.</p>");
   html += F("</div>");
+}
+
+void WifiService::appendBadgePage(String& html) {
+  html += F("<section><h2>Badge</h2><p class='hint'>Upload one active badge image for the dedicated Badge app. PNG and JPEG render on-device now; GIF files are stored and identified while animation playback waits for a streaming decoder.</p>");
+  if (!badge_) {
+    html += F("<p class='hint'>Badge service is unavailable.</p></section>");
+    return;
+  }
+
+  const BadgeMetadata& meta = badge_->metadata();
+  String previewClass = "badge-preview";
+  if (meta.mode == BadgeDisplayMode::Fill) {
+    previewClass += " fill";
+  } else if (meta.mode == BadgeDisplayMode::Center) {
+    previewClass += " center";
+  }
+
+  html += F("<div class='badge-stage'><div class='");
+  html += previewClass;
+  html += F("'>");
+  if (badge_->hasAsset()) {
+    html += F("<img id='badge-preview-img' src='/badge/asset?m=");
+    html += String(millis());
+    html += F("' alt='Stored badge'>");
+  } else {
+    html += F("<img id='badge-preview-img' hidden alt='Selected badge'><div class='badge-default'>IRIS</div>");
+  }
+  html += F("</div><div><h3>Current Badge</h3><div class='facts'>");
+  html += F("<p><b>Status</b><span>");
+  html += escapeHtml(badge_->statusText());
+  html += F("</span></p><p><b>Type</b><span>");
+  html += escapeHtml(badge_->typeName());
+  html += F("</span></p><p><b>Mode</b><span>");
+  html += escapeHtml(badge_->modeName());
+  html += F("</span></p><p><b>Size</b><span>");
+  html += formatBytes(meta.sizeBytes);
+  html += F("</span></p><p><b>Dimensions</b><span>");
+  if (meta.width > 0 && meta.height > 0) {
+    html += String(meta.width);
+    html += F(" x ");
+    html += String(meta.height);
+  } else {
+    html += F("Default");
+  }
+  html += F("</span></p><p><b>Storage free</b><span>");
+  html += formatBytes(badge_->storageFreeBytes());
+  html += F("</span></p></div></div></div>");
+
+  html += F("<h3>Upload</h3><div class='control'><form class='badge-upload' id='badge-upload-form' method='post' action='/badge/upload' enctype='multipart/form-data'><label>Image file<span>PNG / JPEG / GIF, max 4 MB</span></label><input id='badge-file' name='badge' type='file' accept='image/png,image/jpeg,image/gif' required><button type='submit'>Upload</button></form></div>");
+
+  html += F("<h3>Display</h3><div class='grid three'>");
+  appendAction(html, "Launch Badge", "badge");
+  appendAction(html, "Next mode", "badge_mode_next");
+  appendAction(html, badge_->keepAwake() ? "Allow sleep" : "Keep awake",
+               "badge_keep_awake_toggle", badge_->keepAwake() ? "on" : "");
+  html += F("</div><p class='hint'>BtnB on the watch also cycles Fit, Fill, and Center modes. Tap the lower part of the badge screen or press BtnA to leave it.</p>");
+
+  html += F("<h3>Manage</h3><div class='grid'>");
+  html += F("<a class='button' href='/api/badge'>Badge API</a>");
+  html += F("<button type='button' class='warn' id='badge-delete-button'");
+  if (!badge_->hasAsset()) html += F(" disabled");
+  html += F(">Delete Badge</button></div></section>");
 }
 
 void WifiService::appendRangeControl(String& html, const char* label, const char* command,

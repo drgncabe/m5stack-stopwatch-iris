@@ -1,5 +1,6 @@
 #pragma once
 
+#include "iris/apps/media/BadgeApp.h"
 #include "iris/apps/development/DevelopmentApp.h"
 #include "iris/apps/settings/SettingsApp.h"
 #include "iris/apps/tools/StopwatchApp.h"
@@ -8,6 +9,7 @@
 #include "iris/core/EventBus.h"
 #include "iris/core/ServiceManager.h"
 #include "iris/screens/AxisCalibrationScreen.h"
+#include "iris/screens/BadgeScreen.h"
 #include "iris/screens/BootloaderScreen.h"
 #include "iris/screens/BackgroundScreen.h"
 #include "iris/screens/DateTimeScreen.h"
@@ -22,6 +24,7 @@
 #include "iris/screens/WatchScreen.h"
 #include "iris/screens/WifiScreen.h"
 #include "iris/services/BatteryService.h"
+#include "iris/services/BadgeService.h"
 #include "iris/services/OrientationService.h"
 #include "iris/services/PowerManager.h"
 #include "iris/services/SettingsStore.h"
@@ -57,6 +60,7 @@ class App {
   void enterBootloaderFromWeb();
   void nextTheme();
   void nextComplication();
+  void nextBadgeMode();
   void resetTouch();
   void showWatchIfActive();
   void noteActivity(uint32_t nowMs);
@@ -67,6 +71,7 @@ class App {
   const char* currentScreenName() const;
 
   SettingsStore settings_;
+  BadgeService badge_;
   BatteryService battery_;
   OrientationService orientation_;
   StatusLightService statusLight_;
@@ -86,6 +91,8 @@ class App {
   StopwatchScreen stopwatchScreen_;
   StopwatchLapHistoryScreen stopwatchLapHistoryScreen_;
   StopwatchApp stopwatchApp_;
+  BadgeScreen badgeScreen_;
+  BadgeApp badgeApp_;
   MenuScreen mainMenuScreen_;
   MenuScreen settingsMenuScreen_;
   VolumeScreen volumeScreen_;
