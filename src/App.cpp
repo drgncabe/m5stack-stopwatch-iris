@@ -197,7 +197,7 @@ void App::registerServices() {
   services_.registerService("events", "Event bus", &events_);
   services_.registerService("badge", "Badge media", &badge_, badge_.mounted());
   services_.registerService("bluetooth", "Bluetooth Low Energy", &bluetooth_,
-                            bluetooth_.enabled());
+                            bluetooth_.initialized());
   services_.registerService("settings", "Settings store", &settings_);
   services_.registerService("battery", "Battery", &battery_);
   services_.registerService("orientation", "Orientation", &orientation_);
@@ -359,7 +359,7 @@ void App::update() {
   bluetooth_.update(nowMs);
   wifi_.update(nowMs);
   services_.setStarted("wifi", wifi_.isEnabled());
-  services_.setStarted("bluetooth", bluetooth_.enabled());
+  services_.setStarted("bluetooth", bluetooth_.initialized());
   timeService_.update(nowMs, wifi_.isConnected());
   updateWifiPower(nowMs);
   services_.update(nowMs);
