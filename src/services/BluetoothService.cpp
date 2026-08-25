@@ -1,12 +1,8 @@
 #include "iris/services/BluetoothService.h"
 
-#include <BLE2902.h>
-#include <BLEAdvertising.h>
-#include <BLEDevice.h>
-#include <BLEHIDDevice.h>
-#include <BLESecurity.h>
-#include <BLEServer.h>
-#include <esp_gap_ble_api.h>
+#include <NimBLEDevice.h>
+#include <NimBLEHIDDevice.h>
+#include <NimBLEServer.h>
 
 namespace iris {
 
@@ -42,60 +38,26 @@ String deviceSuffix() {
 }
 }  // namespace
 
-class BluetoothService::ServerCallbacks : public BLEServerCallbacks {
+class BluetoothService::ServerCallbacks : public NimBLEServerCallbacks {
  public:
   explicit ServerCallbacks(BluetoothService& service) : service_(service) {}
 
-  void onConnect(BLEServer*) override {
-    service_.handleConnected("", 0);
+  void onConnect(NimBLEServer*, NimBLEConnInfo& connInfo) override {
+    service_.handleConnected(connInfo.getAddress().toString().c_str(),
+                             connInfo.getConnHandle());
   }
 
-  void onConnect(BLEServer*, esp_ble_gatts_cb_param_t* param) override {
-    char buffer[18];
-    snprintf(buffer, sizeof(buffer), "%02X:%02X:%02X:%02X:%02X:%02X",
-             param->connect.remote_bda[0], param->connect.remote_bda[1],
-             param->connect.remote_bda[2], param->connect.remote_bda[3],
-             param->connect.remote_bda[4], param->connect.remote_bda[5]);
-    service_.handleConnected(buffer, param->connect.conn_id);
-  }
-
-  void onDisconnect(BLEServer*) override {
+  void onDisconnect(NimBLEServer*, NimBLEConnInfo&, int) override {
     service_.handleDisconnected();
   }
 
-  void onDisconnect(BLEServer*, esp_ble_gatts_cb_param_t*) override {
-    service_.handleDisconnected();
-  }
-
- private:
-  BluetoothService& service_;
-};
-
-class BluetoothService::SecurityCallbacks : public BLESecurityCallbacks {
- public:
-  explicit SecurityCallbacks(BluetoothService& service) : service_(service) {}
-
-  uint32_t onPassKeyRequest() override {
+  uint32_t onPassKeyDisplay() override {
+    service_.handlePasskey(0);
     return 0;
   }
 
-  void onPassKeyNotify(uint32_t passKey) override {
-    service_.handlePasskey(passKey);
-  }
-
-  bool onSecurityRequest() override {
-    service_.pairingRequested_ = true;
-    service_.publish(EventType::BlePairingStarted, "Security request");
-    return true;
-  }
-
-  void onAuthenticationComplete(esp_ble_auth_cmpl_t result) override {
-    service_.handleAuthenticationComplete(result.success);
-  }
-
-  bool onConfirmPIN(uint32_t pin) override {
-    service_.handlePasskey(pin);
-    return true;
+  void onAuthenticationComplete(NimBLEConnInfo& connInfo) override {
+    service_.handleAuthenticationComplete(connInfo.isEncrypted() || connInfo.isBonded());
   }
 
  private:
@@ -108,8 +70,7 @@ bool BluetoothService::begin() {
   autoReconnect_ = prefs_.getBool("autorec", true);
   deviceName_ = prefs_.getString("name", "");
   if (deviceName_.isEmpty()) deviceName_ = String("Iris-") + deviceSuffix();
-  if (!enabled_) return true;
-  return initializeBle();
+  return true;
 }
 
 void BluetoothService::update(uint32_t nowMs) {
@@ -146,7 +107,8 @@ void BluetoothService::setAutoReconnect(bool enabled) {
 
 uint32_t BluetoothService::bondedDeviceCount() const {
   if (!initialized_) return 0;
-  return static_cast<uint32_t>(esp_ble_get_bond_device_num());
+  const int bonds = NimBLEDevice::getNumBonds();
+  return bonds > 0 ? static_cast<uint32_t>(bonds) : 0;
 }
 
 String BluetoothService::statusText() const {
@@ -223,29 +185,28 @@ bool BluetoothService::initializeBle() {
   if (!enabled_) return false;
 
   Serial.println("[BLE] Initializing BLE stack");
-  BLEDevice::init(deviceName_.c_str());
+  NimBLEDevice::init(deviceName_.c_str());
+  NimBLEDevice::setSecurityAuth(true, false, true);
   configureSecurity();
 
-  server_ = BLEDevice::createServer();
+  server_ = NimBLEDevice::createServer();
   if (!server_) return false;
   serverCallbacks_ = new ServerCallbacks(*this);
   server_->setCallbacks(serverCallbacks_);
 
-  hid_ = new BLEHIDDevice(server_);
-  input_ = hid_->inputReport(kReportIdConsumer);
-  input_->addDescriptor(new BLE2902());
-  hid_->manufacturer("Iris");
-  hid_->pnp(0x02, 0x1209, 0x0001, 0x0100);
-  hid_->hidInfo(0x00, 0x01);
-  hid_->reportMap(kConsumerReportMap, sizeof(kConsumerReportMap));
-  hid_->startServices();
+  hid_ = new NimBLEHIDDevice(server_);
+  input_ = hid_->getInputReport(kReportIdConsumer);
+  hid_->setManufacturer("Iris");
+  hid_->setPnp(0x02, 0x1209, 0x0001, 0x0100);
+  hid_->setHidInfo(0x00, 0x01);
+  hid_->setReportMap(kConsumerReportMap, sizeof(kConsumerReportMap));
+  server_->start();
 
-  advertisingHandle_ = BLEDevice::getAdvertising();
-  advertisingHandle_->setAppearance(ESP_BLE_APPEARANCE_GENERIC_HID);
-  advertisingHandle_->addServiceUUID(hid_->hidService()->getUUID());
-  advertisingHandle_->setScanResponse(false);
-  advertisingHandle_->setMinPreferred(0x06);
-  advertisingHandle_->setMaxPreferred(0x12);
+  advertisingHandle_ = NimBLEDevice::getAdvertising();
+  advertisingHandle_->setAppearance(GENERIC_HID);
+  advertisingHandle_->addServiceUUID(hid_->getHidService()->getUUID());
+  advertisingHandle_->enableScanResponse(false);
+  advertisingHandle_->setPreferredParams(0x06, 0x12);
 
   initialized_ = true;
   Serial.println("[BLE] HID service registered");
@@ -253,14 +214,7 @@ bool BluetoothService::initializeBle() {
 }
 
 void BluetoothService::configureSecurity() {
-  securityCallbacks_ = new SecurityCallbacks(*this);
-  BLEDevice::setSecurityCallbacks(securityCallbacks_);
-  BLESecurity* security = new BLESecurity();
-  security->setAuthenticationMode(ESP_LE_AUTH_BOND);
-  security->setCapability(ESP_IO_CAP_OUT);
-  security->setKeySize();
-  security->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
-  security->setRespEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
 }
 
 void BluetoothService::sendConsumerUsage(uint16_t usage) {

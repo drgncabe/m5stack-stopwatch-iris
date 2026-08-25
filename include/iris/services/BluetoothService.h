@@ -5,12 +5,11 @@
 
 #include "iris/core/EventBus.h"
 
-class BLEAdvertising;
-class BLECharacteristic;
-class BLEHIDDevice;
-class BLEServer;
-class BLEServerCallbacks;
-class BLESecurityCallbacks;
+class NimBLEAdvertising;
+class NimBLECharacteristic;
+class NimBLEHIDDevice;
+class NimBLEServer;
+class NimBLEServerCallbacks;
 
 namespace iris {
 
@@ -74,12 +73,11 @@ class BluetoothService {
 
   Preferences prefs_;
   EventBus* events_ = nullptr;
-  BLEServer* server_ = nullptr;
-  BLEHIDDevice* hid_ = nullptr;
-  BLECharacteristic* input_ = nullptr;
-  BLEAdvertising* advertisingHandle_ = nullptr;
+  NimBLEServer* server_ = nullptr;
+  NimBLEHIDDevice* hid_ = nullptr;
+  NimBLECharacteristic* input_ = nullptr;
+  NimBLEAdvertising* advertisingHandle_ = nullptr;
   ServerCallbacks* serverCallbacks_ = nullptr;
-  SecurityCallbacks* securityCallbacks_ = nullptr;
   String deviceName_;
   String activeDevice_;
   bool enabled_ = true;
