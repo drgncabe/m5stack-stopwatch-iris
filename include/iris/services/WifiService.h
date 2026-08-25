@@ -75,6 +75,8 @@ class WifiService {
   void appendPageShellEnd(String& html);
   void appendWatchPreview(String& html, const String& snapshot);
   void appendNavigation(String& html, const String& page);
+  void appendSettingsCard(String& html, const char* href, const char* title,
+                          const char* detail);
   void appendAppRegistry(String& html, const String& registry);
   void appendBadgePage(String& html);
   void appendBluetoothPage(String& html, const String& snapshot);
