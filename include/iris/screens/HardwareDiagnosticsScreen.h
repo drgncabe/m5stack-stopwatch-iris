@@ -69,7 +69,8 @@ class HardwareDiagnosticsScreen : public Screen {
   void toggleWifi();
   void toggleWifiSleep();
   void startHapticPulse(uint32_t nowMs);
-  void testStatusLight(bool enabled);
+  void testStatusLightColor(uint8_t red, uint8_t green, uint8_t blue);
+  void clearStatusLight();
   void cyclePowerProfile();
   void restoreAudio();
   void restoreDisplay();
