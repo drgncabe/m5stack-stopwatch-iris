@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.3.1`
+Current firmware version: `0.3.2`
 
 Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -61,6 +61,8 @@ Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](
 - Date & Time settings with country/region defaults, date format, time format, timezone, automatic NTP sync, Sync Now, manual date/time, and RTC information
 - Dedicated stopwatch app with start, pause, resume, reset confirmation, lap capture, lap history, haptics, and a radial second-progress display
 - Dedicated badge app with one active locally stored badge image, default Iris fallback, Fit/Fill/Center modes, web upload/delete controls, and optional display keep-awake behavior
+- BLE Media Remote app registered as `connectivity.mediaremote` with play/pause, previous, next, volume, and mute HID consumer controls
+- Shared BluetoothService for BLE initialization, advertising, HID media commands, connection state, and bonded-device diagnostics
 - WiFi client mode with saved credentials
 - WiFi setup access point for provisioning
 - Lightweight web control panel while WiFi is active, including saved WiFi management and detailed device information
@@ -114,6 +116,7 @@ Planned features are roadmap items unless they are listed under Implemented.
 - In Stopwatch, tap the left control for Lap/Reset/Back and the right control for Start/Pause/Resume.
 - In Stopwatch, tap the lap/status area to view recent lap history.
 - In Badge, BtnB cycles Fit/Fill/Center mode; BtnA returns to the main menu.
+- In Media Remote, pair from the BLE information screen, tap large media controls, press BtnA for previous track, and press BtnB for next track.
 
 ## User Interface
 
@@ -177,6 +180,7 @@ The application model uses stable app IDs, display names, lifecycle state, and o
 - WatchApp (`system.watch`)
 - StopwatchApp (`tools.stopwatch`)
 - BadgeApp (`media.badge`)
+- MediaRemoteApp (`connectivity.mediaremote`)
 - SettingsApp (`system.settings`)
 - DevelopmentApp (`system.development`)
 - FidgetsApp
@@ -208,6 +212,7 @@ Services provide capabilities shared by multiple apps. The `ServiceManager` trac
 
 - `SettingsStore`
 - `BadgeService`
+- `BluetoothService`
 - `BatteryService`
 - `OrientationService`
 - `StatusLightService`
@@ -296,11 +301,14 @@ Credentials are stored locally on the StopWatch using ESP32 non-volatile storage
 
 When WiFi is active, Iris runs a lightweight web configuration console on the device. The web UI exposes common controls, category-based settings pages, precise browser-friendly settings, and a plain-text status snapshot.
 
-The web configurator is organized around Dashboard, Display, Touch, Sound, WiFi, Theme, Badge, Date & Time, Power, Device, Apps, and Development pages. It uses the same settings model as the device UI and provides finer control than is practical on a 1.75-inch screen.
+The web configurator is organized around Dashboard, Display, Touch, Sound, WiFi, Bluetooth, Theme, Badge, Date & Time, Power, Device, Apps, and Development pages. It uses the same settings model as the device UI and provides finer control than is practical on a 1.75-inch screen.
 
 The dashboard includes a round watch-face preview generated from the current Iris configuration. Device and Development pages expose the text snapshot and diagnostics links for validation.
 
 The Badge page can upload one active PNG, JPEG, or GIF under 4 MB to the StopWatch filesystem. PNG and JPEG render in the Badge app now. GIF files are accepted, validated, stored, and reported as GIF assets, but animated playback is planned as a follow-up once a small streaming decoder is integrated.
+
+The Bluetooth page exposes BLE status, advertising controls, auto-reconnect, disconnect, and media command test buttons. Iris acts as a Bluetooth Low Energy HID media remote; it does not stream audio and does not provide Bluetooth Classic headphone or speaker behavior.
+Bluetooth is off by default and starts when enabled from the web page or when pairing is started from Media Remote.
 
 Current web/API routes include:
 
@@ -312,6 +320,7 @@ Current web/API routes include:
 - `/badge/asset` for the active stored badge asset
 - `/badge/upload` for uploading a replacement badge asset
 - `/api/badge/delete` for deleting the active stored badge asset
+- `/api/bluetooth` for BLE HID status and safe control actions
 - `/api/settings` for the combined JSON settings snapshot
 - `/api/settings/display` for display-focused JSON settings
 - `/api/settings/time` for Date & Time JSON settings
@@ -375,6 +384,7 @@ Key libraries:
 - WiFi
 - Preferences
 - WebServer
+- BLE
 
 Build:
 

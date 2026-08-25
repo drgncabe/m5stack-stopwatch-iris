@@ -23,6 +23,7 @@ constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
     {"Stopwatch", ScreenId::Stopwatch},
     {"Badge", ScreenId::Badge},
+    {"Media remote", ScreenId::MediaRemote},
     {"Fidgets", ScreenId::Fidgets},
     {"Settings", ScreenId::Settings},
 };
@@ -66,6 +67,10 @@ bool isStopwatchScreen(ScreenId id) {
 
 bool isBadgeScreen(ScreenId id) {
   return id == ScreenId::Badge;
+}
+
+bool isMediaRemoteScreen(ScreenId id) {
+  return id == ScreenId::MediaRemote;
 }
 
 bool isMenuScreen(ScreenId id) {
@@ -126,6 +131,8 @@ App::App()
       stopwatchApp_(stopwatchScreen_),
       badgeScreen_(settings_, badge_),
       badgeApp_(badge_, power_),
+      mediaRemoteScreen_(settings_, bluetooth_),
+      mediaRemoteApp_(bluetooth_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
@@ -145,7 +152,8 @@ App::App()
                            sizeof(kDeveloperMenuItems) / sizeof(kDeveloperMenuItems[0]), settings_),
       axisCalibrationScreen_(settings_),
       bootloaderScreen_(settings_),
-      hardwareDiagnosticsScreen_(settings_, wifi_, battery_, timeService_, power_, orientation_),
+      hardwareDiagnosticsScreen_(settings_, wifi_, bluetooth_, battery_, timeService_, power_,
+                                 orientation_),
       deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
 void App::begin() {
@@ -159,12 +167,15 @@ void App::begin() {
 
   settings_.begin();
   badge_.begin();
+  bluetooth_.begin();
   M5.Speaker.setVolume(settings_.volume());
   appManager_.setEventBus(&events_);
   timeService_.setEventBus(&events_);
+  bluetooth_.setEventBus(&events_);
   power_.begin();
   statusLight_.begin(settings_.indicatorLightEnabled());
   wifi_.setBadgeService(&badge_);
+  wifi_.setBluetoothService(&bluetooth_);
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
 
   battery_.begin();
@@ -185,6 +196,8 @@ void App::begin() {
 void App::registerServices() {
   services_.registerService("events", "Event bus", &events_);
   services_.registerService("badge", "Badge media", &badge_, badge_.mounted());
+  services_.registerService("bluetooth", "Bluetooth Low Energy", &bluetooth_,
+                            bluetooth_.enabled());
   services_.registerService("settings", "Settings store", &settings_);
   services_.registerService("battery", "Battery", &battery_);
   services_.registerService("orientation", "Orientation", &orientation_);
@@ -199,6 +212,7 @@ void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Stopwatch, &stopwatchScreen_);
   screenManager_.registerScreen(ScreenId::StopwatchLaps, &stopwatchLapHistoryScreen_);
   screenManager_.registerScreen(ScreenId::Badge, &badgeScreen_);
+  screenManager_.registerScreen(ScreenId::MediaRemote, &mediaRemoteScreen_);
   screenManager_.registerScreen(ScreenId::MainMenu, &mainMenuScreen_);
   screenManager_.registerScreen(ScreenId::Settings, &settingsMenuScreen_);
   screenManager_.registerScreen(ScreenId::Volume, &volumeScreen_);
@@ -228,6 +242,9 @@ void App::registerApps() {
   appManager_.registerApp(AppDescriptor(badgeApp_.id(), badgeApp_.name(), ScreenId::Badge,
                                         AppKind::Tool, true, &badgeApp_,
                                         AppUpdateClass::Normal));
+  appManager_.registerApp(AppDescriptor(mediaRemoteApp_.id(), mediaRemoteApp_.name(),
+                                        ScreenId::MediaRemote, AppKind::Connectivity, true,
+                                        &mediaRemoteApp_, AppUpdateClass::Interactive));
   for (size_t i = 0; i < sizeof(kSettingsAppDefinitions) / sizeof(kSettingsAppDefinitions[0]);
        ++i) {
     AppDescriptor app = kSettingsAppDefinitions[i];
@@ -339,8 +356,10 @@ void App::update() {
   }
 
   battery_.update(nowMs);
+  bluetooth_.update(nowMs);
   wifi_.update(nowMs);
   services_.setStarted("wifi", wifi_.isEnabled());
+  services_.setStarted("bluetooth", bluetooth_.enabled());
   timeService_.update(nowMs, wifi_.isConnected());
   updateWifiPower(nowMs);
   services_.update(nowMs);
@@ -406,6 +425,31 @@ void App::handleControlCommand(const String& command) {
     appManager_.launch("settings.date_time");
   } else if (command == "badge") {
     appManager_.launch("media.badge");
+  } else if (command == "media_remote") {
+    appManager_.launch("connectivity.mediaremote");
+  } else if (command == "ble_toggle") {
+    bluetooth_.setEnabled(!bluetooth_.enabled());
+  } else if (command == "ble_advertise") {
+    bluetooth_.setEnabled(true);
+    bluetooth_.startAdvertising();
+  } else if (command == "ble_stop_advertise") {
+    bluetooth_.stopAdvertising();
+  } else if (command == "ble_disconnect") {
+    bluetooth_.disconnect();
+  } else if (command == "ble_autoreconnect_toggle") {
+    bluetooth_.setAutoReconnect(!bluetooth_.autoReconnect());
+  } else if (command == "media_play_pause") {
+    bluetooth_.sendMediaCommand(BleMediaCommand::PlayPause);
+  } else if (command == "media_next") {
+    bluetooth_.sendMediaCommand(BleMediaCommand::NextTrack);
+  } else if (command == "media_previous") {
+    bluetooth_.sendMediaCommand(BleMediaCommand::PreviousTrack);
+  } else if (command == "media_volume_up") {
+    bluetooth_.sendMediaCommand(BleMediaCommand::VolumeUp);
+  } else if (command == "media_volume_down") {
+    bluetooth_.sendMediaCommand(BleMediaCommand::VolumeDown);
+  } else if (command == "media_mute") {
+    bluetooth_.sendMediaCommand(BleMediaCommand::Mute);
   } else if (command == "development") {
     appManager_.launch("system.development");
   } else if (command == "hardware_diagnostics") {
@@ -677,6 +721,18 @@ String App::buildControlSnapshot() const {
   snapshot += badge_.modeName();
   snapshot += "\nBadge awake: ";
   snapshot += badge_.keepAwake() ? "On" : "Off";
+  snapshot += "\nBluetooth: ";
+  snapshot += bluetooth_.statusText();
+  snapshot += "\nBLE device: ";
+  snapshot += bluetooth_.deviceName();
+  snapshot += "\nBLE connected: ";
+  snapshot += bluetooth_.connected() ? "On" : "Off";
+  snapshot += "\nBLE advertising: ";
+  snapshot += bluetooth_.advertising() ? "On" : "Off";
+  snapshot += "\nBLE bonded devices: ";
+  snapshot += String(bluetooth_.bondedDeviceCount());
+  snapshot += "\nBLE auto reconnect: ";
+  snapshot += bluetooth_.autoReconnect() ? "On" : "Off";
   return snapshot;
 }
 
@@ -770,6 +826,7 @@ void App::updateDisplayPower(uint32_t nowMs) {
   const ScreenId current = screenManager_.currentId();
   if (current != ScreenId::Watch && !isFidgetScreen(current) && !isStopwatchScreen(current) &&
       !isBadgeScreen(current) &&
+      !isMediaRemoteScreen(current) &&
       idleMs >= kMenuReturnTimeoutMs) {
     appManager_.launch("system.watch");
     power_.userActivity(nowMs);
@@ -821,6 +878,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Stopwatch: return "Stopwatch";
     case ScreenId::StopwatchLaps: return "Stopwatch laps";
     case ScreenId::Badge: return "Badge";
+    case ScreenId::MediaRemote: return "Media remote";
     case ScreenId::MainMenu: return "Main menu";
     case ScreenId::Settings: return "Settings";
     case ScreenId::Volume: return "Volume";

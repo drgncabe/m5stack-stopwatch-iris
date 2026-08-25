@@ -6,6 +6,7 @@
 #include <WiFi.h>
 
 #include "iris/services/BadgeService.h"
+#include "iris/services/BluetoothService.h"
 
 namespace iris {
 
@@ -20,6 +21,7 @@ class WifiService {
   void update(uint32_t nowMs);
   void setEnabled(bool enabled);
   void setBadgeService(BadgeService* badge);
+  void setBluetoothService(BluetoothService* bluetooth);
   void setControlCallbacks(void* context,
                            ControlCommandHandler commandHandler,
                            ControlSnapshotHandler snapshotHandler);
@@ -55,6 +57,7 @@ class WifiService {
   void handleApiApps();
   void handleApiBadge();
   void handleApiBadgeDelete();
+  void handleApiBluetooth();
   void handleBadgeAsset();
   void handleBadgeUploadDone();
   void handleBadgeUpload();
@@ -74,6 +77,7 @@ class WifiService {
   void appendNavigation(String& html, const String& page);
   void appendAppRegistry(String& html, const String& registry);
   void appendBadgePage(String& html);
+  void appendBluetoothPage(String& html, const String& snapshot);
   void appendRangeControl(String& html, const char* label, const char* command,
                           int value, int minValue, int maxValue, int step,
                           const char* suffix);
@@ -112,6 +116,7 @@ class WifiService {
   ControlCommandHandler commandHandler_ = nullptr;
   ControlSnapshotHandler snapshotHandler_ = nullptr;
   BadgeService* badge_ = nullptr;
+  BluetoothService* bluetooth_ = nullptr;
 };
 
 }  // namespace iris

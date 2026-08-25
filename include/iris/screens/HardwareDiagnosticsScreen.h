@@ -2,6 +2,7 @@
 
 #include "iris/screens/Screen.h"
 #include "iris/services/BatteryService.h"
+#include "iris/services/BluetoothService.h"
 #include "iris/services/OrientationService.h"
 #include "iris/services/PowerManager.h"
 #include "iris/services/SettingsStore.h"
@@ -13,10 +14,12 @@ namespace iris {
 class HardwareDiagnosticsScreen : public Screen {
  public:
   HardwareDiagnosticsScreen(SettingsStore& settings, WifiService& wifi,
-                            BatteryService& battery, TimeService& timeService,
-                            PowerManager& power, OrientationService& orientation)
+                            BluetoothService& bluetooth, BatteryService& battery,
+                            TimeService& timeService, PowerManager& power,
+                            OrientationService& orientation)
       : settings_(settings),
         wifi_(wifi),
+        bluetooth_(bluetooth),
         battery_(battery),
         timeService_(timeService),
         power_(power),
@@ -39,6 +42,7 @@ class HardwareDiagnosticsScreen : public Screen {
     Input,
     Imu,
     Wifi,
+    Bluetooth,
     Power,
     Rtc,
     Haptics,
@@ -70,6 +74,7 @@ class HardwareDiagnosticsScreen : public Screen {
 
   SettingsStore& settings_;
   WifiService& wifi_;
+  BluetoothService& bluetooth_;
   BatteryService& battery_;
   TimeService& timeService_;
   PowerManager& power_;

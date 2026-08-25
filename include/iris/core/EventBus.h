@@ -19,6 +19,13 @@ enum class EventType : uint8_t {
   TimeZoneChanged,
   LocaleChanged,
   RtcTimeInvalid,
+  BleEnabled,
+  BleDisabled,
+  BlePairingStarted,
+  BleDevicePaired,
+  BleConnected,
+  BleDisconnected,
+  BlePairingFailed,
 };
 
 struct Event {

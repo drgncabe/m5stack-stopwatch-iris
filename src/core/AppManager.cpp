@@ -191,6 +191,7 @@ const char* appKindName(AppKind kind) {
     case AppKind::Settings: return "Settings";
     case AppKind::Developer: return "Developer";
     case AppKind::Fidget: return "Fidget";
+    case AppKind::Connectivity: return "Connectivity";
     case AppKind::Tool: return "Tool";
     default: return "System";
   }
