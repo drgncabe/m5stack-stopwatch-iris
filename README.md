@@ -11,7 +11,7 @@ Services provide reusable capabilities.
 
 That means features such as the watch face, settings, developer tools, and fidgets should behave like independent user-facing apps, while shared logic such as WiFi, time, storage, battery, haptics, display power, and IMU handling should live in reusable services.
 
-This project was created with substantial AI assistance and is being reviewed and tested on real hardware as it evolves.
+**Note**: This project was created with substantial AI assistance and is being reviewed and tested on real hardware as it evolves. It's built using combination of Codex and Qwen3-Coder 30B (locally over multiple 5070s) along with self-review and testing. I'm not trying to boil an ocean (just a few lakes) but I cannot code this fast or this effectively unless it's in Visual FoxPro or SQL. I'm going with a "it works and move on" mentality as I have my own specific needs for this device. Assume it's insecure and bloated. I am paying special attention to CPU/RAM and Power usage to keep the battery usage low and heat down. So far I can get it to last about 12 hours in standby with moderate use. My hope is that this mess of slop is useful to someone else. I set it as MIT, but if AI did somehow pull in GPL code and you see it, let me know. AI companies don't care about trampling other's software licenses, but I do. 
 
 ## Hardware
 
