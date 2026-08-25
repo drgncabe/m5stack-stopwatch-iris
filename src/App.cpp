@@ -22,6 +22,7 @@ constexpr uint16_t kMenuTouchDelayMs = 300;
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
     {"Stopwatch", ScreenId::Stopwatch},
+    {"Badge", ScreenId::Badge},
     {"Fidgets", ScreenId::Fidgets},
     {"Settings", ScreenId::Settings},
 };
@@ -61,6 +62,10 @@ bool isFidgetScreen(ScreenId id) {
 
 bool isStopwatchScreen(ScreenId id) {
   return id == ScreenId::Stopwatch || id == ScreenId::StopwatchLaps;
+}
+
+bool isBadgeScreen(ScreenId id) {
+  return id == ScreenId::Badge;
 }
 
 bool isMenuScreen(ScreenId id) {
@@ -119,6 +124,8 @@ App::App()
       stopwatchScreen_(settings_, stopwatchEngine_),
       stopwatchLapHistoryScreen_(settings_, stopwatchEngine_),
       stopwatchApp_(stopwatchScreen_),
+      badgeScreen_(settings_, badge_),
+      badgeApp_(badge_, power_),
       mainMenuScreen_("Iris", kMainMenuItems,
                       sizeof(kMainMenuItems) / sizeof(kMainMenuItems[0]), settings_),
       settingsMenuScreen_("Settings", kSettingsMenuItems,
@@ -151,11 +158,13 @@ void App::begin() {
   Serial.println("Iris starting...");
 
   settings_.begin();
+  badge_.begin();
   M5.Speaker.setVolume(settings_.volume());
   appManager_.setEventBus(&events_);
   timeService_.setEventBus(&events_);
   power_.begin();
   statusLight_.begin(settings_.indicatorLightEnabled());
+  wifi_.setBadgeService(&badge_);
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
 
   battery_.begin();
@@ -175,6 +184,7 @@ void App::begin() {
 
 void App::registerServices() {
   services_.registerService("events", "Event bus", &events_);
+  services_.registerService("badge", "Badge media", &badge_, badge_.mounted());
   services_.registerService("settings", "Settings store", &settings_);
   services_.registerService("battery", "Battery", &battery_);
   services_.registerService("orientation", "Orientation", &orientation_);
@@ -188,6 +198,7 @@ void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Watch, &watchScreen_);
   screenManager_.registerScreen(ScreenId::Stopwatch, &stopwatchScreen_);
   screenManager_.registerScreen(ScreenId::StopwatchLaps, &stopwatchLapHistoryScreen_);
+  screenManager_.registerScreen(ScreenId::Badge, &badgeScreen_);
   screenManager_.registerScreen(ScreenId::MainMenu, &mainMenuScreen_);
   screenManager_.registerScreen(ScreenId::Settings, &settingsMenuScreen_);
   screenManager_.registerScreen(ScreenId::Volume, &volumeScreen_);
@@ -214,6 +225,9 @@ void App::registerApps() {
   appManager_.registerApp(AppDescriptor(stopwatchApp_.id(), stopwatchApp_.name(),
                                         ScreenId::Stopwatch, AppKind::Tool, true,
                                         &stopwatchApp_, AppUpdateClass::Realtime));
+  appManager_.registerApp(AppDescriptor(badgeApp_.id(), badgeApp_.name(), ScreenId::Badge,
+                                        AppKind::Tool, true, &badgeApp_,
+                                        AppUpdateClass::Normal));
   for (size_t i = 0; i < sizeof(kSettingsAppDefinitions) / sizeof(kSettingsAppDefinitions[0]);
        ++i) {
     AppDescriptor app = kSettingsAppDefinitions[i];
@@ -390,6 +404,8 @@ void App::handleControlCommand(const String& command) {
     appManager_.launch("system.settings");
   } else if (command == "date_time") {
     appManager_.launch("settings.date_time");
+  } else if (command == "badge") {
+    appManager_.launch("media.badge");
   } else if (command == "development") {
     appManager_.launch("system.development");
   } else if (command == "hardware_diagnostics") {
@@ -518,6 +534,11 @@ void App::handleControlCommand(const String& command) {
     showWatchIfActive();
   } else if (command == "complication_next") {
     nextComplication();
+  } else if (command == "badge_mode_next") {
+    nextBadgeMode();
+  } else if (command == "badge_keep_awake_toggle") {
+    badge_.setKeepAwake(!badge_.keepAwake());
+    badgeApp_.refreshWakeLock();
   }
 }
 
@@ -648,6 +669,14 @@ String App::buildControlSnapshot() const {
   snapshot += "\nTouch delay: ";
   snapshot += String(settings_.touchDelayMs());
   snapshot += "ms";
+  snapshot += "\nBadge: ";
+  snapshot += badge_.statusText();
+  snapshot += "\nBadge type: ";
+  snapshot += badge_.typeName();
+  snapshot += "\nBadge mode: ";
+  snapshot += badge_.modeName();
+  snapshot += "\nBadge awake: ";
+  snapshot += badge_.keepAwake() ? "On" : "Off";
   return snapshot;
 }
 
@@ -711,6 +740,13 @@ void App::nextComplication() {
   showWatchIfActive();
 }
 
+void App::nextBadgeMode() {
+  badge_.nextMode();
+  if (screenManager_.currentId() == ScreenId::Badge) {
+    screenManager_.show(ScreenId::Badge);
+  }
+}
+
 void App::resetTouch() {
   touchActive_ = false;
   touchPreviewed_ = false;
@@ -733,6 +769,7 @@ void App::updateDisplayPower(uint32_t nowMs) {
 
   const ScreenId current = screenManager_.currentId();
   if (current != ScreenId::Watch && !isFidgetScreen(current) && !isStopwatchScreen(current) &&
+      !isBadgeScreen(current) &&
       idleMs >= kMenuReturnTimeoutMs) {
     appManager_.launch("system.watch");
     power_.userActivity(nowMs);
@@ -783,6 +820,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Watch: return "Watch";
     case ScreenId::Stopwatch: return "Stopwatch";
     case ScreenId::StopwatchLaps: return "Stopwatch laps";
+    case ScreenId::Badge: return "Badge";
     case ScreenId::MainMenu: return "Main menu";
     case ScreenId::Settings: return "Settings";
     case ScreenId::Volume: return "Volume";

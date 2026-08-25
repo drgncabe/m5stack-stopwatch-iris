@@ -5,6 +5,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "iris/services/BadgeService.h"
+
 namespace iris {
 
 using ControlCommandHandler = void (*)(void* context, const String& command);
@@ -17,6 +19,7 @@ class WifiService {
   void begin(bool enabled);
   void update(uint32_t nowMs);
   void setEnabled(bool enabled);
+  void setBadgeService(BadgeService* badge);
   void setControlCallbacks(void* context,
                            ControlCommandHandler commandHandler,
                            ControlSnapshotHandler snapshotHandler);
@@ -50,6 +53,11 @@ class WifiService {
   void handleApiTimeSettings();
   void handleApiDeviceInfo();
   void handleApiApps();
+  void handleApiBadge();
+  void handleApiBadgeDelete();
+  void handleBadgeAsset();
+  void handleBadgeUploadDone();
+  void handleBadgeUpload();
   void handleApiCommand();
   void handleApiWifiStatus();
   void handleApiWifiNetworks();
@@ -65,6 +73,7 @@ class WifiService {
   void appendWatchPreview(String& html, const String& snapshot);
   void appendNavigation(String& html, const String& page);
   void appendAppRegistry(String& html, const String& registry);
+  void appendBadgePage(String& html);
   void appendRangeControl(String& html, const char* label, const char* command,
                           int value, int minValue, int maxValue, int step,
                           const char* suffix);
@@ -96,11 +105,13 @@ class WifiService {
   bool portalRunning_ = false;
   bool serverRunning_ = false;
   bool routesConfigured_ = false;
+  bool badgeUploadOk_ = false;
   uint32_t lastConnectAttemptMs_ = 0;
   uint32_t portalStartedMs_ = 0;
   void* controlContext_ = nullptr;
   ControlCommandHandler commandHandler_ = nullptr;
   ControlSnapshotHandler snapshotHandler_ = nullptr;
+  BadgeService* badge_ = nullptr;
 };
 
 }  // namespace iris
