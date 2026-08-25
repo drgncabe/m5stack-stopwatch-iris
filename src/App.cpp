@@ -153,7 +153,7 @@ App::App()
       axisCalibrationScreen_(settings_),
       bootloaderScreen_(settings_),
       hardwareDiagnosticsScreen_(settings_, wifi_, bluetooth_, battery_, timeService_, power_,
-                                 orientation_),
+                                 orientation_, statusLight_),
       deviceInfoScreen_(wifi_, timeService_, battery_, settings_) {}
 
 void App::begin() {
@@ -707,7 +707,9 @@ String App::buildControlSnapshot() const {
   snapshot += " r";
   snapshot += String(orientation_.rotation());
   snapshot += "\nIndicator light: ";
-  snapshot += settings_.indicatorLightEnabled() ? "On" : "Off";
+  snapshot += statusLight_.statusText();
+  snapshot += "\nIndicator capability: ";
+  snapshot += statusLight_.capabilityText();
   snapshot += "\nWiFi on demand: ";
   snapshot += settings_.wifiOnDemand() ? "On" : "Off";
   snapshot += "\nTouch delay: ";

@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.3.2`
+Current firmware version: `0.3.6`
 
 Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -77,7 +77,7 @@ Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](
 - BMI270-based auto-rotation option
 - IMU calibration screen with stored calibration data
 - Fidget screens using touch, haptics, and motion data
-- Status light setting
+- Status-light diagnostics with safe reporting for the StopWatch USB-C green bootloader light
 
 ### In Development
 
@@ -405,6 +405,14 @@ pio device monitor
 ```
 
 Compile validation means the firmware builds successfully. It does not prove every physical hardware behavior has been validated.
+
+## Status Light Notes
+
+The green light near the USB-C connector is documented by M5Stack as part of entering ESP32-S3 download mode: connect USB-C, hold the power button for about two seconds until the green light turns on, then release.
+
+The StopWatch I/O map also lists `G0_WAKEin(INT0/2)_IRQout_NEOPIXEL` on the M5PM1. The M5PM1 driver exposes a NeoPixel controller on PM1 GPIO0 with RGB color support. M5Unified does not currently install that StopWatch PM1 NeoPixel as `M5.Led`, which is why earlier generic `M5.Led` calls did not visibly affect the light.
+
+`StatusLightService` now initializes the M5PM1 NeoPixel driver on StopWatch and keeps it off by default. Hardware Diagnostics can run on/off tests and writes serial logs with the selected driver and result code. The normal Power settings do not present this as an always-on notification control until the behavior is verified on hardware across normal boot, USB power, battery power, and bootloader entry.
 
 ## Project Structure
 

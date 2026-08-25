@@ -20,7 +20,7 @@ constexpr int kRowValueLeft = 222;
 constexpr int kRowValueRightPadding = 16;
 constexpr int kRowValueWidth = kRowLeft + kRowWidth - kRowValueLeft - kRowValueRightPadding;
 constexpr size_t kItemCount = 8;
-constexpr size_t kPageCount = 11;
+constexpr size_t kPageCount = 12;
 constexpr uint32_t kShortTestMs = 5000;
 constexpr uint32_t kHapticTestMs = 650;
 constexpr uint32_t kStatusRefreshMs = 500;
@@ -186,6 +186,10 @@ void HardwareDiagnosticsScreen::activateSelected(uint32_t nowMs) {
     case Page::Haptics:
       if (selected_ == 1) startHapticPulse(nowMs);
       break;
+    case Page::StatusLight:
+      if (selected_ == 5) testStatusLight(true);
+      if (selected_ == 6) testStatusLight(false);
+      break;
     default:
       break;
   }
@@ -299,6 +303,7 @@ const char* HardwareDiagnosticsScreen::pageName() const {
     case Page::Power: return "Power";
     case Page::Rtc: return "RTC";
     case Page::Haptics: return "Haptics";
+    case Page::StatusLight: return "Status light";
   }
   return "Unknown";
 }
@@ -350,6 +355,10 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
     }
     case Page::Haptics: {
       constexpr const char* labels[] = {"", "Pulse test", "Vibration", "Audio mute", "Display test", "WiFi sleep", "Safe restore", ""};
+      return labels[index];
+    }
+    case Page::StatusLight: {
+      constexpr const char* labels[] = {"", "Driver", "PM1 G0", "Color", "Saved pref", "Test on", "Test off", ""};
       return labels[index];
     }
   }
@@ -491,6 +500,16 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
         case 6: return "On back";
       }
       break;
+    case Page::StatusLight:
+      switch (index) {
+        case 1: return statusLight_.capabilityText();
+        case 2: return "Wake/Neo";
+        case 3: return statusLight_.available() ? "RGB test" : "Unknown";
+        case 4: return settings_.indicatorLightEnabled() ? "On" : "Off";
+        case 5: return statusLight_.available() ? "Run" : "No effect";
+        case 6: return statusLight_.available() ? "Run" : "No effect";
+      }
+      break;
   }
 
   return "";
@@ -534,6 +553,12 @@ void HardwareDiagnosticsScreen::toggleWifiSleep() {
 void HardwareDiagnosticsScreen::startHapticPulse(uint32_t nowMs) {
   M5.Power.setVibration(90);
   hapticUntilMs_ = nowMs + kHapticTestMs;
+}
+
+void HardwareDiagnosticsScreen::testStatusLight(bool enabled) {
+  Serial.printf("[HWDiag] Status light diagnostic %s; capability=%s\n",
+                enabled ? "on" : "off", statusLight_.capabilityText());
+  statusLight_.setEnabled(enabled);
 }
 
 void HardwareDiagnosticsScreen::cyclePowerProfile() {
