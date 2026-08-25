@@ -88,6 +88,13 @@ const char* EventBus::eventName(EventType type) const {
     case EventType::TimeZoneChanged: return "TIMEZONE_CHANGED";
     case EventType::LocaleChanged: return "LOCALE_CHANGED";
     case EventType::RtcTimeInvalid: return "RTC_TIME_INVALID";
+    case EventType::BleEnabled: return "BLE_ENABLED";
+    case EventType::BleDisabled: return "BLE_DISABLED";
+    case EventType::BlePairingStarted: return "BLE_PAIRING_STARTED";
+    case EventType::BleDevicePaired: return "BLE_DEVICE_PAIRED";
+    case EventType::BleConnected: return "BLE_CONNECTED";
+    case EventType::BleDisconnected: return "BLE_DISCONNECTED";
+    case EventType::BlePairingFailed: return "BLE_PAIRING_FAILED";
   }
   return "UNKNOWN";
 }

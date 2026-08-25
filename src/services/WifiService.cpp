@@ -195,6 +195,10 @@ void WifiService::setBadgeService(BadgeService* badge) {
   badge_ = badge;
 }
 
+void WifiService::setBluetoothService(BluetoothService* bluetooth) {
+  bluetooth_ = bluetooth;
+}
+
 void WifiService::setControlCallbacks(void* context,
                                       ControlCommandHandler commandHandler,
                                       ControlSnapshotHandler snapshotHandler) {
@@ -340,6 +344,10 @@ void WifiService::configurePortalRoutes() {
     server_.sendHeader("Location", "/?page=badge", true);
     server_.send(302, "text/plain", "");
   });
+  server_.on("/bluetooth", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=bluetooth", true);
+    server_.send(302, "text/plain", "");
+  });
   server_.on("/settings", HTTP_GET, [this]() {
     server_.sendHeader("Location", "/?page=settings", true);
     server_.send(302, "text/plain", "");
@@ -397,6 +405,8 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/badge", HTTP_GET, [this]() { handleApiBadge(); });
   server_.on("/api/badge", HTTP_PUT, [this]() { handleApiBadge(); });
   server_.on("/api/badge/delete", HTTP_POST, [this]() { handleApiBadgeDelete(); });
+  server_.on("/api/bluetooth", HTTP_GET, [this]() { handleApiBluetooth(); });
+  server_.on("/api/bluetooth", HTTP_POST, [this]() { handleApiBluetooth(); });
   server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
@@ -447,6 +457,7 @@ void WifiService::handleControlPanel() {
     html += F("<a class='button' href='/?page=touch'>Touch</a>");
     html += F("<a class='button' href='/?page=sound'>Sound</a>");
     html += F("<a class='button' href='/?page=wifi'>WiFi</a>");
+    html += F("<a class='button' href='/?page=bluetooth'>Bluetooth</a>");
     html += F("<a class='button' href='/?page=power'>Power</a>");
     html += F("<a class='button' href='/?page=device'>Device</a>");
     html += F("</div></section>");
@@ -561,6 +572,8 @@ void WifiService::handleControlPanel() {
     html += F(">Forget saved network</button><p class='hint'>This removes the saved SSID and password from Iris. If you are using this WiFi connection now, the web page may disconnect after it succeeds.</p></div>");
     html += F("<h3>Nearby Networks</h3><div class='control'><label>Network scan<span id='wifi-scan-status'>Ready</span></label><button type='button' id='wifi-scan-button'>Scan networks</button><div id='wifi-networks' class='network-list'></div><p class='hint'>Passwords are never displayed. Use Choose network to save credentials.</p><a class='button' href='/api/wifi/networks'>Nearby networks JSON</a></div>");
     html += F("</section>");
+  } else if (page == "bluetooth") {
+    appendBluetoothPage(html, snapshot);
   } else if (page == "power") {
     html += F("<section><h2>Power</h2><p class='hint'>Balance responsiveness, heat, and battery life.</p>");
     html += F("<h3>Power</h3>");
@@ -646,7 +659,7 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(WiFi.macAddress());
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/apps'>Apps API</a><a class='button' href='/api/badge'>Badge API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/apps'>Apps API</a><a class='button' href='/api/badge'>Badge API</a><a class='button' href='/api/bluetooth'>Bluetooth API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
   } else if (page == "apps") {
     html += F("<section><h2>Apps</h2><p class='hint'>Registered Iris apps and app-facing screens. Future app settings can use this same web surface.</p>");
     html += F("<h3>Current App</h3><div class='facts'>");
@@ -974,6 +987,55 @@ void WifiService::handleApiBadgeDelete() {
     return;
   }
   sendApiOk("Badge deleted.");
+}
+
+void WifiService::handleApiBluetooth() {
+  if (!bluetooth_) {
+    sendApiError(503, "Bluetooth service unavailable.");
+    return;
+  }
+
+  if (server_.method() == HTTP_POST) {
+    bool boolValue = false;
+    if (apiBoolArg("enabled", &boolValue) && boolValue != bluetooth_->enabled()) {
+      dispatchControlCommand("ble_toggle");
+    }
+    if (apiBoolArg("autoReconnect", &boolValue) &&
+        boolValue != bluetooth_->autoReconnect()) {
+      dispatchControlCommand("ble_autoreconnect_toggle");
+    }
+
+    String action;
+    if (apiStringArg("action", &action)) {
+      if (action == "enable") {
+        if (!bluetooth_->enabled()) dispatchControlCommand("ble_toggle");
+      } else if (action == "disable") {
+        if (bluetooth_->enabled()) dispatchControlCommand("ble_toggle");
+      } else if (action == "advertise") {
+        dispatchControlCommand("ble_advertise");
+      } else if (action == "stopAdvertising") {
+        dispatchControlCommand("ble_stop_advertise");
+      } else if (action == "disconnect") {
+        dispatchControlCommand("ble_disconnect");
+      } else if (action == "autoReconnect") {
+        dispatchControlCommand("ble_autoreconnect_toggle");
+      } else if (action == "playPause") {
+        dispatchControlCommand("media_play_pause");
+      } else if (action == "next") {
+        dispatchControlCommand("media_next");
+      } else if (action == "previous") {
+        dispatchControlCommand("media_previous");
+      } else if (action == "volumeUp") {
+        dispatchControlCommand("media_volume_up");
+      } else if (action == "volumeDown") {
+        dispatchControlCommand("media_volume_down");
+      } else if (action == "mute") {
+        dispatchControlCommand("media_mute");
+      }
+    }
+  }
+
+  server_.send(200, "application/json", bluetooth_->json());
 }
 
 void WifiService::handleBadgeAsset() {
@@ -1560,9 +1622,9 @@ void WifiService::appendWatchPreview(String& html, const String& snapshot) {
 }
 
 void WifiService::appendNavigation(String& html, const String& page) {
-  constexpr const char* pages[] = {"dashboard", "settings", "display", "theme", "badge", "datetime",
+  constexpr const char* pages[] = {"dashboard", "settings", "display", "theme", "badge", "bluetooth", "datetime",
                                    "touch", "sound", "wifi", "power", "device", "apps", "development"};
-  constexpr const char* labels[] = {"Dashboard", "Settings", "Display", "Theme", "Badge", "Date & Time",
+  constexpr const char* labels[] = {"Dashboard", "Settings", "Display", "Theme", "Badge", "Bluetooth", "Date & Time",
                                     "Touch", "Sound", "WiFi", "Power", "Device", "Apps", "Development"};
   html += F("<nav class='desktop-nav'>");
   for (size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); ++i) {
@@ -1693,6 +1755,46 @@ void WifiService::appendBadgePage(String& html) {
   html += F("<button type='button' class='warn' id='badge-delete-button'");
   if (!badge_->hasAsset()) html += F(" disabled");
   html += F(">Delete Badge</button></div></section>");
+}
+
+void WifiService::appendBluetoothPage(String& html, const String& snapshot) {
+  html += F("<section><h2>Bluetooth</h2><p class='hint'>Iris uses Bluetooth Low Energy (BLE) HID media controls. Bluetooth Classic audio, headphones, and speaker streaming are not supported by the ESP32-S3.</p>");
+  if (!bluetooth_) {
+    html += F("<p class='hint'>Bluetooth service is unavailable.</p></section>");
+    return;
+  }
+
+  html += F("<h3>Status</h3><div class='facts'>");
+  html += F("<p><b>Technology</b><span>BLE HID</span></p><p><b>Status</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "Bluetooth"));
+  html += F("</span></p><p><b>Device Name</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE device"));
+  html += F("</span></p><p><b>Connected</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE connected"));
+  html += F("</span></p><p><b>Advertising</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE advertising"));
+  html += F("</span></p><p><b>Bonded Devices</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE bonded devices"));
+  html += F("</span></p></div>");
+
+  appendToggleControl(html, "Bluetooth Low Energy", "ble_toggle", bluetooth_->enabled());
+  appendToggleControl(html, "Auto reconnect", "ble_autoreconnect_toggle", bluetooth_->autoReconnect());
+
+  html += F("<h3>Pairing</h3><div class='grid'>");
+  appendAction(html, "Start advertising", "ble_advertise");
+  appendAction(html, "Stop advertising", "ble_stop_advertise");
+  appendAction(html, "Disconnect host", "ble_disconnect", "warn");
+  appendAction(html, "Open Media Remote", "media_remote");
+  html += F("</div><p class='hint'>Pair from the host Bluetooth settings by selecting the Iris BLE device name above.</p>");
+
+  html += F("<h3>Media Test</h3><div class='grid three'>");
+  appendAction(html, "Play / Pause", "media_play_pause");
+  appendAction(html, "Previous", "media_previous");
+  appendAction(html, "Next", "media_next");
+  appendAction(html, "Volume -", "media_volume_down");
+  appendAction(html, "Volume +", "media_volume_up");
+  appendAction(html, "Mute", "media_mute");
+  html += F("</div><a class='button' href='/api/bluetooth'>Bluetooth API</a></section>");
 }
 
 void WifiService::appendRangeControl(String& html, const char* label, const char* command,

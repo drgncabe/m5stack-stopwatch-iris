@@ -20,7 +20,7 @@ constexpr int kRowValueLeft = 222;
 constexpr int kRowValueRightPadding = 16;
 constexpr int kRowValueWidth = kRowLeft + kRowWidth - kRowValueLeft - kRowValueRightPadding;
 constexpr size_t kItemCount = 8;
-constexpr size_t kPageCount = 10;
+constexpr size_t kPageCount = 11;
 constexpr uint32_t kShortTestMs = 5000;
 constexpr uint32_t kHapticTestMs = 650;
 constexpr uint32_t kStatusRefreshMs = 500;
@@ -295,6 +295,7 @@ const char* HardwareDiagnosticsScreen::pageName() const {
     case Page::Input: return "Input";
     case Page::Imu: return "BMI270";
     case Page::Wifi: return "WiFi";
+    case Page::Bluetooth: return "BLE";
     case Page::Power: return "Power";
     case Page::Rtc: return "RTC";
     case Page::Haptics: return "Haptics";
@@ -333,6 +334,10 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
     }
     case Page::Wifi: {
       constexpr const char* labels[] = {"", "Status", "SSID", "IP", "Radio", "Sleep", "Portal", ""};
+      return labels[index];
+    }
+    case Page::Bluetooth: {
+      constexpr const char* labels[] = {"", "Status", "Device", "Profile", "Advertise", "Connected", "Bonded", ""};
       return labels[index];
     }
     case Page::Power: {
@@ -438,6 +443,16 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
         case 4: return wifi_.isEnabled() ? "On" : "Off";
         case 5: return wifiSleep_ ? "On" : "Off";
         case 6: return wifi_.isProvisioning() ? wifi_.portalSsid() : "Stopped";
+      }
+      break;
+    case Page::Bluetooth:
+      switch (index) {
+        case 1: return bluetooth_.statusText();
+        case 2: return bluetooth_.deviceName();
+        case 3: return "BLE HID";
+        case 4: return bluetooth_.advertising() ? "Yes" : "No";
+        case 5: return bluetooth_.connected() ? "Yes" : "No";
+        case 6: return String(bluetooth_.bondedDeviceCount());
       }
       break;
     case Page::Power:

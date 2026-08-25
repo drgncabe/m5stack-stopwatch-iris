@@ -1,5 +1,6 @@
 #pragma once
 
+#include "iris/apps/connectivity/MediaRemoteApp.h"
 #include "iris/apps/media/BadgeApp.h"
 #include "iris/apps/development/DevelopmentApp.h"
 #include "iris/apps/settings/SettingsApp.h"
@@ -16,6 +17,7 @@
 #include "iris/screens/DeviceInfoScreen.h"
 #include "iris/screens/FidgetScreens.h"
 #include "iris/screens/HardwareDiagnosticsScreen.h"
+#include "iris/screens/MediaRemoteScreen.h"
 #include "iris/screens/MenuScreen.h"
 #include "iris/screens/PowerScreen.h"
 #include "iris/screens/ScreenManager.h"
@@ -25,6 +27,7 @@
 #include "iris/screens/WifiScreen.h"
 #include "iris/services/BatteryService.h"
 #include "iris/services/BadgeService.h"
+#include "iris/services/BluetoothService.h"
 #include "iris/services/OrientationService.h"
 #include "iris/services/PowerManager.h"
 #include "iris/services/SettingsStore.h"
@@ -72,6 +75,7 @@ class App {
 
   SettingsStore settings_;
   BadgeService badge_;
+  BluetoothService bluetooth_;
   BatteryService battery_;
   OrientationService orientation_;
   StatusLightService statusLight_;
@@ -93,6 +97,8 @@ class App {
   StopwatchApp stopwatchApp_;
   BadgeScreen badgeScreen_;
   BadgeApp badgeApp_;
+  MediaRemoteScreen mediaRemoteScreen_;
+  MediaRemoteApp mediaRemoteApp_;
   MenuScreen mainMenuScreen_;
   MenuScreen settingsMenuScreen_;
   VolumeScreen volumeScreen_;

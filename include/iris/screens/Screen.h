@@ -18,6 +18,7 @@ enum class ScreenId : uint8_t {
   Stopwatch,
   StopwatchLaps,
   Badge,
+  MediaRemote,
   Fidgets,
   FidgetWheel,
   FidgetPoppers,

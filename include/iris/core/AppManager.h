@@ -12,6 +12,7 @@ enum class AppKind : uint8_t {
   Settings,
   Developer,
   Fidget,
+  Connectivity,
   Tool,
 };
 
