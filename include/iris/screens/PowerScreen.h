@@ -28,7 +28,6 @@ class PowerScreen : public Screen {
   void cycleSleepTimeout();
   void cyclePowerProfile();
   void cycleTouchDelay();
-  void applyIndicatorLight();
   const char* brightnessName() const;
   const char* dimBrightnessName() const;
   const char* dimTimeoutName() const;

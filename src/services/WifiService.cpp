@@ -641,7 +641,6 @@ void WifiService::handleControlPanel() {
     html += F("<p class='hint'>Runtime favors cooler operation, Balanced is the default, and Performance keeps animation-heavy apps at full speed.</p></div>");
     appendToggleControl(html, "Low-power watch face", "low_face_toggle", snapshotOn(snapshot, "Low-power face"));
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
-    appendToggleControl(html, "Indicator light", "indicator_toggle", snapshotOn(snapshot, "Indicator light"));
     html += F("</section>");
   } else if (page == "device") {
     html += F("<section><h2>Device</h2><p class='hint'>Hardware, runtime, connectivity, and firmware details for this Iris build.</p>");
@@ -880,6 +879,13 @@ void WifiService::handleApiSettings() {
   json += String(snapshotInt(snapshot, "Sleep timeout", 0));
   json += F(",\"touchDelayMs\":");
   json += String(snapshotInt(snapshot, "Touch delay", 0));
+  json += F(",\"indicatorLight\":");
+  json += snapshotOn(snapshot, "Indicator light") ? F("true") : F("false");
+  json += F(",\"indicatorLightStatus\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator light"));
+  json += F("\",\"indicatorCapability\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator capability"));
+  json += F("\"");
   json += F("}");
   server_.send(200, "application/json", json);
 }
@@ -944,6 +950,12 @@ void WifiService::handleApiDeviceInfo() {
   json += escapeJson(snapshotValue(snapshot, "Power profile"));
   json += F("\",\"powerRequests\":\"");
   json += escapeJson(snapshotValue(snapshot, "Power requests"));
+  json += F("\",\"indicatorLight\":");
+  json += snapshotOn(snapshot, "Indicator light") ? F("true") : F("false");
+  json += F(",\"indicatorLightStatus\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator light"));
+  json += F("\",\"indicatorCapability\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator capability"));
   json += F("\",\"wifi\":\"");
   json += escapeJson(snapshotValue(snapshot, "WiFi"));
   json += F("\",\"ssid\":\"");
@@ -1270,10 +1282,6 @@ void WifiService::handleApiPowerSettings() {
         boolValue != snapshotOn(snapshot, "WiFi on demand")) {
       dispatchControlCommand("wifi_demand_toggle");
     }
-    if (apiBoolArg("indicatorLight", &boolValue) &&
-        boolValue != snapshotOn(snapshot, "Indicator light")) {
-      dispatchControlCommand("indicator_toggle");
-    }
     if (apiBoolArg("nextProfile", &boolValue) && boolValue) {
       dispatchControlCommand("power_profile_next");
     }
@@ -1300,6 +1308,11 @@ void WifiService::handleApiPowerSettings() {
   json += snapshotOn(snapshot, "WiFi on demand") ? F("true") : F("false");
   json += F(",\"indicatorLight\":");
   json += snapshotOn(snapshot, "Indicator light") ? F("true") : F("false");
+  json += F(",\"indicatorLightStatus\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator light"));
+  json += F("\",\"indicatorCapability\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator capability"));
+  json += F("\"");
   json += F("}");
   server_.send(200, "application/json", json);
 }

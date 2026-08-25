@@ -9,6 +9,9 @@ class StatusLightService {
   void begin(bool enabled);
   void setEnabled(bool enabled);
   bool enabled() const { return enabled_; }
+  bool available() const { return available_; }
+  const char* capabilityText() const;
+  const char* statusText() const;
   void showNotification(uint8_t red, uint8_t green, uint8_t blue);
   void clearNotification();
 
@@ -16,6 +19,9 @@ class StatusLightService {
   void apply();
 
   bool enabled_ = false;
+  bool available_ = false;
+  bool pm1NeoPixelAvailable_ = false;
+  bool m5UnifiedLedAvailable_ = false;
   bool notificationActive_ = false;
   uint8_t red_ = 0;
   uint8_t green_ = 40;

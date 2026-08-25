@@ -6,6 +6,7 @@
 #include "iris/services/OrientationService.h"
 #include "iris/services/PowerManager.h"
 #include "iris/services/SettingsStore.h"
+#include "iris/services/StatusLightService.h"
 #include "iris/services/TimeService.h"
 #include "iris/services/WifiService.h"
 
@@ -16,14 +17,15 @@ class HardwareDiagnosticsScreen : public Screen {
   HardwareDiagnosticsScreen(SettingsStore& settings, WifiService& wifi,
                             BluetoothService& bluetooth, BatteryService& battery,
                             TimeService& timeService, PowerManager& power,
-                            OrientationService& orientation)
+                            OrientationService& orientation, StatusLightService& statusLight)
       : settings_(settings),
         wifi_(wifi),
         bluetooth_(bluetooth),
         battery_(battery),
         timeService_(timeService),
         power_(power),
-        orientation_(orientation) {}
+        orientation_(orientation),
+        statusLight_(statusLight) {}
 
   void enter() override;
   void update(uint32_t nowMs) override;
@@ -46,6 +48,7 @@ class HardwareDiagnosticsScreen : public Screen {
     Power,
     Rtc,
     Haptics,
+    StatusLight,
   };
 
   void activateSelected(uint32_t nowMs);
@@ -66,6 +69,7 @@ class HardwareDiagnosticsScreen : public Screen {
   void toggleWifi();
   void toggleWifiSleep();
   void startHapticPulse(uint32_t nowMs);
+  void testStatusLight(bool enabled);
   void cyclePowerProfile();
   void restoreAudio();
   void restoreDisplay();
@@ -79,6 +83,7 @@ class HardwareDiagnosticsScreen : public Screen {
   TimeService& timeService_;
   PowerManager& power_;
   OrientationService& orientation_;
+  StatusLightService& statusLight_;
   Page page_ = Page::System;
   size_t selected_ = 0;
   bool wifiSleep_ = true;
