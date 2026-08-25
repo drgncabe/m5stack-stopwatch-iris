@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.3.6`
+Current firmware version: `0.3.7`
 
 Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -412,7 +412,7 @@ The green light near the USB-C connector is documented by M5Stack as part of ent
 
 The StopWatch I/O map also lists `G0_WAKEin(INT0/2)_IRQout_NEOPIXEL` on the M5PM1. The M5PM1 driver exposes a NeoPixel controller on PM1 GPIO0 with RGB color support. M5Unified does not currently install that StopWatch PM1 NeoPixel as `M5.Led`, which is why earlier generic `M5.Led` calls did not visibly affect the light.
 
-`StatusLightService` now initializes the M5PM1 NeoPixel driver on StopWatch and keeps it off by default. Hardware Diagnostics can run on/off tests and writes serial logs with the selected driver and result code. The normal Power settings do not present this as an always-on notification control until the behavior is verified on hardware across normal boot, USB power, battery power, and bootloader entry.
+`StatusLightService` can initialize the M5PM1 NeoPixel driver on StopWatch, but Iris forces the status light off during normal boot and keeps it diagnostic-only. Hardware Diagnostics provides green, red, and off tests and writes serial logs with the selected driver and result code. The first hardware pass did not materially change the visible USB-C-side green light, so the normal Power settings do not present this as notification behavior unless a later hardware test proves which physical LED, if any, the PM1 NeoPixel path controls across normal boot, USB power, battery power, and bootloader entry.
 
 ## Project Structure
 

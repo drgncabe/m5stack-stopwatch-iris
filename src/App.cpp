@@ -173,7 +173,7 @@ void App::begin() {
   timeService_.setEventBus(&events_);
   bluetooth_.setEventBus(&events_);
   power_.begin();
-  statusLight_.begin(settings_.indicatorLightEnabled());
+  statusLight_.begin(false);
   wifi_.setBadgeService(&badge_);
   wifi_.setBluetoothService(&bluetooth_);
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);

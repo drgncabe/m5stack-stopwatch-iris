@@ -187,8 +187,9 @@ void HardwareDiagnosticsScreen::activateSelected(uint32_t nowMs) {
       if (selected_ == 1) startHapticPulse(nowMs);
       break;
     case Page::StatusLight:
-      if (selected_ == 5) testStatusLight(true);
-      if (selected_ == 6) testStatusLight(false);
+      if (selected_ == 4) testStatusLightColor(0, 48, 0);
+      if (selected_ == 5) testStatusLightColor(48, 0, 0);
+      if (selected_ == 6) clearStatusLight();
       break;
     default:
       break;
@@ -358,7 +359,7 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
       return labels[index];
     }
     case Page::StatusLight: {
-      constexpr const char* labels[] = {"", "Driver", "PM1 G0", "Color", "Saved pref", "Test on", "Test off", ""};
+      constexpr const char* labels[] = {"", "Driver", "PM1 G0", "Boot use", "Test green", "Test red", "Test off", ""};
       return labels[index];
     }
   }
@@ -504,8 +505,8 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
       switch (index) {
         case 1: return statusLight_.capabilityText();
         case 2: return "Wake/Neo";
-        case 3: return statusLight_.available() ? "RGB test" : "Unknown";
-        case 4: return settings_.indicatorLightEnabled() ? "On" : "Off";
+        case 3: return "Forced off";
+        case 4: return statusLight_.available() ? "Run" : "No effect";
         case 5: return statusLight_.available() ? "Run" : "No effect";
         case 6: return statusLight_.available() ? "Run" : "No effect";
       }
@@ -555,10 +556,18 @@ void HardwareDiagnosticsScreen::startHapticPulse(uint32_t nowMs) {
   hapticUntilMs_ = nowMs + kHapticTestMs;
 }
 
-void HardwareDiagnosticsScreen::testStatusLight(bool enabled) {
-  Serial.printf("[HWDiag] Status light diagnostic %s; capability=%s\n",
-                enabled ? "on" : "off", statusLight_.capabilityText());
-  statusLight_.setEnabled(enabled);
+void HardwareDiagnosticsScreen::testStatusLightColor(uint8_t red, uint8_t green, uint8_t blue) {
+  Serial.printf("[HWDiag] Status light diagnostic RGB(%u,%u,%u); capability=%s\n",
+                red, green, blue, statusLight_.capabilityText());
+  statusLight_.showNotification(red, green, blue);
+  statusLight_.setEnabled(true);
+}
+
+void HardwareDiagnosticsScreen::clearStatusLight() {
+  Serial.printf("[HWDiag] Status light diagnostic off; capability=%s\n",
+                statusLight_.capabilityText());
+  statusLight_.clearNotification();
+  statusLight_.setEnabled(false);
 }
 
 void HardwareDiagnosticsScreen::cyclePowerProfile() {
