@@ -61,6 +61,7 @@ class NetworkScanService {
   int detectedCount() const { return detectedCount_; }
   int32_t strongestRssi() const { return strongestRssi_; }
   uint32_t lastScanMs() const { return lastScanMs_; }
+  int lastDriverStatus() const { return lastDriverStatus_; }
   const WifiScanResult* resultAt(size_t index) const;
   uint8_t channelUse(uint8_t channel) const;
 
@@ -81,6 +82,8 @@ class NetworkScanService {
   int32_t strongestRssi_ = 0;
   uint8_t channelUse_[15]{};
   uint32_t lastScanMs_ = 0;
+  uint32_t scanStartedMs_ = 0;
+  int lastDriverStatus_ = 0;
   bool radioTemporarilyEnabled_ = false;
 };
 

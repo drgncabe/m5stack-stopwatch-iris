@@ -157,7 +157,8 @@ void WifiScannerScreen::drawList() {
     canvas_.drawString(scanner_.stateText(), kCenter, 188);
     canvas_.setFont(&fonts::FreeSans9pt7b);
     canvas_.setTextColor(theme.muted, theme.background);
-    canvas_.drawString("No networks shown", kCenter, 224);
+    canvas_.drawString(String("Driver ") + scanner_.lastDriverStatus(), kCenter, 224);
+    canvas_.drawString("No networks shown", kCenter, 250);
   } else {
     for (size_t row = 0; row < kVisibleRows; ++row) {
       const size_t index = topIndex_ + row;
