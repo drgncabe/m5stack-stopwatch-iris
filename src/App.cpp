@@ -853,6 +853,10 @@ void App::updateDisplayPower(uint32_t nowMs) {
 
 void App::updateWifiPower(uint32_t nowMs) {
   if (!settings_.wifiOnDemand() || !wifi_.isEnabled()) return;
+  if (screenManager_.currentId() == ScreenId::WifiScanner) {
+    wifiDemandStartedMs_ = nowMs;
+    return;
+  }
   if (power_.wifiRequested()) {
     wifiDemandStartedMs_ = nowMs;
     return;

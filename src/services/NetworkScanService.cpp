@@ -14,23 +14,35 @@ void NetworkScanService::update(uint32_t nowMs) {
   if (state_ != NetworkScanState::Scanning) return;
 
   const int status = WiFi.scanComplete();
+  lastDriverStatus_ = status;
   if (status == WIFI_SCAN_RUNNING) return;
   if (status >= 0) {
+    Serial.printf("[SCAN] complete count=%d elapsed=%lums\n", status,
+                  static_cast<unsigned long>(nowMs - scanStartedMs_));
     finishScan(status, nowMs);
     return;
   }
 
+  Serial.printf("[SCAN] failed status=%d elapsed=%lums mode=%d connected=%d\n", status,
+                static_cast<unsigned long>(nowMs - scanStartedMs_),
+                static_cast<int>(WiFi.getMode()), WiFi.status() == WL_CONNECTED ? 1 : 0);
   state_ = NetworkScanState::Failed;
   if (radioTemporarilyEnabled_) {
     WiFi.scanDelete();
     WiFi.mode(WIFI_OFF);
     radioTemporarilyEnabled_ = false;
+  } else {
+    WiFi.setSleep(true);
   }
 }
 
 bool NetworkScanService::startScan() {
-  if (state_ == NetworkScanState::Scanning) return false;
+  if (state_ == NetworkScanState::Scanning) {
+    Serial.println("[SCAN] start ignored: scan already running");
+    return false;
+  }
   if (wifi_.isProvisioning()) {
+    Serial.println("[SCAN] start blocked: WiFi setup portal is active");
     state_ = NetworkScanState::Unavailable;
     return false;
   }
@@ -38,13 +50,18 @@ bool NetworkScanService::startScan() {
   WiFi.scanDelete();
   clearResults();
   radioTemporarilyEnabled_ = !wifi_.isEnabled();
-  if (radioTemporarilyEnabled_) {
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleep(false);
-  }
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  delay(30);
 
   const int started = WiFi.scanNetworks(true, true);
+  lastDriverStatus_ = started;
+  scanStartedMs_ = millis();
+  Serial.printf("[SCAN] start requested result=%d tempRadio=%d mode=%d connected=%d\n",
+                started, radioTemporarilyEnabled_ ? 1 : 0, static_cast<int>(WiFi.getMode()),
+                WiFi.status() == WL_CONNECTED ? 1 : 0);
   if (started == WIFI_SCAN_FAILED) {
+    Serial.println("[SCAN] start failed: WiFi driver rejected scan request");
     state_ = NetworkScanState::Failed;
     if (radioTemporarilyEnabled_) {
       WiFi.mode(WIFI_OFF);
@@ -59,11 +76,14 @@ bool NetworkScanService::startScan() {
 
 void NetworkScanService::cancelScan() {
   if (state_ == NetworkScanState::Scanning) {
+    Serial.println("[SCAN] cancelled");
     WiFi.scanDelete();
   }
   if (radioTemporarilyEnabled_) {
     WiFi.mode(WIFI_OFF);
     radioTemporarilyEnabled_ = false;
+  } else {
+    WiFi.setSleep(true);
   }
   state_ = NetworkScanState::Idle;
 }
@@ -112,6 +132,8 @@ void NetworkScanService::finishScan(int count, uint32_t nowMs) {
   clearResults();
   detectedCount_ = count > 0 ? count : 0;
   strongestRssi_ = detectedCount_ > 0 ? WiFi.RSSI(0) : 0;
+  Serial.printf("[SCAN] processing detected=%d limit=%u\n", detectedCount_,
+                static_cast<unsigned>(kMaxResults));
 
   for (int i = 0; i < detectedCount_; ++i) {
     WifiScanResult result;
@@ -126,15 +148,24 @@ void NetworkScanService::finishScan(int count, uint32_t nowMs) {
     if (result.channel < sizeof(channelUse_)) channelUse_[result.channel]++;
     if (i == 0 || result.rssi > strongestRssi_) strongestRssi_ = result.rssi;
     insertSorted(result);
+    Serial.printf("[SCAN] #%d rssi=%ld ch=%u security=%s hidden=%d bssid=%s ssid=%s\n",
+                  i + 1, static_cast<long>(result.rssi), result.channel,
+                  securityName(result.security), result.hidden ? 1 : 0, result.bssid.c_str(),
+                  result.ssid.c_str());
   }
 
   WiFi.scanDelete();
   if (radioTemporarilyEnabled_) {
     WiFi.mode(WIFI_OFF);
     radioTemporarilyEnabled_ = false;
+  } else {
+    WiFi.setSleep(true);
   }
   lastScanMs_ = nowMs;
   state_ = NetworkScanState::Complete;
+  Serial.printf("[SCAN] stored=%u truncated=%d strongest=%ld\n",
+                static_cast<unsigned>(resultCount_), truncated() ? 1 : 0,
+                static_cast<long>(strongestRssi_));
 }
 
 void NetworkScanService::clearResults() {
