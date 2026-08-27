@@ -109,7 +109,7 @@ class AppManager {
   size_t count() const { return count_; }
 
  private:
-  static constexpr size_t kMaxApps = 24;
+  static constexpr size_t kMaxApps = 32;
   static constexpr size_t kNoApp = kMaxApps;
 
   bool activateIndex(size_t index, bool showScreen);

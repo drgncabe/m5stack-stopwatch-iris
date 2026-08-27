@@ -24,11 +24,13 @@
 #include "iris/screens/StopwatchScreens.h"
 #include "iris/screens/VolumeScreen.h"
 #include "iris/screens/WatchScreen.h"
+#include "iris/screens/WifiScannerScreen.h"
 #include "iris/screens/WifiScreen.h"
 #include "iris/services/BatteryService.h"
 #include "iris/services/BadgeService.h"
 #include "iris/services/BluetoothService.h"
 #include "iris/services/OrientationService.h"
+#include "iris/services/NetworkScanService.h"
 #include "iris/services/PowerManager.h"
 #include "iris/services/SettingsStore.h"
 #include "iris/services/StatusLightService.h"
@@ -80,6 +82,7 @@ class App {
   OrientationService orientation_;
   StatusLightService statusLight_;
   WifiService wifi_;
+  NetworkScanService networkScanner_;
   TimeService timeService_;
   PowerManager power_;
   EventBus events_;
@@ -95,6 +98,7 @@ class App {
   StopwatchScreen stopwatchScreen_;
   StopwatchLapHistoryScreen stopwatchLapHistoryScreen_;
   StopwatchApp stopwatchApp_;
+  WifiScannerScreen wifiScannerScreen_;
   BadgeScreen badgeScreen_;
   BadgeApp badgeApp_;
   MediaRemoteScreen mediaRemoteScreen_;

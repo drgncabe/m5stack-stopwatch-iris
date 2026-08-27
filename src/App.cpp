@@ -22,6 +22,7 @@ constexpr uint16_t kMenuTouchDelayMs = 300;
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
     {"Stopwatch", ScreenId::Stopwatch},
+    {"WiFi scanner", ScreenId::WifiScanner},
     {"Badge", ScreenId::Badge},
     {"Media remote", ScreenId::MediaRemote},
     {"Fidgets", ScreenId::Fidgets},
@@ -120,6 +121,7 @@ constexpr AppDescriptor kDevelopmentAppDefinitions[] = {
 
 App::App()
     : timeService_(settings_),
+      networkScanner_(wifi_),
       power_(settings_),
       appManager_(screenManager_),
       developmentApp_(screenManager_),
@@ -129,6 +131,7 @@ App::App()
       stopwatchScreen_(settings_, stopwatchEngine_),
       stopwatchLapHistoryScreen_(settings_, stopwatchEngine_),
       stopwatchApp_(stopwatchScreen_),
+      wifiScannerScreen_(settings_, networkScanner_),
       badgeScreen_(settings_, badge_),
       badgeApp_(badge_, power_),
       mediaRemoteScreen_(settings_, bluetooth_),
@@ -181,6 +184,7 @@ void App::begin() {
   battery_.begin();
   orientation_.begin();
   wifi_.begin(settings_.wifiEnabled());
+  networkScanner_.begin();
   wifiDemandStartedMs_ = millis();
   timeService_.begin();
 
@@ -204,6 +208,7 @@ void App::registerServices() {
   services_.registerService("status_light", "Status light", &statusLight_);
   services_.registerService("power", "Power manager", &power_);
   services_.registerService("wifi", "WiFi", &wifi_, wifi_.isEnabled());
+  services_.registerService("network_scan", "Network scanner", &networkScanner_);
   services_.registerService("time", "Time / RTC", &timeService_);
 }
 
@@ -211,6 +216,7 @@ void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Watch, &watchScreen_);
   screenManager_.registerScreen(ScreenId::Stopwatch, &stopwatchScreen_);
   screenManager_.registerScreen(ScreenId::StopwatchLaps, &stopwatchLapHistoryScreen_);
+  screenManager_.registerScreen(ScreenId::WifiScanner, &wifiScannerScreen_);
   screenManager_.registerScreen(ScreenId::Badge, &badgeScreen_);
   screenManager_.registerScreen(ScreenId::MediaRemote, &mediaRemoteScreen_);
   screenManager_.registerScreen(ScreenId::MainMenu, &mainMenuScreen_);
@@ -239,6 +245,9 @@ void App::registerApps() {
   appManager_.registerApp(AppDescriptor(stopwatchApp_.id(), stopwatchApp_.name(),
                                         ScreenId::Stopwatch, AppKind::Tool, true,
                                         &stopwatchApp_, AppUpdateClass::Realtime));
+  appManager_.registerApp(AppDescriptor("tools.wifiscanner", "WiFi scanner",
+                                        ScreenId::WifiScanner, AppKind::Tool, true, nullptr,
+                                        AppUpdateClass::Interactive));
   appManager_.registerApp(AppDescriptor(badgeApp_.id(), badgeApp_.name(), ScreenId::Badge,
                                         AppKind::Tool, true, &badgeApp_,
                                         AppUpdateClass::Normal));
@@ -357,6 +366,7 @@ void App::update() {
 
   battery_.update(nowMs);
   bluetooth_.update(nowMs);
+  networkScanner_.update(nowMs);
   wifi_.update(nowMs);
   services_.setStarted("wifi", wifi_.isEnabled());
   services_.setStarted("bluetooth", bluetooth_.initialized());
@@ -879,6 +889,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Watch: return "Watch";
     case ScreenId::Stopwatch: return "Stopwatch";
     case ScreenId::StopwatchLaps: return "Stopwatch laps";
+    case ScreenId::WifiScanner: return "WiFi scanner";
     case ScreenId::Badge: return "Badge";
     case ScreenId::MediaRemote: return "Media remote";
     case ScreenId::MainMenu: return "Main menu";
