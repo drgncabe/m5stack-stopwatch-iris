@@ -85,6 +85,7 @@ class NetworkScanService {
   uint32_t scanStartedMs_ = 0;
   int lastDriverStatus_ = 0;
   bool radioTemporarilyEnabled_ = false;
+  bool stationWasConnected_ = false;
 };
 
 }  // namespace iris
