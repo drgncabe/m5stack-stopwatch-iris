@@ -368,7 +368,9 @@ void App::update() {
   battery_.update(nowMs);
   bluetooth_.update(nowMs);
   networkScanner_.update(nowMs);
-  wifi_.update(nowMs);
+  if (!networkScanner_.scanning()) {
+    wifi_.update(nowMs);
+  }
   services_.setStarted("wifi", wifi_.isEnabled());
   services_.setStarted("bluetooth", bluetooth_.initialized());
   timeService_.update(nowMs, wifi_.isConnected());

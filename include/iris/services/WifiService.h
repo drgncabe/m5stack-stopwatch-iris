@@ -38,6 +38,7 @@ class WifiService {
 
   void startProvisioning();
   void stopProvisioning();
+  void reconnectSaved();
   void shutdownForBootloader();
 
  private:

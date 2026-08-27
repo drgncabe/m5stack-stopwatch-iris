@@ -307,6 +307,10 @@ void WifiService::stopProvisioning() {
   }
 }
 
+void WifiService::reconnectSaved() {
+  connectSaved();
+}
+
 void WifiService::forgetSavedNetwork() {
   savedSsid_ = "";
   savedPassword_ = "";
