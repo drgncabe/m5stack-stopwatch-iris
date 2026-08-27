@@ -17,6 +17,7 @@ enum class ScreenId : uint8_t {
   Power,
   Stopwatch,
   StopwatchLaps,
+  WifiScanner,
   Badge,
   MediaRemote,
   Fidgets,

@@ -12,9 +12,10 @@ constexpr int kSetupX = 241;
 constexpr int kTopButtonY = 302;
 constexpr int kTopButtonWidth = 170;
 constexpr int kTopButtonHeight = 58;
-constexpr int kBackX = 118;
+constexpr int kScannerX = 55;
+constexpr int kBackX = 241;
 constexpr int kBackY = 374;
-constexpr int kBackWidth = 230;
+constexpr int kBottomButtonWidth = 170;
 constexpr int kBackHeight = 56;
 constexpr int kHitPad = 14;
 }  // namespace
@@ -70,6 +71,9 @@ void WifiScreen::handleTouch(int32_t x, int32_t y) {
     case TouchAction::Setup:
       startSetup();
       break;
+    case TouchAction::Scanner:
+      openScanner();
+      break;
     case TouchAction::Back:
       goBack();
       break;
@@ -100,6 +104,10 @@ void WifiScreen::startSetup() {
   drawStatus();
   drawControls(highlightedAction_);
   lastSnapshot_ = snapshot();
+}
+
+void WifiScreen::openScanner() {
+  if (manager_) manager_->show(ScreenId::WifiScanner);
 }
 
 void WifiScreen::goBack() {
@@ -133,7 +141,10 @@ void WifiScreen::drawControls(TouchAction highlighted) {
              wifi_.isEnabled() ? "Disable" : "Enable", highlighted == TouchAction::Toggle);
   drawButton(kSetupX, kTopButtonY, kTopButtonWidth, kTopButtonHeight, "Setup",
              highlighted == TouchAction::Setup);
-  drawButton(kBackX, kBackY, kBackWidth, kBackHeight, "Back", highlighted == TouchAction::Back);
+  drawButton(kScannerX, kBackY, kBottomButtonWidth, kBackHeight, "Scanner",
+             highlighted == TouchAction::Scanner);
+  drawButton(kBackX, kBackY, kBottomButtonWidth, kBackHeight, "Back",
+             highlighted == TouchAction::Back);
 }
 
 void WifiScreen::drawButton(int x, int y, int w, int h, const char* label, bool highlighted) {
@@ -157,7 +168,11 @@ WifiScreen::TouchAction WifiScreen::actionAt(int32_t x, int32_t y) const {
       return TouchAction::Setup;
     }
   }
-  if (x >= kBackX - kHitPad && x <= kBackX + kBackWidth + kHitPad &&
+  if (x >= kScannerX - kHitPad && x <= kScannerX + kBottomButtonWidth + kHitPad &&
+      y >= kBackY - kHitPad && y <= kBackY + kBackHeight + kHitPad) {
+    return TouchAction::Scanner;
+  }
+  if (x >= kBackX - kHitPad && x <= kBackX + kBottomButtonWidth + kHitPad &&
       y >= kBackY - kHitPad && y <= kBackY + kBackHeight + kHitPad) {
     return TouchAction::Back;
   }

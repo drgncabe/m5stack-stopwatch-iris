@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.3.7`
+Current firmware version: `0.3.8`
 
 Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -60,6 +60,7 @@ Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](
 - Volume, display, touch delay, theme/widget, power, WiFi, and developer settings
 - Date & Time settings with country/region defaults, date format, time format, timezone, automatic NTP sync, Sync Now, manual date/time, and RTC information
 - Dedicated stopwatch app with start, pause, resume, reset confirmation, lap capture, lap history, haptics, and a radial second-progress display
+- Dedicated 2.4 GHz WiFi scanner app with visible network list, RSSI, channel, security, BSSID details, strongest-first sorting, scan summary, and manual refresh
 - Dedicated badge app with one active locally stored badge image, default Iris fallback, Fit/Fill/Center modes, web upload/delete controls, and optional display keep-awake behavior
 - BLE Media Remote app registered as `connectivity.mediaremote` with play/pause, previous, next, volume, and mute HID consumer controls
 - Shared BluetoothService for BLE initialization, advertising, HID media commands, connection state, and bonded-device diagnostics
@@ -92,7 +93,6 @@ Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](
 ### Planned
 
 - AI/Ollama chat app
-- Network scanner app
 - ESP32-C5-Zero companion-node service
 - GPS/location support
 - Notifications
@@ -179,6 +179,7 @@ The application model uses stable app IDs, display names, lifecycle state, and o
 
 - WatchApp (`system.watch`)
 - StopwatchApp (`tools.stopwatch`)
+- WiFiScannerApp (`tools.wifiscanner`)
 - BadgeApp (`media.badge`)
 - MediaRemoteApp (`connectivity.mediaremote`)
 - SettingsApp (`system.settings`)
@@ -218,6 +219,7 @@ Services provide capabilities shared by multiple apps. The `ServiceManager` trac
 - `StatusLightService`
 - `TimeService`
 - `WifiService`
+- `NetworkScanService`
 - `PowerManager`
 
 Planned or likely future services include:
