@@ -32,6 +32,7 @@ constexpr MenuItem kMainMenuItems[] = {
 constexpr MenuItem kSettingsMenuItems[] = {
     {"Volume", ScreenId::Volume},
     {"WiFi", ScreenId::Wifi},
+    {"WiFi scanner", ScreenId::WifiScanner},
     {"Date & Time", ScreenId::DateTime},
     {"Theme & widgets", ScreenId::Background},
     {"Power", ScreenId::Power},
@@ -568,6 +569,8 @@ void App::handleControlCommand(const String& command) {
     services_.setStarted("wifi", true);
     wifiDemandStartedMs_ = nowMs;
     wifi_.startProvisioning();
+  } else if (command == "wifi_scanner") {
+    appManager_.launch("tools.wifiscanner");
   } else if (command == "bg_next") {
     nextTheme();
   } else if (command.startsWith("theme_")) {

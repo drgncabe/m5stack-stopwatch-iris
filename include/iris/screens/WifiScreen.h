@@ -24,11 +24,13 @@ class WifiScreen : public Screen {
     None,
     Toggle,
     Setup,
+    Scanner,
     Back,
   };
 
   void toggleWifi();
   void startSetup();
+  void openScanner();
   void goBack();
   void drawStatus();
   void drawControls(TouchAction highlighted);
