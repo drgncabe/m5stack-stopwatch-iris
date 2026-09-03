@@ -13,22 +13,22 @@ bool initPm1() {
   if (sPm1Initialized) return true;
   const m5pm1_err_t err = sPm1.begin(&M5.In_I2C, M5PM1_DEFAULT_ADDR, M5PM1_I2C_FREQ_100K);
   sPm1Initialized = err == M5PM1_OK;
-  Serial.printf("[StatusLight] M5PM1 NeoPixel init: %s (%d)\n",
+  Serial.printf("[StatusLight] M5PM1 init: %s (%d)\n",
                 sPm1Initialized ? "ok" : "failed", static_cast<int>(err));
   return sPm1Initialized;
 }
 }  // namespace
 
 void StatusLightService::begin(bool enabled) {
-  pm1NeoPixelAvailable_ = M5.getBoard() == m5::board_t::board_M5StopWatch && initPm1();
-  m5UnifiedLedAvailable_ = !pm1NeoPixelAvailable_ && M5.Led.isEnabled();
-  available_ = pm1NeoPixelAvailable_ || m5UnifiedLedAvailable_;
+  pm1GreenLedAvailable_ = M5.getBoard() == m5::board_t::board_M5StopWatch && initPm1();
+  m5UnifiedLedAvailable_ = !pm1GreenLedAvailable_ && M5.Led.isEnabled();
+  available_ = pm1GreenLedAvailable_ || m5UnifiedLedAvailable_;
   enabled_ = enabled;
-  Serial.printf("[StatusLight] PM1 NeoPixel available: %s\n",
-                pm1NeoPixelAvailable_ ? "yes" : "no");
+  Serial.printf("[StatusLight] PM1 green LED available: %s\n",
+                pm1GreenLedAvailable_ ? "yes" : "no");
   Serial.printf("[StatusLight] M5Unified LED fallback available: %s\n",
                 m5UnifiedLedAvailable_ ? "yes" : "no");
-  Serial.println("[StatusLight] StopWatch IO map lists M5PM1 GPIO0 as WAKE/IRQ/NEOPIXEL");
+  Serial.println("[StatusLight] StopWatch USB-C LED is single-color green via M5PM1 LED_EN");
   if (m5UnifiedLedAvailable_) {
     M5.Led.setBrightness(64);
   }
@@ -42,7 +42,7 @@ void StatusLightService::setEnabled(bool enabled) {
 }
 
 const char* StatusLightService::capabilityText() const {
-  if (pm1NeoPixelAvailable_) return "PM1 NeoPixel";
+  if (pm1GreenLedAvailable_) return "PM1 green LED";
   if (m5UnifiedLedAvailable_) return "M5Unified LED";
   return "No user LED";
 }
@@ -72,9 +72,9 @@ void StatusLightService::apply() {
   if (!available_) return;
 
   if (!enabled_) {
-    if (pm1NeoPixelAvailable_) {
-      const m5pm1_err_t err = sPm1.disableLeds();
-      Serial.printf("[StatusLight] PM1 NeoPixel off: %s (%d)\n",
+    if (pm1GreenLedAvailable_) {
+      const m5pm1_err_t err = sPm1.setLedEnLevel(false);
+      Serial.printf("[StatusLight] PM1 green LED off: %s (%d)\n",
                     err == M5PM1_OK ? "ok" : "failed", static_cast<int>(err));
     } else {
       M5.Led.setAllColor(0, 0, 0);
@@ -92,12 +92,12 @@ void StatusLightService::apply() {
     blue = blue_;
   }
 
-  if (pm1NeoPixelAvailable_) {
-    const m5pm1_rgb_t color{red, green, blue};
-    const m5pm1_err_t err = sPm1.setLeds(&color, 1, 1, true);
-    Serial.printf("[StatusLight] PM1 NeoPixel RGB(%u,%u,%u): %s (%d)\n",
-                  red, green, blue, err == M5PM1_OK ? "ok" : "failed",
-                  static_cast<int>(err));
+  if (pm1GreenLedAvailable_) {
+    const bool on = red > 0 || green > 0 || blue > 0;
+    const m5pm1_err_t err = sPm1.setLedEnLevel(on);
+    Serial.printf("[StatusLight] PM1 green LED %s from RGB(%u,%u,%u): %s (%d)\n",
+                  on ? "on" : "off", red, green, blue,
+                  err == M5PM1_OK ? "ok" : "failed", static_cast<int>(err));
     return;
   }
 
