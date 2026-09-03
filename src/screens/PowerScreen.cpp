@@ -12,7 +12,7 @@ constexpr int kRowStartY = 70;
 constexpr int kRowLeft = 42;
 constexpr int kRowWidth = 382;
 constexpr int kRowRectHeight = 27;
-constexpr size_t kItemCount = 10;
+constexpr size_t kItemCount = 11;
 
 constexpr uint8_t kBrightnessValues[] = {48, 96, 160};
 constexpr uint8_t kDimBrightnessValues[] = {8, 18, 32, 48};
@@ -76,6 +76,7 @@ void PowerScreen::activateSelected() {
     case 6: settings_.setLowPowerFace(!settings_.lowPowerFace()); break;
     case 7: settings_.setAutoRotate(!settings_.autoRotate()); break;
     case 8: cycleTouchDelay(); break;
+    case 9: settings_.setIndicatorLightEnabled(!settings_.indicatorLightEnabled()); break;
     default: goBack(); return;
   }
   drawRow(selected_, true);
@@ -134,6 +135,10 @@ void PowerScreen::drawRow(size_t index, bool selected) {
     case 8:
       label = "Touch delay";
       value = touchDelayName();
+      break;
+    case 9:
+      label = "Indicator LED";
+      value = settings_.indicatorLightEnabled() ? "On" : "Off";
       break;
     default:
       label = "Back";

@@ -645,6 +645,7 @@ void WifiService::handleControlPanel() {
     html += F("<p class='hint'>Runtime favors cooler operation, Balanced is the default, and Performance keeps animation-heavy apps at full speed.</p></div>");
     appendToggleControl(html, "Low-power watch face", "low_face_toggle", snapshotOn(snapshot, "Low-power face"));
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
+    appendToggleControl(html, "Indicator LED", "indicator_toggle", snapshotValue(snapshot, "Indicator light") != "Off");
     html += F("</section>");
   } else if (page == "device") {
     html += F("<section><h2>Device</h2><p class='hint'>Hardware, runtime, connectivity, and firmware details for this Iris build.</p>");
