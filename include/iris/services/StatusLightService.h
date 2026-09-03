@@ -20,7 +20,7 @@ class StatusLightService {
 
   bool enabled_ = false;
   bool available_ = false;
-  bool pm1NeoPixelAvailable_ = false;
+  bool pm1GreenLedAvailable_ = false;
   bool m5UnifiedLedAvailable_ = false;
   bool notificationActive_ = false;
   uint8_t red_ = 0;

@@ -188,7 +188,7 @@ void HardwareDiagnosticsScreen::activateSelected(uint32_t nowMs) {
       break;
     case Page::StatusLight:
       if (selected_ == 4) testStatusLightColor(0, 48, 0);
-      if (selected_ == 5) testStatusLightColor(48, 0, 0);
+      if (selected_ == 5) testStatusLightColor(0, 0, 0);
       if (selected_ == 6) clearStatusLight();
       break;
     default:
@@ -359,7 +359,7 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
       return labels[index];
     }
     case Page::StatusLight: {
-      constexpr const char* labels[] = {"", "Driver", "PM1 G0", "Boot use", "Test green", "Test red", "Test off", ""};
+      constexpr const char* labels[] = {"", "Driver", "Color", "Boot use", "Test on", "Test off", "Clear", ""};
       return labels[index];
     }
   }
@@ -504,7 +504,7 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
     case Page::StatusLight:
       switch (index) {
         case 1: return statusLight_.capabilityText();
-        case 2: return "Wake/Neo";
+        case 2: return "Green only";
         case 3: return "Forced off";
         case 4: return statusLight_.available() ? "Run" : "No effect";
         case 5: return statusLight_.available() ? "Run" : "No effect";
