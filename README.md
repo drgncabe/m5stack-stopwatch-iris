@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.3.11`
+Current firmware version: `0.3.12`
 
 Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -414,7 +414,7 @@ The green light near the USB-C connector is documented by M5Stack as part of ent
 
 M5Stack support confirmed the green light next to USB-C is a single-color green LED, not an RGB LED. It is controlled by the M5PM1 power-management chip through the M5PM1 Arduino library.
 
-`StatusLightService` now initializes M5PM1 on StopWatch and controls the LED with `setLedEnLevel()`. Iris still forces the status light off during normal boot and keeps it diagnostic-only for now. Hardware Diagnostics provides on, off, and clear tests and writes serial logs with the selected driver and result code.
+`StatusLightService` now initializes M5PM1 on StopWatch and controls the LED with `setLedEnLevel()`. The indicator LED is controlled by the Power settings page and the web configurator. When enabled, Iris uses it for status behavior: a slow charging pulse while the device is charging, a faster low-battery alert when battery is 15% or lower and not charging, and explicit diagnostic tests from Hardware Diagnostics. The physical StopWatch LED is on/off only, so charging breath is implemented as a gentle pulse instead of a true brightness fade.
 
 ## Project Structure
 

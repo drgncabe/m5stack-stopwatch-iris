@@ -8,6 +8,8 @@ namespace iris {
 namespace {
 M5PM1 sPm1;
 bool sPm1Initialized = false;
+constexpr uint32_t kChargingBreathMs = 1800;
+constexpr uint32_t kLowBatteryBlinkMs = 700;
 
 bool initPm1() {
   if (sPm1Initialized) return true;
@@ -32,13 +34,19 @@ void StatusLightService::begin(bool enabled) {
   if (m5UnifiedLedAvailable_) {
     M5.Led.setBrightness(64);
   }
-  apply();
+  apply(millis());
+}
+
+void StatusLightService::update(uint32_t nowMs, bool charging, bool batteryLow) {
+  charging_ = charging;
+  batteryLow_ = batteryLow;
+  apply(nowMs);
 }
 
 void StatusLightService::setEnabled(bool enabled) {
   enabled_ = enabled;
   Serial.printf("[StatusLight] Logical LED requested: %s\n", enabled_ ? "on" : "off");
-  apply();
+  apply(millis());
 }
 
 const char* StatusLightService::capabilityText() const {
@@ -49,7 +57,11 @@ const char* StatusLightService::capabilityText() const {
 
 const char* StatusLightService::statusText() const {
   if (!available_) return "Unavailable";
-  return enabled_ ? "On" : "Off";
+  if (!enabled_) return "Off";
+  if (notificationActive_) return "On notification";
+  if (batteryLow_) return "On battery low";
+  if (charging_) return "On charging";
+  return "On ready";
 }
 
 void StatusLightService::showNotification(uint8_t red, uint8_t green, uint8_t blue) {
@@ -57,7 +69,7 @@ void StatusLightService::showNotification(uint8_t red, uint8_t green, uint8_t bl
   red_ = red;
   green_ = green;
   blue_ = blue;
-  apply();
+  apply(millis());
 }
 
 void StatusLightService::clearNotification() {
@@ -65,21 +77,14 @@ void StatusLightService::clearNotification() {
   red_ = 0;
   green_ = 40;
   blue_ = 0;
-  apply();
+  apply(millis());
 }
 
-void StatusLightService::apply() {
+void StatusLightService::apply(uint32_t nowMs) {
   if (!available_) return;
 
   if (!enabled_) {
-    if (pm1GreenLedAvailable_) {
-      const m5pm1_err_t err = sPm1.setLedEnLevel(false);
-      Serial.printf("[StatusLight] PM1 green LED off: %s (%d)\n",
-                    err == M5PM1_OK ? "ok" : "failed", static_cast<int>(err));
-    } else {
-      M5.Led.setAllColor(0, 0, 0);
-      M5.Led.display();
-    }
+    setPhysicalColor(0, 0, 0);
     return;
   }
 
@@ -92,17 +97,55 @@ void StatusLightService::apply() {
     blue = blue_;
   }
 
+  if (!notificationActive_ && batteryLow_) {
+    const bool on = ((nowMs / (kLowBatteryBlinkMs / 2)) % 2) == 0;
+    red = on ? 48 : 0;
+    green = on ? 48 : 0;
+    blue = 0;
+  } else if (!notificationActive_ && charging_) {
+    const uint32_t phase = nowMs % kChargingBreathMs;
+    const uint32_t half = kChargingBreathMs / 2;
+    red = 0;
+    if (pm1GreenLedAvailable_) {
+      green = phase < half ? 48 : 0;
+    } else {
+      const uint32_t ramp = phase < half ? phase : kChargingBreathMs - phase;
+      green = static_cast<uint8_t>(8 + ((ramp * 56) / half));
+    }
+    blue = 0;
+  } else if (!notificationActive_) {
+    red = 0;
+    green = 0;
+    blue = 0;
+  }
+
+  setPhysicalColor(red, green, blue);
+}
+
+void StatusLightService::setPhysicalColor(uint8_t red, uint8_t green, uint8_t blue) {
+  if (lastPhysicalValid_ && red == lastPhysicalRed_ && green == lastPhysicalGreen_ &&
+      blue == lastPhysicalBlue_) {
+    return;
+  }
+
   if (pm1GreenLedAvailable_) {
     const bool on = red > 0 || green > 0 || blue > 0;
+    const bool wasOn = lastPhysicalRed_ > 0 || lastPhysicalGreen_ > 0 || lastPhysicalBlue_ > 0;
+    if (lastPhysicalValid_ && on == wasOn) return;
+
     const m5pm1_err_t err = sPm1.setLedEnLevel(on);
     Serial.printf("[StatusLight] PM1 green LED %s from RGB(%u,%u,%u): %s (%d)\n",
                   on ? "on" : "off", red, green, blue,
                   err == M5PM1_OK ? "ok" : "failed", static_cast<int>(err));
-    return;
+  } else {
+    M5.Led.setAllColor(red, green, blue);
+    M5.Led.display();
   }
 
-  M5.Led.setAllColor(red, green, blue);
-  M5.Led.display();
+  lastPhysicalValid_ = true;
+  lastPhysicalRed_ = red;
+  lastPhysicalGreen_ = green;
+  lastPhysicalBlue_ = blue;
 }
 
 }  // namespace iris

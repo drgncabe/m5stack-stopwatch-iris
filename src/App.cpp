@@ -177,7 +177,7 @@ void App::begin() {
   timeService_.setEventBus(&events_);
   bluetooth_.setEventBus(&events_);
   power_.begin();
-  statusLight_.begin(false);
+  statusLight_.begin(settings_.indicatorLightEnabled());
   wifi_.setBadgeService(&badge_);
   wifi_.setBluetoothService(&bluetooth_);
   wifi_.setControlCallbacks(this, App::handleControlCommand, App::buildControlSnapshot);
@@ -366,6 +366,14 @@ void App::update() {
   }
 
   battery_.update(nowMs);
+  {
+    const BatterySnapshot battery = battery_.snapshot();
+    const bool batteryLow = battery.percent >= 0 && battery.percent <= 15 && !battery.charging;
+    if (statusLight_.enabled() != settings_.indicatorLightEnabled()) {
+      statusLight_.setEnabled(settings_.indicatorLightEnabled());
+    }
+    statusLight_.update(nowMs, battery.chargingKnown && battery.charging, batteryLow);
+  }
   bluetooth_.update(nowMs);
   networkScanner_.update(nowMs);
   if (!networkScanner_.scanning()) {
