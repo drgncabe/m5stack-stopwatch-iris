@@ -42,6 +42,8 @@ void SettingsStore::begin() {
   lastNtpSyncEpoch_ = prefs_.getULong("ntp_epoch", 0);
   autoRotate_ = prefs_.getBool("auto_rotate", true);
   indicatorLightEnabled_ = prefs_.getBool("light_on", false);
+  ragnarChannel_ = prefs_.getUChar("rag_ch", 6);
+  if (ragnarChannel_ < 1 || ragnarChannel_ > 14) ragnarChannel_ = 6;
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
   widgetMask_ = prefs_.getUChar("widgets", kDefaultWidgetMask);
   complicationId_ = prefs_.getUChar("comp_id", kComplicationUptime) % kComplicationCount;
@@ -198,6 +200,11 @@ void SettingsStore::setAutoRotate(bool enabled) {
 void SettingsStore::setIndicatorLightEnabled(bool enabled) {
   indicatorLightEnabled_ = enabled;
   prefs_.putBool("light_on", indicatorLightEnabled_);
+}
+
+void SettingsStore::setRagnarChannel(uint8_t channel) {
+  ragnarChannel_ = constrain(channel, 1, 14);
+  prefs_.putUChar("rag_ch", ragnarChannel_);
 }
 
 void SettingsStore::setTouchDelayMs(uint16_t value) {
