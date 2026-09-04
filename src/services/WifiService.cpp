@@ -141,7 +141,7 @@ bool isSettingsPage(const String& page) {
   return page == "settings" || page == "display" || page == "theme" ||
          page == "badge" || page == "datetime" || page == "touch" ||
          page == "sound" || page == "wifi" || page == "bluetooth" ||
-         page == "power";
+         page == "ragnar" || page == "power";
 }
 
 bool isDevelopmentPage(const String& page) {
@@ -370,6 +370,10 @@ void WifiService::configurePortalRoutes() {
     server_.sendHeader("Location", "/settings/bluetooth", true);
     server_.send(302, "text/plain", "");
   });
+  server_.on("/ragnar", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/settings/ragnar", true);
+    server_.send(302, "text/plain", "");
+  });
   server_.on("/settings", HTTP_GET, [this]() {
     server_.sendHeader("Location", "/?page=settings", true);
     server_.send(302, "text/plain", "");
@@ -404,6 +408,10 @@ void WifiService::configurePortalRoutes() {
   });
   server_.on("/settings/bluetooth", HTTP_GET, [this]() {
     server_.sendHeader("Location", "/?page=bluetooth", true);
+    server_.send(302, "text/plain", "");
+  });
+  server_.on("/settings/ragnar", HTTP_GET, [this]() {
+    server_.sendHeader("Location", "/?page=ragnar", true);
     server_.send(302, "text/plain", "");
   });
   server_.on("/settings/power", HTTP_GET, [this]() {
@@ -469,6 +477,8 @@ void WifiService::configurePortalRoutes() {
   server_.on("/api/badge/delete", HTTP_POST, [this]() { handleApiBadgeDelete(); });
   server_.on("/api/bluetooth", HTTP_GET, [this]() { handleApiBluetooth(); });
   server_.on("/api/bluetooth", HTTP_POST, [this]() { handleApiBluetooth(); });
+  server_.on("/api/ragnar", HTTP_GET, [this]() { handleApiRagnar(); });
+  server_.on("/api/ragnar", HTTP_PUT, [this]() { handleApiRagnar(); });
   server_.on("/api/command", HTTP_POST, [this]() { handleApiCommand(); });
   server_.on("/api/wifi/status", HTTP_GET, [this]() { handleApiWifiStatus(); });
   server_.on("/api/wifi/status", HTTP_POST, [this]() { handleApiWifiStatus(); });
@@ -520,6 +530,7 @@ void WifiService::handleControlPanel() {
     appendSettingsCard(html, "/settings/sound", "Sound", "Master volume and quick audio controls");
     appendSettingsCard(html, "/settings/wifi", "WiFi", "Connection status, setup portal, and saved networks");
     appendSettingsCard(html, "/settings/bluetooth", "Bluetooth", "BLE media remote pairing, reconnect, and host controls");
+    appendSettingsCard(html, "/settings/ragnar", "Ragnar Link", "ESP-NOW status receiver and channel");
     appendSettingsCard(html, "/settings/power", "Power", "Sleep behavior, low-power face, and radio policy");
     html += F("</div></section>");
   } else if (page == "display") {
@@ -635,6 +646,36 @@ void WifiService::handleControlPanel() {
     html += F("</section>");
   } else if (page == "bluetooth") {
     appendBluetoothPage(html, snapshot);
+  } else if (page == "ragnar") {
+    html += F("<section><h2>Ragnar Link</h2><p class='hint'>Receive Ragnar Link v1 status broadcasts over ESP-NOW. Iris and the gateway must use the same 2.4 GHz channel.</p>");
+    html += F("<h3>Status</h3><div class='facts'>");
+    html += F("<p><b>Link</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar Link"));
+    html += F("</span></p><p><b>Ragnar</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar state"));
+    html += F("</span></p><p><b>Cameras</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar cameras"));
+    html += F("</span></p><p><b>WiFi / BLE</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar WiFi count"));
+    html += F(" / ");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar BLE count"));
+    html += F("</span></p><p><b>GPS</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar GPS"));
+    html += F("</span></p><p><b>Capture</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar capture"));
+    html += F("</span></p><p><b>Sequence</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar sequence"));
+    html += F("</span></p><p><b>Packets</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar valid packets"));
+    html += F(" valid / ");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar invalid packets"));
+    html += F(" invalid</span></p></div>");
+    appendRangeControl(html, "Ragnar channel", "ragnar_channel_set", snapshotInt(snapshot, "Ragnar channel", 6), 1, 14, 1, "");
+    html += F("<div class='grid'>");
+    appendAction(html, "Open Ragnar Link", "ragnar");
+    appendAction(html, "Channel -", "ragnar_channel_down");
+    appendAction(html, "Channel +", "ragnar_channel_up");
+    html += F("</div><p class='hint'>When Iris is connected to normal WiFi, the router controls the active channel. Configure Ragnar Link to match that router channel.</p><a class='button' href='/api/ragnar'>Ragnar API</a></section>");
   } else if (page == "power") {
     html += F("<section><h2>Power</h2><p class='hint'>Balance responsiveness, heat, and battery life.</p>");
     html += F("<h3>Power</h3>");
@@ -718,9 +759,17 @@ void WifiService::handleControlPanel() {
     html += escapeHtml(snapshotValue(snapshot, "IP"));
     html += F("</span></p><p><b>MAC</b><span>");
     html += escapeHtml(WiFi.macAddress());
+    html += F("</span></p></div><h3>Ragnar Link</h3><div class='facts'><p><b>Status</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar Link"));
+    html += F("</span></p><p><b>State</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar state"));
+    html += F("</span></p><p><b>Channel</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar channel"));
+    html += F("</span></p><p><b>Capture</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar capture"));
     html += F("</span></p></div><h3>Raw snapshot</h3><pre>");
     html += escapeHtml(snapshot);
-    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/apps'>Apps API</a><a class='button' href='/api/badge'>Badge API</a><a class='button' href='/api/bluetooth'>Bluetooth API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
+    html += F("</pre><a class='button' href='/display.txt'>Plain text snapshot</a><a class='button' href='/api/device'>Device API</a><a class='button' href='/api/apps'>Apps API</a><a class='button' href='/api/badge'>Badge API</a><a class='button' href='/api/bluetooth'>Bluetooth API</a><a class='button' href='/api/ragnar'>Ragnar API</a><a class='button' href='/api/settings'>JSON settings API</a><a class='button' href='/api/settings/display'>Display API</a><a class='button' href='/api/settings/time'>Date & Time API</a><a class='button' href='/api/settings/touch'>Touch API</a><a class='button' href='/api/settings/sound'>Sound API</a><a class='button' href='/api/settings/theme'>Theme API</a><a class='button' href='/api/settings/power'>Power API</a><a class='button' href='/api/wifi/status'>WiFi API</a><a class='button' href='/api/wifi/networks'>WiFi networks API</a></section>");
   } else if (page == "apps") {
     html += F("<section><h2>Apps</h2><p class='hint'><a href='/development'>Development</a> / Apps</p><p class='hint'>Registered Iris apps and app-facing screens. Future app settings can use this same web surface.</p>");
     html += F("<h3>Current App</h3><div class='facts'>");
@@ -829,7 +878,7 @@ void WifiService::handleControlCommand() {
 void WifiService::handleApiSettings() {
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
-  json.reserve(760);
+  json.reserve(960);
   json += F("{\"screen\":\"");
   json += escapeJson(snapshotValue(snapshot, "Screen"));
   json += F("\",\"displayPower\":\"");
@@ -890,6 +939,12 @@ void WifiService::handleApiSettings() {
   json += escapeJson(snapshotValue(snapshot, "Indicator light"));
   json += F("\",\"indicatorCapability\":\"");
   json += escapeJson(snapshotValue(snapshot, "Indicator capability"));
+  json += F("\",\"ragnarLink\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Ragnar Link"));
+  json += F("\",\"ragnarChannel\":");
+  json += String(snapshotInt(snapshot, "Ragnar channel", 6));
+  json += F(",\"ragnarState\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Ragnar state"));
   json += F("\"");
   json += F("}");
   server_.send(200, "application/json", json);
@@ -1111,6 +1166,45 @@ void WifiService::handleApiBluetooth() {
   }
 
   server_.send(200, "application/json", bluetooth_->json());
+}
+
+void WifiService::handleApiRagnar() {
+  if (server_.method() == HTTP_PUT) {
+    int channel = 0;
+    if (apiIntArg("channel", &channel)) {
+      dispatchControlCommand(String("ragnar_channel_set:") + channel);
+    }
+  }
+
+  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+  String json;
+  json.reserve(520);
+  json += F("{\"status\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Ragnar Link"));
+  json += F("\",\"state\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Ragnar state"));
+  json += F("\",\"cameraCount\":");
+  json += String(snapshotInt(snapshot, "Ragnar cameras", 0));
+  json += F(",\"wifiCount\":");
+  json += String(snapshotInt(snapshot, "Ragnar WiFi count", 0));
+  json += F(",\"bleCount\":");
+  json += String(snapshotInt(snapshot, "Ragnar BLE count", 0));
+  json += F(",\"gps\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Ragnar GPS"));
+  json += F("\",\"capture\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Ragnar capture"));
+  json += F("\",\"sequence\":");
+  json += String(snapshotInt(snapshot, "Ragnar sequence", 0));
+  json += F(",\"channel\":");
+  json += String(snapshotInt(snapshot, "Ragnar channel", 6));
+  json += F(",\"activeChannel\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Ragnar active channel"));
+  json += F("\",\"validPackets\":");
+  json += String(snapshotInt(snapshot, "Ragnar valid packets", 0));
+  json += F(",\"invalidPackets\":");
+  json += String(snapshotInt(snapshot, "Ragnar invalid packets", 0));
+  json += F("}");
+  server_.send(200, "application/json", json);
 }
 
 void WifiService::handleBadgeAsset() {

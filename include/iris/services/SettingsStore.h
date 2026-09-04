@@ -242,6 +242,9 @@ class SettingsStore {
   bool indicatorLightEnabled() const { return indicatorLightEnabled_; }
   void setIndicatorLightEnabled(bool enabled);
 
+  uint8_t ragnarChannel() const { return ragnarChannel_; }
+  void setRagnarChannel(uint8_t channel);
+
   uint16_t touchDelayMs() const { return touchDelayMs_; }
   void setTouchDelayMs(uint16_t value);
 
@@ -275,6 +278,7 @@ class SettingsStore {
   uint32_t lastNtpSyncEpoch_ = 0;
   bool autoRotate_ = true;
   bool indicatorLightEnabled_ = false;
+  uint8_t ragnarChannel_ = 6;
   uint16_t touchDelayMs_ = 150;
   uint8_t widgetMask_ = kDefaultWidgetMask;
   uint8_t complicationId_ = kComplicationUptime;

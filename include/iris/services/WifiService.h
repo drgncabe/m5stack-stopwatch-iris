@@ -59,6 +59,7 @@ class WifiService {
   void handleApiBadge();
   void handleApiBadgeDelete();
   void handleApiBluetooth();
+  void handleApiRagnar();
   void handleBadgeAsset();
   void handleBadgeUploadDone();
   void handleBadgeUpload();

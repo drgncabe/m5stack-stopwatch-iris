@@ -41,7 +41,7 @@ The UI is designed specifically for a small circular AMOLED screen, not a generi
 
 Iris is early firmware. It builds, runs, and has been tested on a physical M5Stack StopWatch, but APIs, storage keys, menu structure, and hardware behavior may still change.
 
-Current firmware version: `0.3.12`
+Current firmware version: `0.3.13`
 
 Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](docs/v0.2-validation-checklist.md) on the physical StopWatch.
 
@@ -79,6 +79,7 @@ Before closing the v0.2 milestone, run the [v0.2 hardware validation checklist](
 - IMU calibration screen with stored calibration data
 - Fidget screens using touch, haptics, and motion data
 - Status-light diagnostics with safe reporting for the StopWatch USB-C green bootloader light
+- Ragnar Link v1 ESP-NOW receiver with configurable channel, status screen, stale detection, and web/API visibility
 
 ### In Development
 
@@ -137,6 +138,12 @@ Menus use a five-position circular-display layout:
 The center item is largest and brightest. Nearby items are smaller and dimmer, and only up to five items are visible at once. The right-side scroll indicator appears only while scrolling or shortly after scroll activity.
 
 Iris favors true black or very dark backgrounds where practical because the StopWatch uses an AMOLED display.
+
+## Ragnar Link
+
+Iris includes a listen-only Ragnar Link v1 receiver for unencrypted ESP-NOW status broadcasts from the Waveshare ESP32-S3 gateway. The receiver defaults to WiFi channel 6 and can be adjusted from the Ragnar Link screen or the web control panel.
+
+Ragnar Link and Iris must be on the same 2.4 GHz channel. If Iris is connected to a normal WiFi network, that router determines the active channel, so configure the Ragnar Link gateway to match the router channel. Iris marks Ragnar Link as stale/disconnected after 15 seconds without a valid status packet and otherwise keeps normal watch behavior when Ragnar is offline.
 
 ## Architecture
 

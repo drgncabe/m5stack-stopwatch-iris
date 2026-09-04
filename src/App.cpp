@@ -22,6 +22,7 @@ constexpr uint16_t kMenuTouchDelayMs = 300;
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
     {"Stopwatch", ScreenId::Stopwatch},
+    {"Ragnar Link", ScreenId::RagnarLink},
     {"WiFi scanner", ScreenId::WifiScanner},
     {"Badge", ScreenId::Badge},
     {"Media remote", ScreenId::MediaRemote},
@@ -133,6 +134,7 @@ App::App()
       stopwatchLapHistoryScreen_(settings_, stopwatchEngine_),
       stopwatchApp_(stopwatchScreen_),
       wifiScannerScreen_(settings_, networkScanner_),
+      ragnarLinkScreen_(settings_, ragnar_),
       badgeScreen_(settings_, badge_),
       badgeApp_(badge_, power_),
       mediaRemoteScreen_(settings_, bluetooth_),
@@ -186,6 +188,7 @@ void App::begin() {
   orientation_.begin();
   wifi_.begin(settings_.wifiEnabled());
   networkScanner_.begin();
+  ragnar_.begin(settings_.ragnarChannel());
   wifiDemandStartedMs_ = millis();
   timeService_.begin();
 
@@ -210,6 +213,7 @@ void App::registerServices() {
   services_.registerService("power", "Power manager", &power_);
   services_.registerService("wifi", "WiFi", &wifi_, wifi_.isEnabled());
   services_.registerService("network_scan", "Network scanner", &networkScanner_);
+  services_.registerService("ragnar", "Ragnar Link", &ragnar_);
   services_.registerService("time", "Time / RTC", &timeService_);
 }
 
@@ -218,6 +222,7 @@ void App::registerScreens() {
   screenManager_.registerScreen(ScreenId::Stopwatch, &stopwatchScreen_);
   screenManager_.registerScreen(ScreenId::StopwatchLaps, &stopwatchLapHistoryScreen_);
   screenManager_.registerScreen(ScreenId::WifiScanner, &wifiScannerScreen_);
+  screenManager_.registerScreen(ScreenId::RagnarLink, &ragnarLinkScreen_);
   screenManager_.registerScreen(ScreenId::Badge, &badgeScreen_);
   screenManager_.registerScreen(ScreenId::MediaRemote, &mediaRemoteScreen_);
   screenManager_.registerScreen(ScreenId::MainMenu, &mainMenuScreen_);
@@ -248,6 +253,9 @@ void App::registerApps() {
                                         &stopwatchApp_, AppUpdateClass::Realtime));
   appManager_.registerApp(AppDescriptor("tools.wifiscanner", "WiFi scanner",
                                         ScreenId::WifiScanner, AppKind::Tool, true, nullptr,
+                                        AppUpdateClass::Interactive));
+  appManager_.registerApp(AppDescriptor("connectivity.ragnar", "Ragnar Link",
+                                        ScreenId::RagnarLink, AppKind::Connectivity, true, nullptr,
                                         AppUpdateClass::Interactive));
   appManager_.registerApp(AppDescriptor(badgeApp_.id(), badgeApp_.name(), ScreenId::Badge,
                                         AppKind::Tool, true, &badgeApp_,
@@ -379,6 +387,9 @@ void App::update() {
   if (!networkScanner_.scanning()) {
     wifi_.update(nowMs);
   }
+  if (!networkScanner_.scanning()) {
+    ragnar_.update(nowMs, settings_.ragnarChannel(), wifi_.isConnected(), wifi_.isProvisioning());
+  }
   services_.setStarted("wifi", wifi_.isEnabled());
   services_.setStarted("bluetooth", bluetooth_.initialized());
   timeService_.update(nowMs, wifi_.isConnected());
@@ -448,6 +459,8 @@ void App::handleControlCommand(const String& command) {
     appManager_.launch("media.badge");
   } else if (command == "media_remote") {
     appManager_.launch("connectivity.mediaremote");
+  } else if (command == "ragnar") {
+    appManager_.launch("connectivity.ragnar");
   } else if (command == "ble_toggle") {
     bluetooth_.setEnabled(!bluetooth_.enabled());
   } else if (command == "ble_advertise") {
@@ -581,6 +594,16 @@ void App::handleControlCommand(const String& command) {
     wifi_.startProvisioning();
   } else if (command == "wifi_scanner") {
     appManager_.launch("tools.wifiscanner");
+  } else if (command == "ragnar_channel_down") {
+    int next = static_cast<int>(settings_.ragnarChannel()) - 1;
+    if (next < 1) next = 14;
+    settings_.setRagnarChannel(static_cast<uint8_t>(next));
+  } else if (command == "ragnar_channel_up") {
+    int next = static_cast<int>(settings_.ragnarChannel()) + 1;
+    if (next > 14) next = 1;
+    settings_.setRagnarChannel(static_cast<uint8_t>(next));
+  } else if (command.startsWith("ragnar_channel_set:")) {
+    settings_.setRagnarChannel(static_cast<uint8_t>(command.substring(19).toInt()));
   } else if (command == "bg_next") {
     nextTheme();
   } else if (command.startsWith("theme_")) {
@@ -758,6 +781,31 @@ String App::buildControlSnapshot() const {
   snapshot += String(bluetooth_.bondedDeviceCount());
   snapshot += "\nBLE auto reconnect: ";
   snapshot += bluetooth_.autoReconnect() ? "On" : "Off";
+  const RagnarLinkSnapshot ragnar = ragnar_.snapshot();
+  snapshot += "\nRagnar Link: ";
+  snapshot += ragnar_.statusText(millis());
+  snapshot += "\nRagnar state: ";
+  snapshot += RagnarLinkService::ragnarStateName(ragnar.ragnarState);
+  snapshot += "\nRagnar cameras: ";
+  snapshot += String(ragnar.cameraCount);
+  snapshot += "\nRagnar WiFi count: ";
+  snapshot += String(ragnar.wifiCount);
+  snapshot += "\nRagnar BLE count: ";
+  snapshot += String(ragnar.bleCount);
+  snapshot += "\nRagnar GPS: ";
+  snapshot += RagnarLinkService::gpsStateName(ragnar.gpsState);
+  snapshot += "\nRagnar capture: ";
+  snapshot += RagnarLinkService::captureStateName(ragnar.captureState);
+  snapshot += "\nRagnar sequence: ";
+  snapshot += String(ragnar.sequence);
+  snapshot += "\nRagnar channel: ";
+  snapshot += String(ragnar.configuredChannel);
+  snapshot += "\nRagnar active channel: ";
+  snapshot += ragnar.activeChannel == 0 ? String("Unknown") : String(ragnar.activeChannel);
+  snapshot += "\nRagnar valid packets: ";
+  snapshot += String(ragnar.validPackets);
+  snapshot += "\nRagnar invalid packets: ";
+  snapshot += String(ragnar.invalidPackets);
   return snapshot;
 }
 
@@ -907,6 +955,7 @@ const char* App::currentScreenName() const {
     case ScreenId::Stopwatch: return "Stopwatch";
     case ScreenId::StopwatchLaps: return "Stopwatch laps";
     case ScreenId::WifiScanner: return "WiFi scanner";
+    case ScreenId::RagnarLink: return "Ragnar Link";
     case ScreenId::Badge: return "Badge";
     case ScreenId::MediaRemote: return "Media remote";
     case ScreenId::MainMenu: return "Main menu";
