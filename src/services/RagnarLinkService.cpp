@@ -42,19 +42,35 @@ uint8_t normalizedChannel(uint8_t channel) {
 }
 }  // namespace
 
-void RagnarLinkService::begin(uint8_t channel) {
+void RagnarLinkService::begin(uint8_t channel, bool enabled) {
   snapshot_.configuredChannel = normalizedChannel(channel);
+  snapshot_.enabled = enabled;
   sService = this;
+  if (!snapshot_.enabled) return;
   ensureWifi(snapshot_.configuredChannel, WiFi.status() == WL_CONNECTED, false);
   ensureEspNow();
 }
 
 void RagnarLinkService::update(uint32_t nowMs, uint8_t configuredChannel, bool wifiConnected,
-                               bool provisioning) {
+                               bool enabled, bool provisioning) {
   snapshot_.configuredChannel = normalizedChannel(configuredChannel);
+  setEnabled(enabled);
   snapshot_.stale = stale(nowMs);
+  if (!snapshot_.enabled) return;
   ensureWifi(snapshot_.configuredChannel, wifiConnected, provisioning);
   ensureEspNow();
+}
+
+void RagnarLinkService::setEnabled(bool enabled) {
+  if (snapshot_.enabled == enabled) return;
+  snapshot_.enabled = enabled;
+  if (!snapshot_.enabled) {
+    stopEspNow();
+    snapshot_.initialized = false;
+    snapshot_.packetSeen = false;
+    snapshot_.stale = true;
+    snapshot_.activeChannel = 0;
+  }
 }
 
 RagnarLinkSnapshot RagnarLinkService::snapshot() const {
@@ -69,6 +85,7 @@ bool RagnarLinkService::stale(uint32_t nowMs) const {
 }
 
 const char* RagnarLinkService::statusText(uint32_t nowMs) const {
+  if (!snapshot_.enabled) return "Disabled";
   if (!snapshot_.initialized) return "Unavailable";
   if (!snapshot_.packetSeen) return "Disconnected";
   if (stale(nowMs)) return "Stale";
@@ -175,6 +192,14 @@ bool RagnarLinkService::ensureEspNow() {
   snapshot_.initialized = false;
   Serial.printf("[Ragnar] ESP-NOW init failed: %d\n", static_cast<int>(result));
   return false;
+}
+
+void RagnarLinkService::stopEspNow() {
+  if (!espNowReady_) return;
+  esp_now_unregister_recv_cb();
+  esp_now_deinit();
+  espNowReady_ = false;
+  Serial.println("[Ragnar] ESP-NOW receiver stopped");
 }
 
 void RagnarLinkService::noteInvalid() {

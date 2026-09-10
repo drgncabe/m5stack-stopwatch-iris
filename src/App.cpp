@@ -18,6 +18,8 @@ constexpr uint16_t kMaxSleepSeconds = 600;
 constexpr uint16_t kMinTouchDelayMs = 50;
 constexpr uint16_t kMaxTouchDelayMs = 500;
 constexpr uint16_t kMenuTouchDelayMs = 300;
+constexpr uint32_t kSleepServiceCadenceMs = 1000;
+constexpr uint32_t kSleepSensorCadenceMs = 5000;
 
 constexpr MenuItem kMainMenuItems[] = {
     {"Watch", ScreenId::Watch},
@@ -188,7 +190,7 @@ void App::begin() {
   orientation_.begin();
   wifi_.begin(settings_.wifiEnabled());
   networkScanner_.begin();
-  ragnar_.begin(settings_.ragnarChannel());
+  ragnar_.begin(settings_.ragnarChannel(), settings_.ragnarEnabled());
   wifiDemandStartedMs_ = millis();
   timeService_.begin();
 
@@ -373,8 +375,16 @@ void App::update() {
     touchMoved_ = false;
   }
 
-  battery_.update(nowMs);
-  {
+  const bool sleeping = power_.state() == DisplayPowerState::Sleeping;
+  const bool runSleepServices =
+      !sleeping || shouldRunSleepCadence(nowMs, &lastSleepServiceUpdateMs_, kSleepServiceCadenceMs);
+  const bool runSleepSensors =
+      !sleeping || shouldRunSleepCadence(nowMs, &lastSleepSensorUpdateMs_, kSleepSensorCadenceMs);
+
+  if (runSleepSensors) {
+    battery_.update(nowMs);
+  }
+  if (runSleepSensors) {
     const BatterySnapshot battery = battery_.snapshot();
     const bool batteryLow = battery.percent >= 0 && battery.percent <= 15 && !battery.charging;
     if (statusLight_.enabled() != settings_.indicatorLightEnabled()) {
@@ -382,20 +392,28 @@ void App::update() {
     }
     statusLight_.update(nowMs, battery.chargingKnown && battery.charging, batteryLow);
   }
-  bluetooth_.update(nowMs);
-  networkScanner_.update(nowMs);
-  if (!networkScanner_.scanning()) {
+  if (runSleepServices) {
+    bluetooth_.update(nowMs);
+  }
+  if (!sleeping) {
+    networkScanner_.update(nowMs);
+  }
+  if (runSleepServices && !networkScanner_.scanning()) {
     wifi_.update(nowMs);
   }
-  if (!networkScanner_.scanning()) {
-    ragnar_.update(nowMs, settings_.ragnarChannel(), wifi_.isConnected(), wifi_.isProvisioning());
+  if (runSleepServices && !networkScanner_.scanning()) {
+    ragnar_.update(nowMs, settings_.ragnarChannel(), settings_.ragnarEnabled(),
+                   wifi_.isConnected(), wifi_.isProvisioning());
   }
   services_.setStarted("wifi", wifi_.isEnabled());
   services_.setStarted("bluetooth", bluetooth_.initialized());
-  timeService_.update(nowMs, wifi_.isConnected());
-  updateWifiPower(nowMs);
-  services_.update(nowMs);
-  updateSystemEvents(previousWifiConnected, previousRotation);
+  services_.setStarted("ragnar", settings_.ragnarEnabled());
+  if (runSleepServices) {
+    timeService_.update(nowMs, wifi_.isConnected());
+    updateWifiPower(nowMs);
+    services_.update(nowMs);
+    updateSystemEvents(previousWifiConnected, previousRotation);
+  }
 
   const AppDescriptor* currentApp = appManager_.current();
   if (shouldUpdateForeground(nowMs, currentApp)) {
@@ -604,6 +622,10 @@ void App::handleControlCommand(const String& command) {
     settings_.setRagnarChannel(static_cast<uint8_t>(next));
   } else if (command.startsWith("ragnar_channel_set:")) {
     settings_.setRagnarChannel(static_cast<uint8_t>(command.substring(19).toInt()));
+  } else if (command == "ragnar_toggle") {
+    settings_.setRagnarEnabled(!settings_.ragnarEnabled());
+    ragnar_.setEnabled(settings_.ragnarEnabled());
+    services_.setStarted("ragnar", settings_.ragnarEnabled());
   } else if (command == "bg_next") {
     nextTheme();
   } else if (command.startsWith("theme_")) {
@@ -784,6 +806,8 @@ String App::buildControlSnapshot() const {
   const RagnarLinkSnapshot ragnar = ragnar_.snapshot();
   snapshot += "\nRagnar Link: ";
   snapshot += ragnar_.statusText(millis());
+  snapshot += "\nRagnar enabled: ";
+  snapshot += settings_.ragnarEnabled() ? "On" : "Off";
   snapshot += "\nRagnar state: ";
   snapshot += RagnarLinkService::ragnarStateName(ragnar.ragnarState);
   snapshot += "\nRagnar cameras: ";
@@ -944,6 +968,15 @@ bool App::shouldUpdateForeground(uint32_t nowMs, const AppDescriptor* app) {
   if (intervalMs == 0 || lastForegroundUpdateMs_ == 0 ||
       nowMs - lastForegroundUpdateMs_ >= intervalMs) {
     lastForegroundUpdateMs_ = nowMs;
+    return true;
+  }
+  return false;
+}
+
+bool App::shouldRunSleepCadence(uint32_t nowMs, uint32_t* lastRunMs, uint32_t intervalMs) {
+  if (!lastRunMs) return true;
+  if (*lastRunMs == 0 || nowMs - *lastRunMs >= intervalMs) {
+    *lastRunMs = nowMs;
     return true;
   }
   return false;

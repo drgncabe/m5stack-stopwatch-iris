@@ -25,6 +25,7 @@ enum class RagnarCaptureState : uint8_t {
 };
 
 struct RagnarLinkSnapshot {
+  bool enabled = false;
   bool initialized = false;
   bool packetSeen = false;
   bool stale = true;
@@ -46,8 +47,10 @@ struct RagnarLinkSnapshot {
 
 class RagnarLinkService {
  public:
-  void begin(uint8_t channel);
-  void update(uint32_t nowMs, uint8_t configuredChannel, bool wifiConnected, bool provisioning);
+  void begin(uint8_t channel, bool enabled);
+  void update(uint32_t nowMs, uint8_t configuredChannel, bool enabled,
+              bool wifiConnected, bool provisioning);
+  void setEnabled(bool enabled);
 
   RagnarLinkSnapshot snapshot() const;
   bool stale(uint32_t nowMs) const;
@@ -64,6 +67,7 @@ class RagnarLinkService {
   bool parseStatusPacket(const uint8_t* data, int len, RagnarLinkSnapshot* out) const;
   bool ensureWifi(uint8_t channel, bool wifiConnected, bool provisioning);
   bool ensureEspNow();
+  void stopEspNow();
   void noteInvalid();
 
   RagnarLinkSnapshot snapshot_;

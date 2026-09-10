@@ -5,33 +5,17 @@
 
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
+#include "iris/screens/SettingsListRenderer.h"
 
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 32;
-constexpr int kRowStartY = 70;
-constexpr int kRowLeft = 42;
-constexpr int kRowWidth = 382;
-constexpr int kRowRectHeight = 27;
 constexpr size_t kSettingsItemCount = 9;
 constexpr size_t kManualItemCount = 8;
 constexpr size_t kRtcInfoItemCount = 10;
 constexpr uint32_t kRefreshMs = 1000;
 
-String fitTextToWidth(const String& text, int maxWidth) {
-  if (maxWidth <= 0 || M5.Display.textWidth(text) <= maxWidth) return text;
-
-  String fitted(text);
-  const String ellipsis("...");
-  while (fitted.length() > 0 &&
-         M5.Display.textWidth(fitted + ellipsis) > maxWidth) {
-    fitted.remove(fitted.length() - 1);
-  }
-
-  if (fitted.length() == 0) return ellipsis;
-  return fitted + ellipsis;
-}
+constexpr SettingsListLayout kListLayout = SettingsListRenderer::defaultLayout();
 }  // namespace
 
 void DateTimeScreen::enter() {
@@ -61,13 +45,10 @@ void DateTimeScreen::update(uint32_t nowMs) {
 void DateTimeScreen::draw() {
   const Theme theme = currentTheme(settings_);
   M5.Display.fillScreen(theme.background);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(theme.foreground, theme.background);
-  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   const char* title = "Date & Time";
   if (page_ == Page::Manual) title = "Manual time";
   if (page_ == Page::RtcInfo) title = "RTC info";
-  M5.Display.drawString(title, M5.Display.width() / 2, 50);
+  SettingsListRenderer::drawTitle(theme, title);
 
   for (size_t i = 0; i < itemCount(); ++i) {
     drawRow(i, i == selected_);
@@ -186,43 +167,19 @@ void DateTimeScreen::selectRow(size_t index) {
 
 void DateTimeScreen::drawRow(size_t index, bool selected) {
   if (index >= itemCount()) return;
-  const Theme theme = currentTheme(settings_);
-  const int y = kRowStartY + static_cast<int>(index) * kRowHeight;
-  const uint16_t fill = selected ? theme.selected : theme.background;
-  const uint16_t border = selected ? theme.foreground : theme.panel;
   const String label(rowLabel(index));
   const String value = rowValue(index);
-
-  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, fill);
-  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, border);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextDatum(middle_left);
-  M5.Display.setTextColor(theme.foreground, fill);
-  M5.Display.drawString(fitTextToWidth(label, 178), kRowLeft + 16, y + (kRowRectHeight / 2));
-  M5.Display.setTextDatum(middle_right);
-  M5.Display.setTextColor(theme.muted, fill);
-  M5.Display.drawString(fitTextToWidth(value, 184), kRowLeft + kRowWidth - 16,
-                        y + (kRowRectHeight / 2));
+  SettingsListRenderer::drawRow(currentTheme(settings_), kListLayout, index, label, value, selected);
 }
 
 void DateTimeScreen::drawFooter() {
   const Theme theme = currentTheme(settings_);
-  M5.Display.fillRect(18, 416, 430, 40, theme.background);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(theme.muted, theme.background);
   const String status = status_.length() > 0 ? status_ : String(timeZoneIanaName(settings_.timeZone()));
-  M5.Display.drawString(fitTextToWidth(status, 360), M5.Display.width() / 2, 428);
-  M5.Display.drawString("A: Next     B: Change", M5.Display.width() / 2, 448);
+  SettingsListRenderer::drawFooter(theme, status, "A: Next     B: Change");
 }
 
 int DateTimeScreen::rowAt(int32_t x, int32_t y) const {
-  if (x < kRowLeft || x > kRowLeft + kRowWidth) return -1;
-  for (size_t i = 0; i < itemCount(); ++i) {
-    const int rowY = kRowStartY + static_cast<int>(i) * kRowHeight;
-    if (y >= rowY - 3 && y <= rowY + kRowRectHeight + 3) return static_cast<int>(i);
-  }
-  return -1;
+  return SettingsListRenderer::rowAt(kListLayout, itemCount(), x, y);
 }
 
 size_t DateTimeScreen::itemCount() const {

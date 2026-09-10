@@ -47,13 +47,13 @@ int circularSafeWidthAtY(int y, int margin) {
   return max(0, static_cast<int>(halfWidth * 2.0f) - (margin * 2));
 }
 
-String fitTextToWidth(const char* text, int maxWidth) {
+String fitTextToWidth(M5Canvas& target, const char* text, int maxWidth) {
   String fitted(text);
-  if (maxWidth <= 0 || M5.Display.textWidth(fitted) <= maxWidth) return fitted;
+  if (maxWidth <= 0 || target.textWidth(fitted) <= maxWidth) return fitted;
 
   const String ellipsis("...");
   while (fitted.length() > 0 &&
-         M5.Display.textWidth(fitted + ellipsis) > maxWidth) {
+         target.textWidth(fitted + ellipsis) > maxWidth) {
     fitted.remove(fitted.length() - 1);
   }
 
@@ -68,6 +68,7 @@ MenuScreen::MenuScreen(const char* title, const MenuItem* items, size_t itemCoun
       items_(items),
       itemCount_(itemCount),
       settings_(settings),
+      canvas_(&M5.Display),
       wrapEnabled_(wrapEnabled) {}
 
 void MenuScreen::enter() {
@@ -79,6 +80,13 @@ void MenuScreen::enter() {
   scrollIndicatorDrawn_ = false;
   lastScrollActivityMs_ = 0;
   stopSelectionHaptic();
+  if (!canvas_.getBuffer()) {
+    canvas_.setPsram(true);
+    canvas_.setColorDepth(16);
+    canvasReady_ = canvas_.createSprite(M5.Display.width(), M5.Display.height()) != nullptr;
+  } else {
+    canvasReady_ = true;
+  }
 }
 
 void MenuScreen::update(uint32_t nowMs) {
@@ -92,12 +100,13 @@ void MenuScreen::update(uint32_t nowMs) {
 
 void MenuScreen::draw() {
   const Theme theme = currentTheme(settings_);
-  M5.Display.fillScreen(theme.background);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(theme.foreground, theme.background);
-  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
-  M5.Display.drawString(fitTextToWidth(title_, circularSafeWidthAtY(kTitleY, 26)),
-                        M5.Display.width() / 2, kTitleY);
+  if (!canvasReady_) return;
+  canvas_.fillScreen(theme.background);
+  canvas_.setTextDatum(middle_center);
+  canvas_.setTextColor(theme.foreground, theme.background);
+  canvas_.setFont(&fonts::FreeSansBold18pt7b);
+  canvas_.drawString(fitTextToWidth(canvas_, title_, circularSafeWidthAtY(kTitleY, 26)),
+                     M5.Display.width() / 2, kTitleY);
 
   for (int relative = -kVisiblePaddingRows; relative <= kVisiblePaddingRows; ++relative) {
     const int row = static_cast<int>(selected_) + relative;
@@ -106,11 +115,12 @@ void MenuScreen::draw() {
   }
   drawScrollBar(millis());
 
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString(fitTextToWidth("A: Next   B: Select",
-                                       circularSafeWidthAtY(kFooterY, 26)),
-                        M5.Display.width() / 2, kFooterY);
+  canvas_.setFont(&fonts::FreeSans9pt7b);
+  canvas_.setTextColor(theme.muted, theme.background);
+  canvas_.drawString(fitTextToWidth(canvas_, "A: Next   B: Select",
+                                    circularSafeWidthAtY(kFooterY, 26)),
+                     M5.Display.width() / 2, kFooterY);
+  canvas_.pushSprite(0, 0);
 }
 
 void MenuScreen::previewTouch(int32_t x, int32_t y) {
@@ -216,19 +226,19 @@ void MenuScreen::drawRow(size_t index, int relativePosition) {
   const uint16_t text = blend565(theme.foreground, theme.background, brightness);
 
   if (selected) {
-    M5.Display.fillRoundRect(rowX, y - (rowHeight / 2), rowW, rowHeight, 20, theme.selected);
-    M5.Display.drawRoundRect(rowX, y - (rowHeight / 2), rowW, rowHeight, 20, theme.accent);
+    canvas_.fillRoundRect(rowX, y - (rowHeight / 2), rowW, rowHeight, 20, theme.selected);
+    canvas_.drawRoundRect(rowX, y - (rowHeight / 2), rowW, rowHeight, 20, theme.accent);
   }
-  M5.Display.setTextDatum(middle_center);
+  canvas_.setTextDatum(middle_center);
   if (selected) {
-    M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+    canvas_.setFont(&fonts::FreeSansBold12pt7b);
   } else if (distance == 1) {
-    M5.Display.setFont(&fonts::FreeSans12pt7b);
+    canvas_.setFont(&fonts::FreeSans12pt7b);
   } else {
-    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    canvas_.setFont(&fonts::FreeSans9pt7b);
   }
-  M5.Display.setTextColor(text, selected ? theme.selected : theme.background);
-  M5.Display.drawString(fitTextToWidth(items_[index].label, textMaxWidth), displayCenterX, y);
+  canvas_.setTextColor(text, selected ? theme.selected : theme.background);
+  canvas_.drawString(fitTextToWidth(canvas_, items_[index].label, textMaxWidth), displayCenterX, y);
 }
 
 void MenuScreen::drawScrollBar(uint32_t nowMs) {
@@ -248,8 +258,8 @@ void MenuScreen::drawScrollBar(uint32_t nowMs) {
   const int thumbY = trackY + (travel * static_cast<int>(selected_)) /
                                   static_cast<int>(itemCount_ - 1);
   scrollIndicatorDrawn_ = true;
-  M5.Display.fillRoundRect(trackX, trackY, trackW, trackH, 3, theme.panel);
-  M5.Display.fillRoundRect(trackX - 1, thumbY, trackW + 2, thumbH, 4, theme.accent);
+  canvas_.fillRoundRect(trackX, trackY, trackW, trackH, 3, theme.panel);
+  canvas_.fillRoundRect(trackX - 1, thumbY, trackW + 2, thumbH, 4, theme.accent);
 }
 
 void MenuScreen::startSelectionHaptic() {

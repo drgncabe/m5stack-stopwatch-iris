@@ -3,16 +3,13 @@
 #include <M5Unified.h>
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
+#include "iris/screens/SettingsListRenderer.h"
 
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 32;
-constexpr int kRowStartY = 70;
-constexpr int kRowLeft = 42;
-constexpr int kRowWidth = 382;
-constexpr int kRowRectHeight = 27;
 constexpr size_t kItemCount = 11;
+constexpr SettingsListLayout kListLayout = SettingsListRenderer::defaultLayout();
 
 constexpr uint8_t kBrightnessValues[] = {48, 96, 160};
 constexpr uint8_t kDimBrightnessValues[] = {8, 18, 32, 48};
@@ -30,18 +27,13 @@ void PowerScreen::update(uint32_t) {}
 void PowerScreen::draw() {
   const Theme theme = currentTheme(settings_);
   M5.Display.fillScreen(theme.background);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(theme.foreground, theme.background);
-  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
-  M5.Display.drawString("Power", M5.Display.width() / 2, 50);
+  SettingsListRenderer::drawTitle(theme, "Power");
 
   for (size_t i = 0; i < kItemCount; ++i) {
     drawRow(i, i == selected_);
   }
 
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString("A: Next     B: Change", M5.Display.width() / 2, 438);
+  SettingsListRenderer::drawFooter(theme, "", "A: Next     B: Change", 428, 438);
 }
 
 void PowerScreen::previewTouch(int32_t x, int32_t y) {
@@ -92,11 +84,6 @@ void PowerScreen::selectRow(size_t index) {
 
 void PowerScreen::drawRow(size_t index, bool selected) {
   if (index >= kItemCount) return;
-  const Theme theme = currentTheme(settings_);
-  const int y = kRowStartY + static_cast<int>(index) * kRowHeight;
-  const uint16_t fill = selected ? theme.selected : theme.background;
-  const uint16_t border = selected ? theme.foreground : theme.panel;
-
   const char* label = "";
   String value;
   switch (index) {
@@ -146,24 +133,11 @@ void PowerScreen::drawRow(size_t index, bool selected) {
       break;
   }
 
-  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, fill);
-  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, border);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(theme.foreground, fill);
-  M5.Display.setTextDatum(middle_left);
-  M5.Display.drawString(label, kRowLeft + 18, y + (kRowRectHeight / 2));
-  M5.Display.setTextDatum(middle_right);
-  M5.Display.setTextColor(theme.muted, fill);
-  M5.Display.drawString(value, kRowLeft + kRowWidth - 18, y + (kRowRectHeight / 2));
+  SettingsListRenderer::drawRow(currentTheme(settings_), kListLayout, index, label, value, selected);
 }
 
 int PowerScreen::rowAt(int32_t x, int32_t y) const {
-  if (x < kRowLeft || x > kRowLeft + kRowWidth) return -1;
-  for (size_t i = 0; i < kItemCount; ++i) {
-    const int rowY = kRowStartY + static_cast<int>(i) * kRowHeight;
-    if (y >= rowY - 3 && y <= rowY + kRowRectHeight + 3) return static_cast<int>(i);
-  }
-  return -1;
+  return SettingsListRenderer::rowAt(kListLayout, kItemCount, x, y);
 }
 
 void PowerScreen::cycleBrightness() {

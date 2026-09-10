@@ -649,6 +649,9 @@ void WifiService::handleControlPanel() {
   } else if (page == "ragnar") {
     html += F("<section><h2>Ragnar Link</h2><p class='hint'>Receive Ragnar Link v1 status broadcasts over ESP-NOW. Iris and the gateway must use the same 2.4 GHz channel.</p>");
     html += F("<h3>Status</h3><div class='facts'>");
+    html += F("<p><b>Radio</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Ragnar enabled"));
+    html += F("</span></p>");
     html += F("<p><b>Link</b><span>");
     html += escapeHtml(snapshotValue(snapshot, "Ragnar Link"));
     html += F("</span></p><p><b>Ragnar</b><span>");
@@ -670,6 +673,8 @@ void WifiService::handleControlPanel() {
     html += F(" valid / ");
     html += escapeHtml(snapshotValue(snapshot, "Ragnar invalid packets"));
     html += F(" invalid</span></p></div>");
+    appendToggleControl(html, "Ragnar Link radio", "ragnar_toggle",
+                        snapshotOn(snapshot, "Ragnar enabled"));
     appendRangeControl(html, "Ragnar channel", "ragnar_channel_set", snapshotInt(snapshot, "Ragnar channel", 6), 1, 14, 1, "");
     html += F("<div class='grid'>");
     appendAction(html, "Open Ragnar Link", "ragnar");
@@ -1171,6 +1176,11 @@ void WifiService::handleApiBluetooth() {
 void WifiService::handleApiRagnar() {
   if (server_.method() == HTTP_PUT) {
     int channel = 0;
+    bool enabled = false;
+    const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+    if (apiBoolArg("enabled", &enabled) && enabled != snapshotOn(snapshot, "Ragnar enabled")) {
+      dispatchControlCommand("ragnar_toggle");
+    }
     if (apiIntArg("channel", &channel)) {
       dispatchControlCommand(String("ragnar_channel_set:") + channel);
     }
@@ -1179,7 +1189,9 @@ void WifiService::handleApiRagnar() {
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
   json.reserve(520);
-  json += F("{\"status\":\"");
+  json += F("{\"enabled\":");
+  json += snapshotOn(snapshot, "Ragnar enabled") ? F("true") : F("false");
+  json += F(",\"status\":\"");
   json += escapeJson(snapshotValue(snapshot, "Ragnar Link"));
   json += F("\",\"state\":\"");
   json += escapeJson(snapshotValue(snapshot, "Ragnar state"));
@@ -1562,20 +1574,20 @@ void WifiService::handleApiCommand() {
 void WifiService::handleApiWifiStatus() {
   if (server_.method() == HTTP_POST) {
     bool boolValue = false;
-    const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
     if (apiBoolArg("enabled", &boolValue) && boolValue != isEnabled()) {
       dispatchControlCommand("wifi_toggle");
     }
-    if (apiBoolArg("onDemand", &boolValue) &&
-        boolValue != snapshotOn(snapshot, "WiFi on demand")) {
-      dispatchControlCommand("wifi_demand_toggle");
+    if (apiBoolArg("onDemand", &boolValue)) {
+      const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
+      if (boolValue != snapshotOn(snapshot, "WiFi on demand")) {
+        dispatchControlCommand("wifi_demand_toggle");
+      }
     }
     if (apiBoolArg("setup", &boolValue) && boolValue) {
       dispatchControlCommand("wifi_setup");
     }
   }
 
-  const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
   json.reserve(320);
   json += F("{\"enabled\":");
@@ -1587,13 +1599,13 @@ void WifiService::handleApiWifiStatus() {
   json += F(",\"hasSavedNetwork\":");
   json += hasSavedNetwork() ? F("true") : F("false");
   json += F(",\"status\":\"");
-  json += escapeJson(snapshotValue(snapshot, "WiFi"));
+  json += escapeJson(statusText());
   json += F("\",\"ssid\":\"");
-  json += escapeJson(snapshotValue(snapshot, "SSID"));
+  json += escapeJson(ssid());
   json += F("\",\"savedSsid\":\"");
   json += escapeJson(savedSsid_);
   json += F("\",\"ip\":\"");
-  json += escapeJson(snapshotValue(snapshot, "IP"));
+  json += escapeJson(ipAddress());
   json += F("\"}");
   server_.send(200, "application/json", json);
 }

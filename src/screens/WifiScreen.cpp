@@ -3,6 +3,7 @@
 #include <M5Unified.h>
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
+#include "iris/screens/SettingsListRenderer.h"
 
 namespace iris {
 
@@ -149,14 +150,7 @@ void WifiScreen::drawControls(TouchAction highlighted) {
 
 void WifiScreen::drawButton(int x, int y, int w, int h, const char* label, bool highlighted) {
   const Theme theme = currentTheme(settings_);
-  const uint16_t fill = highlighted ? theme.selected : theme.button;
-  const uint16_t border = highlighted ? theme.foreground : theme.panel;
-  M5.Display.fillRoundRect(x, y, w, h, 16, fill);
-  M5.Display.drawRoundRect(x, y, w, h, 16, border);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextColor(theme.foreground, fill);
-  M5.Display.drawString(label, x + (w / 2), y + (h / 2));
+  SettingsListRenderer::drawButton(theme, x, y, w, h, label, highlighted);
 }
 
 WifiScreen::TouchAction WifiScreen::actionAt(int32_t x, int32_t y) const {

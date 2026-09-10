@@ -11,8 +11,10 @@ constexpr int kBackX = 52;
 constexpr int kBackY = 388;
 constexpr int kBackW = 126;
 constexpr int kBackH = 46;
-constexpr int kDownX = 196;
-constexpr int kUpX = 306;
+constexpr int kToggleX = 184;
+constexpr int kToggleW = 100;
+constexpr int kDownX = 296;
+constexpr int kUpX = 376;
 constexpr int kChannelY = 388;
 constexpr int kChannelW = 76;
 constexpr int kChannelH = 46;
@@ -66,7 +68,8 @@ void RagnarLinkScreen::draw() {
   canvas_.drawString("Ragnar Link", kCenter, 48);
 
   canvas_.setFont(&fonts::FreeSans12pt7b);
-  canvas_.setTextColor(snapshot.stale ? theme.muted : theme.accent, theme.background);
+  canvas_.setTextColor(!snapshot.enabled || snapshot.stale ? theme.muted : theme.accent,
+                       theme.background);
   canvas_.drawString(ragnar_.statusText(millis()), kCenter, 88);
 
   const int panelX = 58;
@@ -90,7 +93,8 @@ void RagnarLinkScreen::draw() {
   canvas_.setFont(&fonts::FreeSans9pt7b);
   canvas_.setTextColor(theme.muted, theme.panel);
   String footer = String("Seq ") + snapshot.sequence + "  Up " + formatUptime(snapshot.uptimeSeconds);
-  if (!snapshot.packetSeen) footer = "Waiting for Ragnar broadcast";
+  if (!snapshot.enabled) footer = "Ragnar Link radio is off";
+  else if (!snapshot.packetSeen) footer = "Waiting for Ragnar broadcast";
   canvas_.drawString(footer, kCenter, panelY + panelH - 18);
 
   canvas_.setTextColor(theme.muted, theme.background);
@@ -99,6 +103,8 @@ void RagnarLinkScreen::draw() {
                      kCenter, 366);
 
   drawButton(kBackX, kBackY, kBackW, kBackH, "Back", highlightedAction_ == TouchAction::Back);
+  drawButton(kToggleX, kBackY, kToggleW, kBackH, settings_.ragnarEnabled() ? "Disable" : "Enable",
+             highlightedAction_ == TouchAction::Toggle);
   drawButton(kDownX, kChannelY, kChannelW, kChannelH, "CH-", highlightedAction_ == TouchAction::ChannelDown);
   drawButton(kUpX, kChannelY, kChannelW, kChannelH, "CH+", highlightedAction_ == TouchAction::ChannelUp);
 
@@ -118,6 +124,10 @@ void RagnarLinkScreen::handleTouch(int32_t x, int32_t y) {
   highlightedAction_ = TouchAction::None;
   if (action == TouchAction::Back) {
     if (manager_) manager_->show(ScreenId::MainMenu);
+    return;
+  }
+  if (action == TouchAction::Toggle) {
+    toggleEnabled();
     return;
   }
   if (action == TouchAction::ChannelDown) {
@@ -163,6 +173,15 @@ void RagnarLinkScreen::drawMetric(int x, int y, const char* label, const String&
   canvas_.drawString(value, 376, y);
 }
 
+void RagnarLinkScreen::toggleEnabled() {
+  settings_.setRagnarEnabled(!settings_.ragnarEnabled());
+  ragnar_.setEnabled(settings_.ragnarEnabled());
+  M5.Power.setVibration(50);
+  delay(8);
+  M5.Power.setVibration(0);
+  draw();
+}
+
 void RagnarLinkScreen::changeChannel(int delta) {
   int next = static_cast<int>(settings_.ragnarChannel()) + delta;
   if (next < 1) next = 14;
@@ -178,6 +197,10 @@ RagnarLinkScreen::TouchAction RagnarLinkScreen::actionAt(int32_t x, int32_t y) c
   if (x >= kBackX - kHitPad && x <= kBackX + kBackW + kHitPad &&
       y >= kBackY - kHitPad && y <= kBackY + kBackH + kHitPad) {
     return TouchAction::Back;
+  }
+  if (x >= kToggleX - kHitPad && x <= kToggleX + kToggleW + kHitPad &&
+      y >= kBackY - kHitPad && y <= kBackY + kBackH + kHitPad) {
+    return TouchAction::Toggle;
   }
   if (x >= kDownX - kHitPad && x <= kDownX + kChannelW + kHitPad &&
       y >= kChannelY - kHitPad && y <= kChannelY + kChannelH + kHitPad) {
@@ -195,6 +218,8 @@ String RagnarLinkScreen::stateSnapshot() const {
   String text;
   text.reserve(160);
   text += static_cast<int>(snapshot.initialized);
+  text += '|';
+  text += static_cast<int>(snapshot.enabled);
   text += '|';
   text += static_cast<int>(snapshot.stale);
   text += '|';
