@@ -488,6 +488,8 @@ void App::handleControlCommand(const String& command) {
     bluetooth_.stopAdvertising();
   } else if (command == "ble_disconnect") {
     bluetooth_.disconnect();
+  } else if (command == "ble_forget_bonds") {
+    bluetooth_.forgetBondedDevices();
   } else if (command == "ble_autoreconnect_toggle") {
     bluetooth_.setAutoReconnect(!bluetooth_.autoReconnect());
   } else if (command == "media_play_pause") {

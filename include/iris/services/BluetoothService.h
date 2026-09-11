@@ -49,6 +49,7 @@ class BluetoothService {
   bool startAdvertising();
   void stopAdvertising();
   void disconnect();
+  bool forgetBondedDevices();
   bool sendMediaCommand(BleMediaCommand command);
 
  private:

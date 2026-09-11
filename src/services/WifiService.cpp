@@ -1152,6 +1152,8 @@ void WifiService::handleApiBluetooth() {
         dispatchControlCommand("ble_stop_advertise");
       } else if (action == "disconnect") {
         dispatchControlCommand("ble_disconnect");
+      } else if (action == "forgetBonds") {
+        dispatchControlCommand("ble_forget_bonds");
       } else if (action == "autoReconnect") {
         dispatchControlCommand("ble_autoreconnect_toggle");
       } else if (action == "playPause") {
@@ -1977,8 +1979,9 @@ void WifiService::appendBluetoothPage(String& html, const String& snapshot) {
   appendAction(html, "Start advertising", "ble_advertise");
   appendAction(html, "Stop advertising", "ble_stop_advertise");
   appendAction(html, "Disconnect host", "ble_disconnect", "warn");
+  appendAction(html, "Forget paired devices", "ble_forget_bonds", "warn");
   appendAction(html, "Open Media Remote", "media_remote");
-  html += F("</div><p class='hint'>Pair from the host Bluetooth settings by selecting the Iris BLE device name above.</p>");
+  html += F("</div><p class='hint'>Pair from the host Bluetooth settings by selecting the Iris BLE device name above. Forget paired devices clears stored BLE bonds on Iris and requires pairing again.</p>");
 
   html += F("<h3>Media Test</h3><div class='grid three'>");
   appendAction(html, "Play / Pause", "media_play_pause");
@@ -2058,6 +2061,8 @@ void WifiService::appendAction(String& html, const char* label, const char* comm
   html += F("'");
   if (strcmp(command, "bootloader_confirmed") == 0) {
     html += F(" data-confirm='Boot Iris into bootloader mode? WiFi and the web configurator will disconnect until Iris is restarted.'");
+  } else if (strcmp(command, "ble_forget_bonds") == 0) {
+    html += F(" data-confirm='Forget all paired Bluetooth devices on Iris? Devices will need to pair again.'");
   }
   html += F(">");
   html += label;

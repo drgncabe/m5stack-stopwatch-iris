@@ -158,6 +158,14 @@ void HardwareDiagnosticsScreen::activateSelected(uint32_t nowMs) {
       if (selected_ == 4) toggleWifi();
       if (selected_ == 5) toggleWifiSleep();
       break;
+    case Page::Bluetooth:
+      if (selected_ == 4) {
+        bluetooth_.setEnabled(true);
+        bluetooth_.startAdvertising();
+      }
+      if (selected_ == 5) bluetooth_.disconnect();
+      if (selected_ == 6) bluetooth_.forgetBondedDevices();
+      break;
     case Page::Power:
       if (selected_ == 4) cyclePowerProfile();
       break;
@@ -283,7 +291,7 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
       return labels[index];
     }
     case Page::Bluetooth: {
-      constexpr const char* labels[] = {"", "Status", "Device", "Profile", "Advertise", "Connected", "Bonded", ""};
+      constexpr const char* labels[] = {"", "Status", "Device", "Profile", "Advertise", "Disconnect", "Forget", ""};
       return labels[index];
     }
     case Page::Power: {
@@ -400,9 +408,9 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
         case 1: return bluetooth_.statusText();
         case 2: return bluetooth_.deviceName();
         case 3: return "BLE HID";
-        case 4: return bluetooth_.advertising() ? "Yes" : "No";
-        case 5: return bluetooth_.connected() ? "Yes" : "No";
-        case 6: return String(bluetooth_.bondedDeviceCount());
+        case 4: return bluetooth_.advertising() ? "Advertising" : "Start";
+        case 5: return bluetooth_.connected() ? "Run" : "Disconnected";
+        case 6: return bluetooth_.bondedDeviceCount() > 0 ? String(bluetooth_.bondedDeviceCount()) : "None";
       }
       break;
     case Page::Power:
