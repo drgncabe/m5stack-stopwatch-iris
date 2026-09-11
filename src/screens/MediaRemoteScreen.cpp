@@ -14,6 +14,10 @@ constexpr int kBackX = 28;
 constexpr int kBackY = 24;
 constexpr int kBackW = 92;
 constexpr int kBackH = 44;
+constexpr int kForgetX = 346;
+constexpr int kForgetY = 24;
+constexpr int kForgetW = 92;
+constexpr int kForgetH = 44;
 
 uint16_t dimColor(uint16_t color) {
   const uint8_t r = (color >> 11) & 0x1F;
@@ -119,6 +123,9 @@ void MediaRemoteScreen::drawRemote() {
   M5.Display.fillScreen(theme.background);
   M5.Display.setTextDatum(middle_center);
   drawButton(kBackX, kBackY, kBackW, kBackH, "Back", "", Target::Menu);
+  if (!bluetooth_.connected() && bluetooth_.bondedDeviceCount() > 0) {
+    drawButton(kForgetX, kForgetY, kForgetW, kForgetH, "Forget", "", Target::Forget);
+  }
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.drawString("MEDIA", kCenter, 46);
@@ -237,6 +244,11 @@ void MediaRemoteScreen::send(Target target) {
       bluetooth_.startAdvertising();
       draw();
       return;
+    case Target::Forget:
+      bluetooth_.forgetBondedDevices();
+      view_ = View::BleInfo;
+      draw();
+      return;
     case Target::Previous:
       sent = bluetooth_.sendMediaCommand(BleMediaCommand::PreviousTrack);
       break;
@@ -269,6 +281,11 @@ MediaRemoteScreen::Target MediaRemoteScreen::targetAt(int32_t x, int32_t y) cons
   if (x >= kBackX - 12 && x <= kBackX + kBackW + 12 && y >= kBackY - 12 &&
       y <= kBackY + kBackH + 12) {
     return Target::Menu;
+  }
+  if (view_ == View::Remote && !bluetooth_.connected() && bluetooth_.bondedDeviceCount() > 0 &&
+      x >= kForgetX - 12 && x <= kForgetX + kForgetW + 12 &&
+      y >= kForgetY - 12 && y <= kForgetY + kForgetH + 12) {
+    return Target::Forget;
   }
   if (y >= 408 && x >= 118 && x <= 348) return Target::Menu;
   if (view_ == View::BleInfo) {

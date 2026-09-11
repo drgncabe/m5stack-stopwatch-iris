@@ -142,6 +142,7 @@ String BluetoothService::json() const {
   json += escapeJson(statusText());
   json += F("\",\"bondedDevices\":");
   json += String(bondedDeviceCount());
+  json += F(",\"bondManagement\":\"forget-all\"");
   json += F(",\"profile\":\"BLE HID Consumer Control\"}");
   return json;
 }
@@ -166,6 +167,37 @@ void BluetoothService::stopAdvertising() {
 void BluetoothService::disconnect() {
   if (!server_ || !connected_) return;
   server_->disconnect(connectionId_);
+}
+
+bool BluetoothService::forgetBondedDevices() {
+  if (!initialized_) {
+    Serial.println("[BLE] Initializing BLE stack to clear bonded devices");
+    if (!NimBLEDevice::init(deviceName_.c_str())) {
+      Serial.println("[BLE] Failed to initialize BLE for bond clearing");
+      return false;
+    }
+    const bool ok = NimBLEDevice::deleteAllBonds();
+    NimBLEDevice::deinit(false);
+    activeDevice_ = "";
+    pairingRequested_ = false;
+    pairingFailed_ = !ok;
+    pendingAdvertiseRestart_ = false;
+    Serial.println(ok ? "[BLE] Bonded devices cleared" : "[BLE] Failed to clear bonded devices");
+    return ok;
+  }
+  if (connected_) disconnect();
+  stopAdvertising();
+  const bool ok = NimBLEDevice::deleteAllBonds();
+  if (ok) {
+    activeDevice_ = "";
+    pairingRequested_ = false;
+    pairingFailed_ = false;
+    pendingAdvertiseRestart_ = false;
+    Serial.println("[BLE] Bonded devices cleared");
+  } else {
+    Serial.println("[BLE] Failed to clear bonded devices");
+  }
+  return ok;
 }
 
 bool BluetoothService::sendMediaCommand(BleMediaCommand command) {
