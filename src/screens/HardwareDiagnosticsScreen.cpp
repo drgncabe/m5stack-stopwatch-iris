@@ -7,18 +7,11 @@
 #include "iris/AppConfig.h"
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
+#include "iris/screens/SettingsListRenderer.h"
 
 namespace iris {
 
 namespace {
-constexpr int kRowHeight = 34;
-constexpr int kRowStartY = 76;
-constexpr int kRowLeft = 38;
-constexpr int kRowWidth = 390;
-constexpr int kRowRectHeight = 29;
-constexpr int kRowValueLeft = 222;
-constexpr int kRowValueRightPadding = 16;
-constexpr int kRowValueWidth = kRowLeft + kRowWidth - kRowValueLeft - kRowValueRightPadding;
 constexpr size_t kItemCount = 8;
 constexpr size_t kPageCount = 12;
 constexpr uint32_t kShortTestMs = 5000;
@@ -50,19 +43,7 @@ String formatVec3(float x, float y, float z, uint8_t decimals) {
   return String(x, places) + "," + String(y, places) + "," + String(z, places);
 }
 
-String fitTextToWidth(const String& text, int maxWidth) {
-  if (maxWidth <= 0 || M5.Display.textWidth(text) <= maxWidth) return text;
-
-  String fitted(text);
-  const String ellipsis("...");
-  while (fitted.length() > 0 &&
-         M5.Display.textWidth(fitted + ellipsis) > maxWidth) {
-    fitted.remove(fitted.length() - 1);
-  }
-
-  if (fitted.length() == 0) return ellipsis;
-  return fitted + ellipsis;
-}
+constexpr SettingsListLayout kListLayout{34, 76, 38, 390, 29, 10, 16, 16, 160, 190, 438};
 }  // namespace
 
 void HardwareDiagnosticsScreen::enter() {
@@ -119,10 +100,7 @@ void HardwareDiagnosticsScreen::draw() {
 
   const Theme theme = currentTheme(settings_);
   M5.Display.fillScreen(theme.background);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(theme.foreground, theme.background);
-  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
-  M5.Display.drawString("HW diagnostics", M5.Display.width() / 2, 49);
+  SettingsListRenderer::drawTitle(theme, "HW diagnostics", 49);
 
   for (size_t i = 0; i < kItemCount; ++i) {
     drawRow(i, i == selected_);
@@ -219,24 +197,9 @@ void HardwareDiagnosticsScreen::nextPage() {
 void HardwareDiagnosticsScreen::drawRow(size_t index, bool selected) {
   if (index >= kItemCount || displayOffUntilMs_ != 0) return;
 
-  const Theme theme = currentTheme(settings_);
-  const int y = kRowStartY + static_cast<int>(index) * kRowHeight;
-  const uint16_t fill = selected ? theme.selected : theme.background;
-  const uint16_t border = selected ? theme.foreground : theme.panel;
-
   const char* label = rowLabel(index);
   const String value = rowValue(index);
-
-  M5.Display.fillRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, fill);
-  M5.Display.drawRoundRect(kRowLeft, y, kRowWidth, kRowRectHeight, 10, border);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextDatum(middle_left);
-  M5.Display.setTextColor(theme.foreground, fill);
-  M5.Display.drawString(label, kRowLeft + 16, y + (kRowRectHeight / 2));
-  M5.Display.setTextDatum(middle_right);
-  M5.Display.setTextColor(theme.muted, fill);
-  M5.Display.drawString(fitTextToWidth(value, kRowValueWidth), kRowLeft + kRowWidth - 16,
-                        y + (kRowRectHeight / 2));
+  SettingsListRenderer::drawRow(currentTheme(settings_), kListLayout, index, label, value, selected);
 }
 
 void HardwareDiagnosticsScreen::drawLiveValues() {
@@ -250,45 +213,22 @@ void HardwareDiagnosticsScreen::drawLiveValues() {
 void HardwareDiagnosticsScreen::drawRowValue(size_t index) {
   if (index >= kItemCount || displayOffUntilMs_ != 0) return;
 
-  const Theme theme = currentTheme(settings_);
-  const int y = kRowStartY + static_cast<int>(index) * kRowHeight;
-  const bool selected = index == selected_;
-  const uint16_t fill = selected ? theme.selected : theme.background;
-
-  M5.Display.fillRect(kRowValueLeft, y + 2,
-                      kRowLeft + kRowWidth - kRowValueLeft - 2,
-                      kRowRectHeight - 4, fill);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextDatum(middle_right);
-  M5.Display.setTextColor(theme.muted, fill);
-  M5.Display.drawString(fitTextToWidth(rowValue(index), kRowValueWidth),
-                        kRowLeft + kRowWidth - kRowValueRightPadding,
-                        y + (kRowRectHeight / 2));
+  SettingsListRenderer::drawRowValue(currentTheme(settings_), kListLayout, index, rowValue(index),
+                                     index == selected_);
 }
 
 void HardwareDiagnosticsScreen::drawFooter() {
   if (displayOffUntilMs_ != 0) return;
 
-  const Theme theme = currentTheme(settings_);
-  M5.Display.fillRect(18, 418, 430, 36, theme.background);
-  M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(theme.muted, theme.background);
   String status = "CPU ";
   status += String(power_.currentCpuMhz());
   status += " MHz  ";
   status += battery_.statusText();
-  M5.Display.drawString(status, M5.Display.width() / 2, 428);
-  M5.Display.drawString("A: Next     B: Run/Page", M5.Display.width() / 2, 448);
+  SettingsListRenderer::drawFooter(currentTheme(settings_), status, "A: Next     B: Run/Page");
 }
 
 int HardwareDiagnosticsScreen::rowAt(int32_t x, int32_t y) const {
-  if (x < kRowLeft || x > kRowLeft + kRowWidth) return -1;
-  for (size_t i = 0; i < kItemCount; ++i) {
-    const int rowY = kRowStartY + static_cast<int>(i) * kRowHeight;
-    if (y >= rowY - 3 && y <= rowY + kRowRectHeight + 3) return static_cast<int>(i);
-  }
-  return -1;
+  return SettingsListRenderer::rowAt(kListLayout, kItemCount, x, y);
 }
 
 const char* HardwareDiagnosticsScreen::pageName() const {

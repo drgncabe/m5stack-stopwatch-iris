@@ -18,6 +18,7 @@ constexpr int kPlayRight = 442;
 constexpr int kPlayWidth = kPlayRight - kPlayLeft + 1;
 constexpr int kPlayHeight = kPlayBottom - kPlayTop + 1;
 constexpr uint32_t kFrameMs = 66;
+constexpr uint32_t kIdleSettleMs = 3500;
 
 float clampFloat(float value, float low, float high) {
   if (value < low) return low;
@@ -89,6 +90,7 @@ FidgetScreenBase::FidgetScreenBase(const char* title, SettingsStore& settings)
 void FidgetScreenBase::enter() {
   lastUpdateMs_ = millis();
   lastDrawMs_ = 0;
+  lastInteractionMs_ = lastUpdateMs_;
   dirty_ = true;
   chromeDirty_ = true;
   M5.Power.setVibration(0);
@@ -103,15 +105,32 @@ void FidgetScreenBase::enter() {
 
 void FidgetScreenBase::update(uint32_t nowMs) {
   updateHaptic(nowMs);
+  if (!dirty_ && idleFor(nowMs, kIdleSettleMs) && settled(nowMs)) {
+    lastUpdateMs_ = nowMs;
+    return;
+  }
   const float dt = clampFloat((nowMs - lastUpdateMs_) / 1000.0f, 0.0f, 0.08f);
   lastUpdateMs_ = nowMs;
   updateFidget(nowMs, dt);
 
-  if (dirty_ || nowMs - lastDrawMs_ >= kFrameMs) {
+  if (dirty_ || lastDrawMs_ == 0 || nowMs - lastDrawMs_ >= frameIntervalMs(nowMs)) {
     draw();
     lastDrawMs_ = nowMs;
     dirty_ = false;
   }
+}
+
+uint32_t FidgetScreenBase::frameIntervalMs(uint32_t) const {
+  return kFrameMs;
+}
+
+void FidgetScreenBase::noteInteraction(uint32_t nowMs) {
+  lastInteractionMs_ = nowMs;
+  requestDraw();
+}
+
+bool FidgetScreenBase::idleFor(uint32_t nowMs, uint32_t idleMs) const {
+  return nowMs - lastInteractionMs_ >= idleMs;
 }
 
 void FidgetScreenBase::draw() {
@@ -173,10 +192,12 @@ void WheelFidgetScreen::reset() {
 }
 
 void WheelFidgetScreen::previewTouch(int32_t x, int32_t y) {
+  noteInteraction(millis());
   moveWheel(x, y, true);
 }
 
 void WheelFidgetScreen::handleTouch(int32_t x, int32_t y) {
+  noteInteraction(millis());
   moveWheel(x, y, true);
 }
 
@@ -200,6 +221,10 @@ void WheelFidgetScreen::drawFidget() {
     canvas().drawLine(localX(x1), localY(y1), localX(x2), localY(y2), theme.foreground);
   }
   canvas().fillCircle(localX(x_), localY(y_), 14, theme.accent);
+}
+
+uint32_t WheelFidgetScreen::frameIntervalMs(uint32_t nowMs) const {
+  return idleFor(nowMs, 2000) ? 120 : 66;
 }
 
 void WheelFidgetScreen::moveWheel(int32_t x, int32_t y, bool feedback) {
@@ -244,10 +269,12 @@ void PoppersFidgetScreen::reset() {
 }
 
 void PoppersFidgetScreen::previewTouch(int32_t x, int32_t y) {
+  noteInteraction(millis());
   popAt(x, y);
 }
 
 void PoppersFidgetScreen::handleTouch(int32_t x, int32_t y) {
+  noteInteraction(millis());
   popAt(x, y);
 }
 
@@ -316,6 +343,19 @@ void PoppersFidgetScreen::drawFidget() {
   }
 }
 
+uint32_t PoppersFidgetScreen::frameIntervalMs(uint32_t nowMs) const {
+  return idleFor(nowMs, 1800) ? 120 : 66;
+}
+
+bool PoppersFidgetScreen::settled(uint32_t) const {
+  for (size_t i = 0; i < kBallCount; ++i) {
+    const Ball& ball = balls_[i];
+    if (ball.popped) return false;
+    if ((ball.vx * ball.vx) + (ball.vy * ball.vy) > 16.0f) return false;
+  }
+  return true;
+}
+
 void PoppersFidgetScreen::popAt(int32_t x, int32_t y) {
   const uint32_t nowMs = millis();
   if (nowMs - lastPopAttemptMs_ < 60) return;
@@ -346,6 +386,7 @@ void SpinnerFidgetScreen::reset() {
 
 void SpinnerFidgetScreen::previewTouch(int32_t x, int32_t y) {
   const uint32_t nowMs = millis();
+  noteInteraction(nowMs);
   const float nextAngle = touchAngle(x, y);
   if (trackingTouch_ && lastTouchMs_ != 0) {
     const float dt = clampFloat((nowMs - lastTouchMs_) / 1000.0f, 0.01f, 0.12f);
@@ -389,6 +430,15 @@ void SpinnerFidgetScreen::drawFidget() {
   canvas().fillCircle(localX(kScreenCenter), localY(236), 18, 0xFFFF);
 }
 
+uint32_t SpinnerFidgetScreen::frameIntervalMs(uint32_t nowMs) const {
+  if (trackingTouch_) return 33;
+  return idleFor(nowMs, 2000) ? 120 : 66;
+}
+
+bool SpinnerFidgetScreen::settled(uint32_t) const {
+  return !trackingTouch_ && fabsf(angularVelocity_) < 0.035f;
+}
+
 float SpinnerFidgetScreen::touchAngle(int32_t x, int32_t y) const {
   return atan2f(static_cast<float>(y - 236), static_cast<float>(x - kScreenCenter));
 }
@@ -404,6 +454,7 @@ void GravityBallFidgetScreen::reset() {
 }
 
 void GravityBallFidgetScreen::previewTouch(int32_t x, int32_t y) {
+  noteInteraction(millis());
   x_ = clampFloat(x, 60.0f, 406.0f);
   y_ = clampFloat(y, 80.0f, 390.0f);
   vx_ = 0.0f;
@@ -455,6 +506,14 @@ void GravityBallFidgetScreen::drawFidget() {
   canvas().fillCircle(localX(x_ + 6), localY(y_ + 8), 26, theme.panel);
   canvas().fillCircle(localX(x_), localY(y_), 26, theme.accent);
   canvas().fillCircle(localX(x_ - 8), localY(y_ - 9), 7, 0xFFFF);
+}
+
+uint32_t GravityBallFidgetScreen::frameIntervalMs(uint32_t nowMs) const {
+  return idleFor(nowMs, 1800) ? 100 : 66;
+}
+
+bool GravityBallFidgetScreen::settled(uint32_t) const {
+  return (vx_ * vx_) + (vy_ * vy_) < 9.0f;
 }
 
 }  // namespace iris

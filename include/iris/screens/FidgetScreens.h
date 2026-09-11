@@ -23,8 +23,12 @@ class FidgetScreenBase : public Screen {
   virtual void reset() {}
   virtual void updateFidget(uint32_t nowMs, float dt) {}
   virtual void drawFidget() = 0;
+  virtual uint32_t frameIntervalMs(uint32_t nowMs) const;
+  virtual bool settled(uint32_t nowMs) const { return false; }
 
   void requestDraw() { dirty_ = true; }
+  void noteInteraction(uint32_t nowMs);
+  bool idleFor(uint32_t nowMs, uint32_t idleMs) const;
   void drawChrome();
   void pulseHaptic(uint8_t strength = 82, uint32_t durationMs = 12);
   M5Canvas& canvas() { return canvas_; }
@@ -35,6 +39,7 @@ class FidgetScreenBase : public Screen {
   bool chromeDirty_ = true;
   uint32_t lastUpdateMs_ = 0;
   uint32_t lastDrawMs_ = 0;
+  uint32_t lastInteractionMs_ = 0;
   M5Canvas canvas_;
   bool canvasReady_ = false;
 
@@ -56,6 +61,7 @@ class WheelFidgetScreen : public FidgetScreenBase {
   void reset() override;
   void updateFidget(uint32_t nowMs, float dt) override;
   void drawFidget() override;
+  uint32_t frameIntervalMs(uint32_t nowMs) const override;
 
  private:
   void moveWheel(int32_t x, int32_t y, bool feedback);
@@ -77,6 +83,8 @@ class PoppersFidgetScreen : public FidgetScreenBase {
   void reset() override;
   void updateFidget(uint32_t nowMs, float dt) override;
   void drawFidget() override;
+  uint32_t frameIntervalMs(uint32_t nowMs) const override;
+  bool settled(uint32_t nowMs) const override;
 
  private:
   struct Ball {
@@ -108,6 +116,8 @@ class SpinnerFidgetScreen : public FidgetScreenBase {
   void reset() override;
   void updateFidget(uint32_t nowMs, float dt) override;
   void drawFidget() override;
+  uint32_t frameIntervalMs(uint32_t nowMs) const override;
+  bool settled(uint32_t nowMs) const override;
 
  private:
   float touchAngle(int32_t x, int32_t y) const;
@@ -130,6 +140,8 @@ class GravityBallFidgetScreen : public FidgetScreenBase {
   void reset() override;
   void updateFidget(uint32_t nowMs, float dt) override;
   void drawFidget() override;
+  uint32_t frameIntervalMs(uint32_t nowMs) const override;
+  bool settled(uint32_t nowMs) const override;
 
  private:
   float x_ = 233.0f;

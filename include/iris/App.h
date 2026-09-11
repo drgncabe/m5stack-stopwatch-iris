@@ -75,6 +75,7 @@ class App {
   void updateWifiPower(uint32_t nowMs);
   void wakeDisplay(uint32_t nowMs);
   bool shouldUpdateForeground(uint32_t nowMs, const AppDescriptor* app);
+  bool shouldRunSleepCadence(uint32_t nowMs, uint32_t* lastRunMs, uint32_t intervalMs);
   const char* currentScreenName() const;
 
   SettingsStore settings_;
@@ -132,6 +133,8 @@ class App {
   int32_t touchStartY_ = 0;
   uint32_t touchStartMs_ = 0;
   uint32_t lastForegroundUpdateMs_ = 0;
+  uint32_t lastSleepServiceUpdateMs_ = 0;
+  uint32_t lastSleepSensorUpdateMs_ = 0;
   uint32_t wifiDemandStartedMs_ = 0;
   bool batteryLowPublished_ = false;
 };

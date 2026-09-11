@@ -24,12 +24,14 @@ class RagnarLinkScreen : public Screen {
   enum class TouchAction : uint8_t {
     None,
     Back,
+    Toggle,
     ChannelDown,
     ChannelUp,
   };
 
   void drawButton(int x, int y, int w, int h, const char* label, bool highlighted);
   void drawMetric(int x, int y, const char* label, const String& value);
+  void toggleEnabled();
   void changeChannel(int delta);
   TouchAction actionAt(int32_t x, int32_t y) const;
   String stateSnapshot() const;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <M5Unified.h>
 #include "iris/screens/Screen.h"
 #include "iris/services/SettingsStore.h"
 
@@ -46,6 +47,8 @@ class MenuScreen : public Screen {
   bool hapticActive_ = false;
   bool scrollIndicatorDrawn_ = false;
   bool wrapEnabled_ = true;
+  M5Canvas canvas_;
+  bool canvasReady_ = false;
   uint32_t hapticOffMs_ = 0;
   uint32_t lastScrollActivityMs_ = 0;
 };

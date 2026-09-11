@@ -3,6 +3,7 @@
 #include <M5Unified.h>
 #include "iris/Theme.h"
 #include "iris/screens/ScreenManager.h"
+#include "iris/screens/SettingsListRenderer.h"
 
 namespace iris {
 
@@ -19,16 +20,14 @@ void VolumeScreen::draw() {
 
   drawVolumeValue();
 
-  M5.Display.fillRoundRect(78, 265, 130, 70, 18, theme.button);
-  M5.Display.fillRoundRect(258, 265, 130, 70, 18, theme.button);
+  SettingsListRenderer::drawButton(theme, 78, 265, 130, 70, "", false, 18);
+  SettingsListRenderer::drawButton(theme, 258, 265, 130, 70, "", false, 18);
   M5.Display.setTextColor(theme.foreground, theme.button);
   M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.drawString("-", 143, 300);
   M5.Display.drawString("+", 323, 300);
 
-  M5.Display.fillRoundRect(138, 362, 190, 50, 16, theme.button);
-  M5.Display.setFont(&fonts::FreeSans12pt7b);
-  M5.Display.drawString("Back", M5.Display.width() / 2, 387);
+  SettingsListRenderer::drawButton(theme, 138, 362, 190, 50, "Back");
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);

@@ -44,6 +44,7 @@ void SettingsStore::begin() {
   indicatorLightEnabled_ = prefs_.getBool("light_on", false);
   ragnarChannel_ = prefs_.getUChar("rag_ch", 6);
   if (ragnarChannel_ < 1 || ragnarChannel_ > 14) ragnarChannel_ = 6;
+  ragnarEnabled_ = prefs_.getBool("rag_on", false);
   touchDelayMs_ = prefs_.getUShort("touch_ms", 150);
   widgetMask_ = prefs_.getUChar("widgets", kDefaultWidgetMask);
   complicationId_ = prefs_.getUChar("comp_id", kComplicationUptime) % kComplicationCount;
@@ -205,6 +206,11 @@ void SettingsStore::setIndicatorLightEnabled(bool enabled) {
 void SettingsStore::setRagnarChannel(uint8_t channel) {
   ragnarChannel_ = constrain(channel, 1, 14);
   prefs_.putUChar("rag_ch", ragnarChannel_);
+}
+
+void SettingsStore::setRagnarEnabled(bool enabled) {
+  ragnarEnabled_ = enabled;
+  prefs_.putBool("rag_on", ragnarEnabled_);
 }
 
 void SettingsStore::setTouchDelayMs(uint16_t value) {
