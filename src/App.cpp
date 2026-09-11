@@ -799,10 +799,14 @@ String App::buildControlSnapshot() const {
   snapshot += bluetooth_.deviceName();
   snapshot += "\nBLE connected: ";
   snapshot += bluetooth_.connected() ? "On" : "Off";
+  snapshot += "\nBLE active device: ";
+  snapshot += bluetooth_.activeDevice().isEmpty() ? "None" : bluetooth_.activeDevice();
   snapshot += "\nBLE advertising: ";
   snapshot += bluetooth_.advertising() ? "On" : "Off";
   snapshot += "\nBLE bonded devices: ";
   snapshot += String(bluetooth_.bondedDeviceCount());
+  snapshot += "\nBLE bonded list: ";
+  snapshot += bluetooth_.bondedDeviceSummary();
   snapshot += "\nBLE auto reconnect: ";
   snapshot += bluetooth_.autoReconnect() ? "On" : "Off";
   const RagnarLinkSnapshot ragnar = ragnar_.snapshot();
