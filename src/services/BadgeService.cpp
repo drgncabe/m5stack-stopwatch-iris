@@ -209,7 +209,7 @@ String BadgeService::json() const {
   json += F(",\"storageFreeBytes\":");
   json += String(storageFreeBytes());
   json += F(",\"gifPlayback\":\"");
-  json += metadata_.type == BadgeAssetType::Gif ? F("stored; decoder pending") : F("not applicable");
+  json += metadata_.type == BadgeAssetType::Gif ? F("animated playback") : F("not applicable");
   json += F("\"}");
   return json;
 }

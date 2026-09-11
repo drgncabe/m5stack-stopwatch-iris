@@ -12,6 +12,10 @@ namespace iris {
 namespace {
 constexpr int kCenter = 233;
 constexpr uint32_t kInfoMs = 3500;
+constexpr int kDisplayW = 466;
+constexpr int kDisplayH = 466;
+
+fs::File sGifFile;
 
 uint16_t dimColor(uint16_t color) {
   const uint8_t r = (color >> 11) & 0x1F;
@@ -19,18 +23,56 @@ uint16_t dimColor(uint16_t color) {
   const uint8_t b = color & 0x1F;
   return static_cast<uint16_t>(((r / 2) << 11) | ((g / 2) << 5) | (b / 2));
 }
+
+void* gifOpenFile(const char* filename, int32_t* size) {
+  sGifFile = SPIFFS.open(filename, FILE_READ);
+  if (!sGifFile) return nullptr;
+  *size = static_cast<int32_t>(sGifFile.size());
+  return static_cast<void*>(&sGifFile);
+}
+
+void gifCloseFile(void* handle) {
+  fs::File* file = static_cast<fs::File*>(handle);
+  if (file) file->close();
+}
+
+int32_t gifReadFile(GIFFILE* file, uint8_t* buffer, int32_t length) {
+  if (!file || !file->fHandle || !buffer || length <= 0) return 0;
+  fs::File* fsFile = static_cast<fs::File*>(file->fHandle);
+  int32_t bytesToRead = length;
+  if ((file->iSize - file->iPos) < length) {
+    bytesToRead = file->iSize - file->iPos;
+  }
+  if (bytesToRead <= 0) return 0;
+  const int32_t bytesRead = static_cast<int32_t>(fsFile->read(buffer, bytesToRead));
+  file->iPos = static_cast<int32_t>(fsFile->position());
+  return bytesRead;
+}
+
+int32_t gifSeekFile(GIFFILE* file, int32_t position) {
+  if (!file || !file->fHandle) return 0;
+  fs::File* fsFile = static_cast<fs::File*>(file->fHandle);
+  fsFile->seek(position);
+  file->iPos = static_cast<int32_t>(fsFile->position());
+  return file->iPos;
+}
 }  // namespace
 
 BadgeScreen::BadgeScreen(SettingsStore& settings, BadgeService& badge)
     : settings_(settings), badge_(badge) {}
 
 void BadgeScreen::enter() {
+  closeGif();
   drawn_ = false;
   showInfo_ = false;
   draw();
 }
 
 void BadgeScreen::update(uint32_t nowMs) {
+  if (gifOpen_ && nowMs >= nextGifFrameMs_) {
+    playGifFrame(nowMs);
+    if (showInfo_) drawInfoOverlay();
+  }
   if (showInfo_ && nowMs >= hideInfoAtMs_) {
     showInfo_ = false;
     drawn_ = false;
@@ -45,7 +87,7 @@ void BadgeScreen::draw() {
     } else if (badge_.isStaticRenderable()) {
       drawImageBadge();
     } else {
-      drawGifPlaceholder();
+      drawGifBadge();
     }
     drawn_ = true;
   }
@@ -98,6 +140,7 @@ void BadgeScreen::drawDefaultBadge() {
 }
 
 void BadgeScreen::drawImageBadge() {
+  closeGif();
   const BadgeMetadata& meta = badge_.metadata();
   const Theme theme = currentTheme(settings_);
   M5.Display.fillScreen(theme.background);
@@ -131,10 +174,14 @@ void BadgeScreen::drawImageBadge() {
   }
 }
 
-void BadgeScreen::drawGifPlaceholder() {
+void BadgeScreen::drawGifBadge() {
   const Theme theme = currentTheme(settings_);
   const BadgeMetadata& meta = badge_.metadata();
   M5.Display.fillScreen(theme.background);
+  if (ensureGifOpen() && playGifFrame(millis())) {
+    return;
+  }
+
   M5.Display.setTextDatum(middle_center);
   M5.Display.fillCircle(kCenter, kCenter, 128, theme.panel);
   M5.Display.drawCircle(kCenter, kCenter, 130, theme.accent);
@@ -144,12 +191,60 @@ void BadgeScreen::drawGifPlaceholder() {
   M5.Display.drawString("GIF", kCenter, 176);
   M5.Display.setFont(&fonts::FreeSans12pt7b);
   M5.Display.setTextColor(theme.accent, theme.panel);
-  M5.Display.drawString("Stored", kCenter, 226);
+  M5.Display.drawString("Unavailable", kCenter, 226);
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.muted, theme.background);
   M5.Display.drawString(meta.filename, kCenter, 332);
-  M5.Display.drawString("Animation decoder pending", kCenter, 362);
+  M5.Display.drawString(String("GIF error ") + gifError_, kCenter, 362);
   M5.Display.drawString("A: Menu   B: Mode", kCenter, 424);
+}
+
+void BadgeScreen::closeGif() {
+  if (!gifOpen_) return;
+  gif_.close();
+  gifOpen_ = false;
+  nextGifFrameMs_ = 0;
+}
+
+bool BadgeScreen::ensureGifOpen() {
+  if (gifOpen_) return true;
+  const BadgeMetadata& meta = badge_.metadata();
+  if (!badge_.hasAsset() || meta.type != BadgeAssetType::Gif) return false;
+
+  gif_.begin(LITTLE_ENDIAN_PIXELS);
+  const int result = gif_.open(meta.path.c_str(), gifOpenFile, gifCloseFile, gifReadFile,
+                               gifSeekFile, BadgeScreen::drawGifLine);
+  if (!result) {
+    gifError_ = gif_.getLastError();
+    closeGif();
+    return false;
+  }
+  gifOpen_ = true;
+  gifError_ = GIF_SUCCESS;
+  gifOffsetX_ = (M5.Display.width() - gif_.getCanvasWidth()) / 2;
+  gifOffsetY_ = (M5.Display.height() - gif_.getCanvasHeight()) / 2;
+  nextGifFrameMs_ = 0;
+  return true;
+}
+
+bool BadgeScreen::playGifFrame(uint32_t nowMs) {
+  if (!ensureGifOpen()) return false;
+
+  int delayMs = 0;
+  int result = gif_.playFrame(false, &delayMs, this);
+  if (!result) {
+    gif_.reset();
+    result = gif_.playFrame(false, &delayMs, this);
+  }
+  if (!result) {
+    gifError_ = gif_.getLastError();
+    closeGif();
+    return false;
+  }
+
+  if (delayMs < 20) delayMs = 20;
+  nextGifFrameMs_ = nowMs + static_cast<uint32_t>(delayMs);
+  return true;
 }
 
 void BadgeScreen::drawInfoOverlay() {
@@ -189,6 +284,52 @@ float BadgeScreen::scaleFor(const BadgeMetadata& meta) const {
     return 1.0f;
   }
   return sx < sy ? sx : sy;
+}
+
+void BadgeScreen::drawGifLine(GIFDRAW* draw) {
+  if (!draw || !draw->pUser) return;
+  BadgeScreen* screen = static_cast<BadgeScreen*>(draw->pUser);
+  const int y = screen->gifOffsetY_ + draw->iY + draw->y;
+  if (y < 0 || y >= kDisplayH) return;
+
+  int sourceX = 0;
+  int x = screen->gifOffsetX_ + draw->iX;
+  int width = draw->iWidth;
+  if (x < 0) {
+    sourceX = -x;
+    width -= sourceX;
+    x = 0;
+  }
+  if (x + width > kDisplayW) width = kDisplayW - x;
+  if (width <= 0) return;
+
+  uint8_t* pixels = draw->pPixels + sourceX;
+  uint16_t* palette = draw->pPalette;
+  uint16_t line[kDisplayW];
+
+  if (!draw->ucHasTransparency) {
+    for (int i = 0; i < width; ++i) {
+      line[i] = palette[pixels[i]];
+    }
+    M5.Display.pushImage(x, y, width, 1, line);
+    return;
+  }
+
+  int runStart = -1;
+  for (int i = 0; i < width; ++i) {
+    if (pixels[i] == draw->ucTransparent) {
+      if (runStart >= 0) {
+        M5.Display.pushImage(x + runStart, y, i - runStart, 1, line + runStart);
+        runStart = -1;
+      }
+      continue;
+    }
+    if (runStart < 0) runStart = i;
+    line[i] = palette[pixels[i]];
+  }
+  if (runStart >= 0) {
+    M5.Display.pushImage(x + runStart, y, width - runStart, 1, line + runStart);
+  }
 }
 
 }  // namespace iris

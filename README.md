@@ -314,7 +314,7 @@ The web configurator is organized around Dashboard, Display, Touch, Sound, WiFi,
 
 The dashboard includes a round watch-face preview generated from the current Iris configuration. Device and Development pages expose the text snapshot and diagnostics links for validation.
 
-The Badge page can upload one active PNG, JPEG, or GIF under 4 MB to the StopWatch filesystem. PNG and JPEG render in the Badge app now. GIF files are accepted, validated, stored, and reported as GIF assets, but animated playback is planned as a follow-up once a small streaming decoder is integrated.
+The Badge page can upload one active PNG, JPEG, or GIF under 4 MB to the StopWatch filesystem. PNG, JPEG, and animated GIF files render in the Badge app.
 
 The Bluetooth page exposes BLE status, advertising controls, auto-reconnect, disconnect, and media command test buttons. Iris acts as a Bluetooth Low Energy HID media remote; it does not stream audio and does not provide Bluetooth Classic headphone or speaker behavior.
 Bluetooth is off by default and starts when enabled from the web page or when pairing is started from Media Remote.

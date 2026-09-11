@@ -1889,7 +1889,7 @@ void WifiService::appendAppRegistry(String& html, const String& registry) {
 }
 
 void WifiService::appendBadgePage(String& html) {
-  html += F("<section><h2>Badge</h2><p class='hint'>Upload one active badge image for the dedicated Badge app. PNG and JPEG render on-device now; GIF files are stored and identified while animation playback waits for a streaming decoder.</p>");
+  html += F("<section><h2>Badge</h2><p class='hint'>Upload one active badge image for the dedicated Badge app. PNG, JPEG, and animated GIF files render on-device.</p>");
   if (!badge_) {
     html += F("<p class='hint'>Badge service is unavailable.</p></section>");
     return;
