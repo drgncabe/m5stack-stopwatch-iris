@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <AnimatedGIF.h>
 
 #include "iris/screens/Screen.h"
 #include "iris/services/BadgeService.h"
@@ -22,15 +23,25 @@ class BadgeScreen : public Screen {
  private:
   void drawDefaultBadge();
   void drawImageBadge();
-  void drawGifPlaceholder();
+  void drawGifBadge();
+  void closeGif();
+  bool ensureGifOpen();
+  bool playGifFrame(uint32_t nowMs);
   void drawInfoOverlay();
   void showInfo(uint32_t nowMs);
   float scaleFor(const BadgeMetadata& meta) const;
+  static void drawGifLine(GIFDRAW* draw);
 
   SettingsStore& settings_;
   BadgeService& badge_;
+  AnimatedGIF gif_;
   bool drawn_ = false;
   bool showInfo_ = false;
+  bool gifOpen_ = false;
+  uint32_t nextGifFrameMs_ = 0;
+  int gifOffsetX_ = 0;
+  int gifOffsetY_ = 0;
+  int gifError_ = GIF_SUCCESS;
   uint32_t hideInfoAtMs_ = 0;
 };
 
