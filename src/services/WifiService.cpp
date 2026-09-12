@@ -1269,7 +1269,10 @@ void WifiService::handleBadgeUploadDone() {
     return;
   }
   if (!badgeUploadOk_) {
-    sendApiError(400, "Badge upload failed. Use PNG, JPEG, or GIF under 4 MB.");
+    const String error = badge_->lastUploadError().isEmpty()
+                             ? String("Badge upload failed. Use PNG, JPEG, or GIF under 4 MB.")
+                             : badge_->lastUploadError();
+    sendApiError(400, error.c_str());
     return;
   }
   server_.sendHeader("Location", "/?page=badge", true);

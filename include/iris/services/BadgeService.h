@@ -51,6 +51,7 @@ class BadgeService {
   bool finishUpload();
   void abortUpload();
   bool deleteBadge();
+  const String& lastUploadError() const { return lastUploadError_; }
   String statusText() const;
   String typeName() const;
   String modeName() const;
@@ -75,6 +76,7 @@ class BadgeService {
   bool sniffGif(const uint8_t* header, size_t size, uint16_t* width, uint16_t* height) const;
   bool sniffJpeg(uint16_t* width, uint16_t* height) const;
   String sanitizedFilename(const String& filename) const;
+  void setUploadError(const char* message);
   const char* contentTypeFor(BadgeAssetType type) const;
   const char* typeName(BadgeAssetType type) const;
 
@@ -83,7 +85,9 @@ class BadgeService {
   fs::File uploadFile_;
   String uploadFilename_;
   String uploadContentType_;
+  String lastUploadError_;
   uint32_t uploadSize_ = 0;
+  uint32_t uploadCapacityBytes_ = 0;
   bool mounted_ = false;
   bool uploadRejected_ = false;
 };
