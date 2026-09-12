@@ -160,8 +160,12 @@ void HardwareDiagnosticsScreen::activateSelected(uint32_t nowMs) {
       break;
     case Page::Bluetooth:
       if (selected_ == 4) {
-        bluetooth_.setEnabled(true);
-        bluetooth_.startAdvertising();
+        if (bluetooth_.advertising()) {
+          bluetooth_.stopAdvertising();
+        } else {
+          bluetooth_.setEnabled(true);
+          bluetooth_.startAdvertising();
+        }
       }
       if (selected_ == 5) bluetooth_.disconnect();
       if (selected_ == 6) bluetooth_.forgetBondedDevices();
@@ -408,7 +412,7 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
         case 1: return bluetooth_.statusText();
         case 2: return bluetooth_.deviceName();
         case 3: return bluetooth_.activeDevice().isEmpty() ? "None" : bluetooth_.activeDevice();
-        case 4: return bluetooth_.advertising() ? "Advertising" : "Start";
+        case 4: return bluetooth_.advertising() ? "Stop" : "Start";
         case 5: return bluetooth_.connected() ? "Run" : "Disconnected";
         case 6: return bluetooth_.bondedDeviceSummary();
       }
