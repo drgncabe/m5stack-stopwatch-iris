@@ -803,6 +803,11 @@ String App::buildControlSnapshot() const {
   snapshot += bluetooth_.activeDevice().isEmpty() ? "None" : bluetooth_.activeDevice();
   snapshot += "\nBLE advertising: ";
   snapshot += bluetooth_.advertising() ? "On" : "Off";
+  snapshot += "\nBLE pairing: ";
+  snapshot += bluetooth_.pairingRequested() ? "Requested" :
+              (bluetooth_.pairingFailed() ? "Failed" : "Idle");
+  snapshot += "\nBLE passkey: ";
+  snapshot += bluetooth_.pairingRequested() ? String(bluetooth_.passkey()) : "None";
   snapshot += "\nBLE bonded devices: ";
   snapshot += String(bluetooth_.bondedDeviceCount());
   snapshot += "\nBLE bonded list: ";
