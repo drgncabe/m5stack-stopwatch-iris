@@ -14,6 +14,7 @@ class BadgeScreen : public Screen {
   BadgeScreen(SettingsStore& settings, BadgeService& badge);
 
   void enter() override;
+  void exit() override;
   void update(uint32_t nowMs) override;
   void draw() override;
   void handleTouch(int32_t x, int32_t y) override;

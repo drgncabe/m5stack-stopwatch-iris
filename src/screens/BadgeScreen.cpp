@@ -68,6 +68,11 @@ void BadgeScreen::enter() {
   draw();
 }
 
+void BadgeScreen::exit() {
+  closeGif();
+  showInfo_ = false;
+}
+
 void BadgeScreen::update(uint32_t nowMs) {
   if (gifOpen_ && nowMs >= nextGifFrameMs_) {
     playGifFrame(nowMs);
