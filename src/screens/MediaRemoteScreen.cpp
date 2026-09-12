@@ -92,7 +92,7 @@ void MediaRemoteScreen::handleTouch(int32_t x, int32_t y) {
 }
 
 void MediaRemoteScreen::onButtonA() {
-  if (view_ == View::BleInfo) {
+  if (view_ == View::BleInfo || !bluetooth_.connected()) {
     if (manager_) manager_->show(ScreenId::MainMenu);
     return;
   }
@@ -105,6 +105,10 @@ void MediaRemoteScreen::onButtonB() {
     bluetooth_.startAdvertising();
     view_ = View::Remote;
     draw();
+    return;
+  }
+  if (!bluetooth_.connected()) {
+    toggleAdvertising();
     return;
   }
   send(Target::Next);
@@ -174,7 +178,10 @@ void MediaRemoteScreen::drawRemote() {
   M5.Display.setTextColor(statusColor, theme.background);
   M5.Display.drawString(bluetooth_.statusText(), kCenter, 416);
   M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString(connected ? "A: Prev  B: Next" : "Tap Advertise to reconnect", kCenter, 442);
+  M5.Display.drawString(connected ? "A: Prev  B: Next" :
+                        (bluetooth_.advertising() ? "A: Menu  B: Cancel" :
+                                                     "A: Menu  B: Advertise"),
+                        kCenter, 442);
 }
 
 void MediaRemoteScreen::drawButton(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -267,17 +274,10 @@ void MediaRemoteScreen::send(Target target) {
       if (manager_) manager_->show(ScreenId::MainMenu);
       return;
     case Target::Pair:
-      bluetooth_.setEnabled(true);
-      bluetooth_.startAdvertising();
-      lastSent_ = Target::Pair;
-      feedbackUntilMs_ = millis() + kFeedbackMs;
-      draw();
+      toggleAdvertising();
       return;
     case Target::StopPairing:
-      bluetooth_.stopAdvertising();
-      lastSent_ = Target::StopPairing;
-      feedbackUntilMs_ = millis() + kFeedbackMs;
-      draw();
+      toggleAdvertising();
       return;
     case Target::Forget:
       bluetooth_.forgetBondedDevices();
@@ -315,6 +315,19 @@ void MediaRemoteScreen::send(Target target) {
   lastSent_ = target;
   feedbackUntilMs_ = millis() + kFeedbackMs;
   pulseHaptic();
+  draw();
+}
+
+void MediaRemoteScreen::toggleAdvertising() {
+  if (bluetooth_.advertising()) {
+    bluetooth_.stopAdvertising();
+    lastSent_ = Target::StopPairing;
+  } else {
+    bluetooth_.setEnabled(true);
+    bluetooth_.startAdvertising();
+    lastSent_ = Target::Pair;
+  }
+  feedbackUntilMs_ = millis() + kFeedbackMs;
   draw();
 }
 
