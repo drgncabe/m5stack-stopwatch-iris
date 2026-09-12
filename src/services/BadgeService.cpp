@@ -75,8 +75,20 @@ bool BadgeService::isStaticRenderable() const {
 
 bool BadgeService::beginUpload(const String& filename, const String& contentType) {
   abortUpload();
+  lastUploadError_ = "";
   uploadRejected_ = false;
-  if (!mounted_ || !extensionAllowed(filename)) {
+  if (!mounted_) {
+    setUploadError("Badge storage is unavailable.");
+    return false;
+  }
+  if (!extensionAllowed(filename)) {
+    setUploadError("Unsupported badge format. Use PNG, JPEG, or GIF.");
+    return false;
+  }
+
+  uploadCapacityBytes_ = storageFreeBytes();
+  if (uploadCapacityBytes_ == 0) {
+    setUploadError("Not enough badge storage is available.");
     uploadRejected_ = true;
     return false;
   }
@@ -87,7 +99,7 @@ bool BadgeService::beginUpload(const String& filename, const String& contentType
   SPIFFS.remove(kBadgeTempPath);
   uploadFile_ = SPIFFS.open(kBadgeTempPath, FILE_WRITE);
   if (!uploadFile_) {
-    uploadRejected_ = true;
+    setUploadError("Could not open badge storage for upload.");
     return false;
   }
   return true;
@@ -97,12 +109,17 @@ bool BadgeService::writeUpload(const uint8_t* data, size_t size) {
   if (uploadRejected_ || !uploadFile_) return false;
   if (uploadSize_ + size > kMaxBadgeBytes) {
     abortUpload();
-    uploadRejected_ = true;
+    setUploadError("Badge upload is larger than the 4 MB limit.");
+    return false;
+  }
+  if (uploadSize_ + size > uploadCapacityBytes_) {
+    abortUpload();
+    setUploadError("Not enough badge storage is available.");
     return false;
   }
   if (uploadFile_.write(data, size) != size) {
     abortUpload();
-    uploadRejected_ = true;
+    setUploadError("Could not write badge upload to storage.");
     return false;
   }
   uploadSize_ += size;
@@ -111,22 +128,31 @@ bool BadgeService::writeUpload(const uint8_t* data, size_t size) {
 
 bool BadgeService::finishUpload() {
   if (uploadRejected_ || !uploadFile_) {
+    if (lastUploadError_.isEmpty()) setUploadError("Badge upload did not finish.");
     abortUpload();
     return false;
   }
 
   uploadFile_.close();
+  if (uploadSize_ == 0) {
+    setUploadError("Badge upload was empty.");
+    abortUpload();
+    return false;
+  }
+
   BadgeAssetType type = BadgeAssetType::None;
   uint16_t width = 0;
   uint16_t height = 0;
   String contentType;
   if (!sniffAsset(&type, &width, &height, &contentType)) {
+    setUploadError("Badge image is invalid or unsupported.");
     abortUpload();
     return false;
   }
 
   SPIFFS.remove(kBadgePath);
   if (!SPIFFS.rename(kBadgeTempPath, kBadgePath)) {
+    setUploadError("Could not store badge upload.");
     abortUpload();
     return false;
   }
@@ -143,7 +169,9 @@ bool BadgeService::finishUpload() {
   uploadFilename_ = "";
   uploadContentType_ = "";
   uploadSize_ = 0;
+  uploadCapacityBytes_ = 0;
   uploadRejected_ = false;
+  lastUploadError_ = "";
   return true;
 }
 
@@ -153,6 +181,7 @@ void BadgeService::abortUpload() {
   uploadFilename_ = "";
   uploadContentType_ = "";
   uploadSize_ = 0;
+  uploadCapacityBytes_ = 0;
 }
 
 bool BadgeService::deleteBadge() {
@@ -382,6 +411,11 @@ String BadgeService::sanitizedFilename(const String& filename) const {
     }
   }
   return clean.isEmpty() ? String("badge") : clean;
+}
+
+void BadgeService::setUploadError(const char* message) {
+  lastUploadError_ = message ? message : "Badge upload failed.";
+  uploadRejected_ = true;
 }
 
 const char* BadgeService::contentTypeFor(BadgeAssetType type) const {
