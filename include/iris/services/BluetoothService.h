@@ -40,6 +40,7 @@ class BluetoothService {
   uint32_t passkey() const { return passkey_; }
   uint32_t bondedDeviceCount() const;
   uint32_t lastCommandMs() const { return lastCommandMs_; }
+  const char* lastCommandName() const { return lastCommandName_; }
 
   const String& deviceName() const { return deviceName_; }
   const String& activeDevice() const { return activeDevice_; }
@@ -94,6 +95,7 @@ class BluetoothService {
   uint16_t connectionId_ = 0;
   uint32_t passkey_ = 0;
   uint32_t lastCommandMs_ = 0;
+  const char* lastCommandName_ = "None";
   uint32_t releaseAtMs_ = 0;
   uint32_t restartAdvertisingAtMs_ = 0;
 };

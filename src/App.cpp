@@ -808,6 +808,10 @@ String App::buildControlSnapshot() const {
               (bluetooth_.pairingFailed() ? "Failed" : "Idle");
   snapshot += "\nBLE passkey: ";
   snapshot += bluetooth_.pairingRequested() ? String(bluetooth_.passkey()) : "None";
+  snapshot += "\nBLE last command: ";
+  snapshot += bluetooth_.lastCommandName();
+  snapshot += "\nBLE last command ms: ";
+  snapshot += String(bluetooth_.lastCommandMs());
   snapshot += "\nBLE bonded devices: ";
   snapshot += String(bluetooth_.bondedDeviceCount());
   snapshot += "\nBLE bonded list: ";
