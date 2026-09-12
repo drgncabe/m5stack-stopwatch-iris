@@ -50,9 +50,33 @@ void StatusLightService::setEnabled(bool enabled) {
 }
 
 const char* StatusLightService::capabilityText() const {
-  if (pm1GreenLedAvailable_) return "PM1 green LED";
-  if (m5UnifiedLedAvailable_) return "M5Unified LED";
+  if (pm1GreenLedAvailable_) return "Green on/off LED";
+  if (m5UnifiedLedAvailable_) return "Fallback RGB LED";
   return "No user LED";
+}
+
+const char* StatusLightService::controllerText() const {
+  if (pm1GreenLedAvailable_) return "M5PM1 LED_EN";
+  if (m5UnifiedLedAvailable_) return "M5Unified LED";
+  return "Unavailable";
+}
+
+const char* StatusLightService::controlText() const {
+  if (pm1GreenLedAvailable_) return "Software on/off";
+  if (m5UnifiedLedAvailable_) return "Software RGB";
+  return "Unavailable";
+}
+
+const char* StatusLightService::colorText() const {
+  if (pm1GreenLedAvailable_) return "Green only";
+  if (m5UnifiedLedAvailable_) return "RGB";
+  return "Unavailable";
+}
+
+const char* StatusLightService::brightnessText() const {
+  if (pm1GreenLedAvailable_) return "Unsupported";
+  if (m5UnifiedLedAvailable_) return "Supported";
+  return "Unavailable";
 }
 
 const char* StatusLightService::statusText() const {
