@@ -30,6 +30,7 @@ class MediaRemoteScreen : public Screen {
     None,
     Menu,
     Pair,
+    StopPairing,
     Forget,
     Previous,
     PlayPause,
