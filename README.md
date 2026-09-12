@@ -117,7 +117,7 @@ Planned features are roadmap items unless they are listed under Implemented.
 - In Stopwatch, tap the left control for Lap/Reset/Back and the right control for Start/Pause/Resume.
 - In Stopwatch, tap the lap/status area to view recent lap history.
 - In Badge, BtnB cycles Fit/Fill/Center mode; BtnA returns to the main menu.
-- In Media Remote, pair from the BLE information screen, tap large media controls, press BtnA for previous track, and press BtnB for next track.
+- In Media Remote, pair from the BLE information screen, use the advertise/reconnect action when disconnected, tap large media controls once connected, press BtnA for previous track, and press BtnB for next track.
 
 ## User Interface
 
