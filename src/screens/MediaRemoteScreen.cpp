@@ -157,8 +157,9 @@ void MediaRemoteScreen::drawRemote() {
 
   if (!connected) {
     drawButton(kAdvertiseX, kAdvertiseY, kAdvertiseW, kAdvertiseH,
-               bluetooth_.advertising() ? "Advertising" : "Advertise",
-               bluetooth_.deviceName().c_str(), Target::Pair);
+               bluetooth_.advertising() ? "Cancel" : "Advertise",
+               bluetooth_.advertising() ? "Advertising" : bluetooth_.deviceName().c_str(),
+               bluetooth_.advertising() ? Target::StopPairing : Target::Pair);
   }
 
   drawIconButton(kCenter, connected ? 186 : 204, connected ? 64 : 54, Target::PlayPause, connected);
@@ -272,6 +273,12 @@ void MediaRemoteScreen::send(Target target) {
       feedbackUntilMs_ = millis() + kFeedbackMs;
       draw();
       return;
+    case Target::StopPairing:
+      bluetooth_.stopAdvertising();
+      lastSent_ = Target::StopPairing;
+      feedbackUntilMs_ = millis() + kFeedbackMs;
+      draw();
+      return;
     case Target::Forget:
       bluetooth_.forgetBondedDevices();
       view_ = View::BleInfo;
@@ -330,7 +337,7 @@ MediaRemoteScreen::Target MediaRemoteScreen::targetAt(int32_t x, int32_t y) cons
   if (view_ == View::Remote && !bluetooth_.connected() &&
       x >= kAdvertiseX - 12 && x <= kAdvertiseX + kAdvertiseW + 12 &&
       y >= kAdvertiseY - 12 && y <= kAdvertiseY + kAdvertiseH + 12) {
-    return Target::Pair;
+    return bluetooth_.advertising() ? Target::StopPairing : Target::Pair;
   }
   if (y >= 408 && x >= 118 && x <= 348) return Target::Menu;
   if (view_ == View::BleInfo) {
