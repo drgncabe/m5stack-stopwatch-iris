@@ -49,6 +49,7 @@ class MediaRemoteScreen : public Screen {
   void send(Target target);
   void toggleAdvertising();
   bool isMediaTarget(Target target) const;
+  const char* targetLabel(Target target) const;
   Target targetAt(int32_t x, int32_t y) const;
   void pulseHaptic(uint8_t strength = 70, uint32_t durationMs = 12);
   void updateHaptic(uint32_t nowMs);
