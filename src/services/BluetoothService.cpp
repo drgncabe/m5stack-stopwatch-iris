@@ -152,6 +152,10 @@ String BluetoothService::json() const {
   json += pairingFailed_ ? F("true") : F("false");
   json += F(",\"passkey\":");
   json += String(passkey_);
+  json += F(",\"lastCommand\":\"");
+  json += escapeJson(lastCommandName_);
+  json += F("\",\"lastCommandMs\":");
+  json += String(lastCommandMs_);
   json += F(",\"autoReconnect\":");
   json += autoReconnect_ ? F("true") : F("false");
   json += F(",\"deviceName\":\"");
@@ -232,6 +236,7 @@ bool BluetoothService::sendMediaCommand(BleMediaCommand command) {
   sendConsumerUsage(usageFor(command));
   releaseAtMs_ = millis() + kKeyReleaseDelayMs;
   lastCommandMs_ = millis();
+  lastCommandName_ = commandName(command);
   Serial.printf("[BLE] Media command: %s\n", commandName(command));
   return true;
 }

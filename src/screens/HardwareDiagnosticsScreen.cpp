@@ -416,7 +416,7 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
         case 5:
           if (bluetooth_.pairingRequested()) return String("Passkey ") + String(bluetooth_.passkey());
           if (bluetooth_.pairingFailed()) return "Pairing failed";
-          return bluetooth_.connected() ? "Run" : "Disconnected";
+          return bluetooth_.connected() ? bluetooth_.lastCommandName() : "Disconnected";
         case 6: return bluetooth_.bondedDeviceSummary();
       }
       break;

@@ -1974,6 +1974,8 @@ void WifiService::appendBluetoothPage(String& html, const String& snapshot) {
   html += escapeHtml(snapshotValue(snapshot, "BLE pairing"));
   html += F("</span></p><p><b>Passkey</b><span>");
   html += escapeHtml(snapshotValue(snapshot, "BLE passkey"));
+  html += F("</span></p><p><b>Last Command</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE last command"));
   html += F("</span></p><p><b>Bonded Devices</b><span>");
   html += escapeHtml(snapshotValue(snapshot, "BLE bonded devices"));
   html += F("</span></p><p><b>Bonded List</b><span>");
