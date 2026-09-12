@@ -174,9 +174,12 @@ void MediaRemoteScreen::drawRemote() {
   drawIconButton(kCenter, 364, 36, Target::Mute, connected);
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
-  const uint16_t statusColor = connected ? theme.accent : theme.muted;
+  const bool showingFeedback = lastSent_ != Target::None && feedbackUntilMs_ != 0;
+  const uint16_t statusColor = showingFeedback ? theme.foreground :
+                               (connected ? theme.accent : theme.muted);
   M5.Display.setTextColor(statusColor, theme.background);
-  M5.Display.drawString(bluetooth_.statusText(), kCenter, 416);
+  M5.Display.drawString(showingFeedback ? targetLabel(lastSent_) : bluetooth_.statusText(),
+                        kCenter, 416);
   M5.Display.setTextColor(theme.muted, theme.background);
   M5.Display.drawString(connected ? "A: Prev  B: Next" :
                         (bluetooth_.advertising() ? "A: Menu  B: Cancel" :
@@ -335,6 +338,20 @@ bool MediaRemoteScreen::isMediaTarget(Target target) const {
   return target == Target::Previous || target == Target::PlayPause ||
          target == Target::Next || target == Target::VolumeDown ||
          target == Target::VolumeUp || target == Target::Mute;
+}
+
+const char* MediaRemoteScreen::targetLabel(Target target) const {
+  switch (target) {
+    case Target::Pair: return "Advertising";
+    case Target::StopPairing: return "Advertising stopped";
+    case Target::Previous: return "Previous sent";
+    case Target::PlayPause: return "Play/Pause sent";
+    case Target::Next: return "Next sent";
+    case Target::VolumeDown: return "Volume down sent";
+    case Target::VolumeUp: return "Volume up sent";
+    case Target::Mute: return "Mute sent";
+    default: return "";
+  }
 }
 
 MediaRemoteScreen::Target MediaRemoteScreen::targetAt(int32_t x, int32_t y) const {
