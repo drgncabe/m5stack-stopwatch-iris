@@ -316,7 +316,7 @@ The dashboard includes a round watch-face preview generated from the current Iri
 
 The Badge page can upload one active PNG, JPEG, or GIF under 4 MB to the StopWatch filesystem. PNG, JPEG, and animated GIF files render in the Badge app.
 
-The Bluetooth page exposes BLE status, advertising controls, auto-reconnect, host disconnect, paired-device reset, and media command test buttons. Iris acts as a Bluetooth Low Energy HID media remote; it does not stream audio and does not provide Bluetooth Classic headphone or speaker behavior.
+The Bluetooth page exposes BLE status, the active host address, bonded-device addresses, advertising controls, auto-reconnect, host disconnect, paired-device reset, and media command test buttons. Iris acts as a Bluetooth Low Energy HID media remote; it does not stream audio and does not provide Bluetooth Classic headphone or speaker behavior.
 Bluetooth is off by default and starts when enabled from the web page or when pairing is started from Media Remote.
 
 Current web/API routes include:

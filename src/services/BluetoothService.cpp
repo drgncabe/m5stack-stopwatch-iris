@@ -111,6 +111,20 @@ uint32_t BluetoothService::bondedDeviceCount() const {
   return bonds > 0 ? static_cast<uint32_t>(bonds) : 0;
 }
 
+String BluetoothService::bondedDeviceSummary() const {
+  if (!initialized_) return "BLE off";
+  const int bonds = NimBLEDevice::getNumBonds();
+  if (bonds <= 0) return "None";
+
+  String summary;
+  summary.reserve(64);
+  for (int i = 0; i < bonds; ++i) {
+    if (i > 0) summary += ", ";
+    summary += NimBLEDevice::getBondedAddress(i).toString().c_str();
+  }
+  return summary;
+}
+
 String BluetoothService::statusText() const {
   if (!enabled_) return "Disabled";
   if (!initialized_) return "Not initialized";
@@ -122,7 +136,7 @@ String BluetoothService::statusText() const {
 
 String BluetoothService::json() const {
   String json;
-  json.reserve(420);
+  json.reserve(620);
   json += F("{\"enabled\":");
   json += enabled_ ? F("true") : F("false");
   json += F(",\"technology\":\"Bluetooth Low Energy (BLE)\",\"classicSupported\":false");
@@ -142,6 +156,10 @@ String BluetoothService::json() const {
   json += escapeJson(statusText());
   json += F("\",\"bondedDevices\":");
   json += String(bondedDeviceCount());
+  json += F(",\"bondedDeviceSummary\":\"");
+  json += escapeJson(bondedDeviceSummary());
+  json += F("\",\"bondedDeviceAddresses\":");
+  json += bondedDeviceJson();
   json += F(",\"bondManagement\":\"forget-all\"");
   json += F(",\"profile\":\"BLE HID Consumer Control\"}");
   return json;
@@ -328,6 +346,23 @@ const char* BluetoothService::commandName(BleMediaCommand command) const {
     case BleMediaCommand::Mute: return "Mute";
     default: return "Play/Pause";
   }
+}
+
+String BluetoothService::bondedDeviceJson() const {
+  String json;
+  json.reserve(96);
+  json += "[";
+  if (initialized_) {
+    const int bonds = NimBLEDevice::getNumBonds();
+    for (int i = 0; i < bonds; ++i) {
+      if (i > 0) json += ",";
+      json += "\"";
+      json += escapeJson(NimBLEDevice::getBondedAddress(i).toString().c_str());
+      json += "\"";
+    }
+  }
+  json += "]";
+  return json;
 }
 
 String BluetoothService::escapeJson(const String& value) {

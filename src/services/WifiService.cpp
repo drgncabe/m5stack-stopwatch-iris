@@ -1966,10 +1966,14 @@ void WifiService::appendBluetoothPage(String& html, const String& snapshot) {
   html += escapeHtml(snapshotValue(snapshot, "BLE device"));
   html += F("</span></p><p><b>Connected</b><span>");
   html += escapeHtml(snapshotValue(snapshot, "BLE connected"));
+  html += F("</span></p><p><b>Active Device</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE active device"));
   html += F("</span></p><p><b>Advertising</b><span>");
   html += escapeHtml(snapshotValue(snapshot, "BLE advertising"));
   html += F("</span></p><p><b>Bonded Devices</b><span>");
   html += escapeHtml(snapshotValue(snapshot, "BLE bonded devices"));
+  html += F("</span></p><p><b>Bonded List</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE bonded list"));
   html += F("</span></p></div>");
 
   appendToggleControl(html, "Bluetooth Low Energy", "ble_toggle", bluetooth_->enabled());

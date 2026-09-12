@@ -25,6 +25,11 @@ uint16_t dimColor(uint16_t color) {
   const uint8_t b = color & 0x1F;
   return static_cast<uint16_t>(((r / 2) << 11) | ((g / 2) << 5) | (b / 2));
 }
+
+String shortBleLabel(const String& value) {
+  if (value.length() <= 20) return value;
+  return value.substring(0, 8) + "..." + value.substring(value.length() - 9);
+}
 }  // namespace
 
 MediaRemoteScreen::MediaRemoteScreen(SettingsStore& settings, BluetoothService& bluetooth)
@@ -130,7 +135,15 @@ void MediaRemoteScreen::drawRemote() {
   M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.drawString("MEDIA", kCenter, 46);
 
-  if (!bluetooth_.connected()) {
+  const String remoteLabel = bluetooth_.connected()
+                                 ? bluetooth_.activeDevice()
+                                 : bluetooth_.bondedDeviceSummary();
+  if (bluetooth_.connected() || bluetooth_.bondedDeviceCount() > 0) {
+    M5.Display.drawRoundRect(132, 72, 202, 28, 14, dimColor(theme.accent));
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    M5.Display.setTextColor(theme.muted, theme.background);
+    M5.Display.drawString(shortBleLabel(remoteLabel), kCenter, 86);
+  } else if (!bluetooth_.connected()) {
     M5.Display.drawRoundRect(132, 72, 202, 28, 14, dimColor(theme.accent));
     M5.Display.setFont(&fonts::FreeSans9pt7b);
     M5.Display.setTextColor(theme.muted, theme.background);

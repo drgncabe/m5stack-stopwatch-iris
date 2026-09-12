@@ -291,7 +291,7 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
       return labels[index];
     }
     case Page::Bluetooth: {
-      constexpr const char* labels[] = {"", "Status", "Device", "Profile", "Advertise", "Disconnect", "Forget", ""};
+      constexpr const char* labels[] = {"", "Status", "Device", "Active", "Advertise", "Disconnect", "Bonded/Forget", ""};
       return labels[index];
     }
     case Page::Power: {
@@ -407,10 +407,10 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
       switch (index) {
         case 1: return bluetooth_.statusText();
         case 2: return bluetooth_.deviceName();
-        case 3: return "BLE HID";
+        case 3: return bluetooth_.activeDevice().isEmpty() ? "None" : bluetooth_.activeDevice();
         case 4: return bluetooth_.advertising() ? "Advertising" : "Start";
         case 5: return bluetooth_.connected() ? "Run" : "Disconnected";
-        case 6: return bluetooth_.bondedDeviceCount() > 0 ? String(bluetooth_.bondedDeviceCount()) : "None";
+        case 6: return bluetooth_.bondedDeviceSummary();
       }
       break;
     case Page::Power:

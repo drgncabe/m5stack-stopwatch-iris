@@ -43,6 +43,7 @@ class BluetoothService {
 
   const String& deviceName() const { return deviceName_; }
   const String& activeDevice() const { return activeDevice_; }
+  String bondedDeviceSummary() const;
   String statusText() const;
   String json() const;
 
@@ -70,6 +71,7 @@ class BluetoothService {
   void handleAuthenticationComplete(bool success);
   uint16_t usageFor(BleMediaCommand command) const;
   const char* commandName(BleMediaCommand command) const;
+  String bondedDeviceJson() const;
   static String escapeJson(const String& value);
 
   Preferences prefs_;
