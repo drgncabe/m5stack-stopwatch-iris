@@ -136,7 +136,7 @@ String BluetoothService::statusText() const {
 
 String BluetoothService::json() const {
   String json;
-  json.reserve(620);
+  json.reserve(720);
   json += F("{\"enabled\":");
   json += enabled_ ? F("true") : F("false");
   json += F(",\"technology\":\"Bluetooth Low Energy (BLE)\",\"classicSupported\":false");
@@ -146,6 +146,12 @@ String BluetoothService::json() const {
   json += advertising_ ? F("true") : F("false");
   json += F(",\"connected\":");
   json += connected_ ? F("true") : F("false");
+  json += F(",\"pairingRequested\":");
+  json += pairingRequested_ ? F("true") : F("false");
+  json += F(",\"pairingFailed\":");
+  json += pairingFailed_ ? F("true") : F("false");
+  json += F(",\"passkey\":");
+  json += String(passkey_);
   json += F(",\"autoReconnect\":");
   json += autoReconnect_ ? F("true") : F("false");
   json += F(",\"deviceName\":\"");
