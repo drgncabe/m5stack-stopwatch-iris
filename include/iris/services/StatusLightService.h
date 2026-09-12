@@ -12,6 +12,10 @@ class StatusLightService {
   bool enabled() const { return enabled_; }
   bool available() const { return available_; }
   const char* capabilityText() const;
+  const char* controllerText() const;
+  const char* controlText() const;
+  const char* colorText() const;
+  const char* brightnessText() const;
   const char* statusText() const;
   void showNotification(uint8_t red, uint8_t green, uint8_t blue);
   void clearNotification();

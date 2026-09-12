@@ -692,6 +692,17 @@ void WifiService::handleControlPanel() {
     appendToggleControl(html, "Low-power watch face", "low_face_toggle", snapshotOn(snapshot, "Low-power face"));
     appendToggleControl(html, "WiFi on demand", "wifi_demand_toggle", snapshotOn(snapshot, "WiFi on demand"));
     appendToggleControl(html, "Indicator LED", "indicator_toggle", snapshotValue(snapshot, "Indicator light") != "Off");
+    html += F("<h3>Indicator LED</h3><div class='facts'><p><b>Status</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Indicator light"));
+    html += F("</span></p><p><b>Controller</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Indicator controller"));
+    html += F("</span></p><p><b>Control</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Indicator control"));
+    html += F("</span></p><p><b>Color</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Indicator color"));
+    html += F("</span></p><p><b>Brightness</b><span>");
+    html += escapeHtml(snapshotValue(snapshot, "Indicator brightness"));
+    html += F("</span></p></div>");
     html += F("</section>");
   } else if (page == "device") {
     html += F("<section><h2>Device</h2><p class='hint'>Hardware, runtime, connectivity, and firmware details for this Iris build.</p>");
@@ -883,7 +894,7 @@ void WifiService::handleControlCommand() {
 void WifiService::handleApiSettings() {
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
-  json.reserve(960);
+  json.reserve(1160);
   json += F("{\"screen\":\"");
   json += escapeJson(snapshotValue(snapshot, "Screen"));
   json += F("\",\"displayPower\":\"");
@@ -944,6 +955,14 @@ void WifiService::handleApiSettings() {
   json += escapeJson(snapshotValue(snapshot, "Indicator light"));
   json += F("\",\"indicatorCapability\":\"");
   json += escapeJson(snapshotValue(snapshot, "Indicator capability"));
+  json += F("\",\"indicatorController\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator controller"));
+  json += F("\",\"indicatorControl\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator control"));
+  json += F("\",\"indicatorColor\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator color"));
+  json += F("\",\"indicatorBrightness\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator brightness"));
   json += F("\",\"ragnarLink\":\"");
   json += escapeJson(snapshotValue(snapshot, "Ragnar Link"));
   json += F("\",\"ragnarChannel\":");
@@ -958,7 +977,7 @@ void WifiService::handleApiSettings() {
 void WifiService::handleApiDeviceInfo() {
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
-  json.reserve(960);
+  json.reserve(1160);
   json += F("{\"project\":\"Iris\",\"firmware\":\"");
   json += escapeJson(snapshotValue(snapshot, "Firmware"));
   json += F("\",\"hardware\":\"M5Stack StopWatch\",\"mcu\":\"");
@@ -1021,6 +1040,14 @@ void WifiService::handleApiDeviceInfo() {
   json += escapeJson(snapshotValue(snapshot, "Indicator light"));
   json += F("\",\"indicatorCapability\":\"");
   json += escapeJson(snapshotValue(snapshot, "Indicator capability"));
+  json += F("\",\"indicatorController\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator controller"));
+  json += F("\",\"indicatorControl\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator control"));
+  json += F("\",\"indicatorColor\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator color"));
+  json += F("\",\"indicatorBrightness\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator brightness"));
   json += F("\",\"wifi\":\"");
   json += escapeJson(snapshotValue(snapshot, "WiFi"));
   json += F("\",\"ssid\":\"");
@@ -1402,7 +1429,7 @@ void WifiService::handleApiPowerSettings() {
 
   const String snapshot = snapshotHandler_ ? snapshotHandler_(controlContext_) : String("");
   String json;
-  json.reserve(360);
+  json.reserve(560);
   json += F("{\"displayPower\":\"");
   json += escapeJson(snapshotValue(snapshot, "Display power"));
   json += F("\",\"powerProfile\":\"");
@@ -1425,6 +1452,14 @@ void WifiService::handleApiPowerSettings() {
   json += escapeJson(snapshotValue(snapshot, "Indicator light"));
   json += F("\",\"indicatorCapability\":\"");
   json += escapeJson(snapshotValue(snapshot, "Indicator capability"));
+  json += F("\",\"indicatorController\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator controller"));
+  json += F("\",\"indicatorControl\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator control"));
+  json += F("\",\"indicatorColor\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator color"));
+  json += F("\",\"indicatorBrightness\":\"");
+  json += escapeJson(snapshotValue(snapshot, "Indicator brightness"));
   json += F("\"");
   json += F("}");
   server_.send(200, "application/json", json);

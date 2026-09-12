@@ -780,6 +780,14 @@ String App::buildControlSnapshot() const {
   snapshot += statusLight_.statusText();
   snapshot += "\nIndicator capability: ";
   snapshot += statusLight_.capabilityText();
+  snapshot += "\nIndicator controller: ";
+  snapshot += statusLight_.controllerText();
+  snapshot += "\nIndicator control: ";
+  snapshot += statusLight_.controlText();
+  snapshot += "\nIndicator color: ";
+  snapshot += statusLight_.colorText();
+  snapshot += "\nIndicator brightness: ";
+  snapshot += statusLight_.brightnessText();
   snapshot += "\nWiFi on demand: ";
   snapshot += settings_.wifiOnDemand() ? "On" : "Off";
   snapshot += "\nTouch delay: ";
