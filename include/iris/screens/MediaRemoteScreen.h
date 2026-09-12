@@ -43,9 +43,10 @@ class MediaRemoteScreen : public Screen {
   void drawRemote();
   void drawButton(int32_t x, int32_t y, int32_t w, int32_t h, const char* title,
                   const char* subtitle, Target target);
-  void drawIconButton(int32_t cx, int32_t cy, int32_t radius, Target target);
+  void drawIconButton(int32_t cx, int32_t cy, int32_t radius, Target target, bool enabled = true);
   void drawIcon(Target target, int32_t cx, int32_t cy, uint16_t color);
   void send(Target target);
+  bool isMediaTarget(Target target) const;
   Target targetAt(int32_t x, int32_t y) const;
   void pulseHaptic(uint8_t strength = 70, uint32_t durationMs = 12);
   void updateHaptic(uint32_t nowMs);

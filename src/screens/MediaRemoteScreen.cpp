@@ -18,6 +18,10 @@ constexpr int kForgetX = 346;
 constexpr int kForgetY = 24;
 constexpr int kForgetW = 92;
 constexpr int kForgetH = 44;
+constexpr int kAdvertiseX = 136;
+constexpr int kAdvertiseY = 104;
+constexpr int kAdvertiseW = 194;
+constexpr int kAdvertiseH = 36;
 
 uint16_t dimColor(uint16_t color) {
   const uint8_t r = (color >> 11) & 0x1F;
@@ -135,34 +139,41 @@ void MediaRemoteScreen::drawRemote() {
   M5.Display.setTextColor(theme.foreground, theme.background);
   M5.Display.drawString("MEDIA", kCenter, 46);
 
+  const bool connected = bluetooth_.connected();
   const String remoteLabel = bluetooth_.connected()
                                  ? bluetooth_.activeDevice()
                                  : bluetooth_.bondedDeviceSummary();
-  if (bluetooth_.connected() || bluetooth_.bondedDeviceCount() > 0) {
+  if (connected || bluetooth_.bondedDeviceCount() > 0) {
     M5.Display.drawRoundRect(132, 72, 202, 28, 14, dimColor(theme.accent));
     M5.Display.setFont(&fonts::FreeSans9pt7b);
     M5.Display.setTextColor(theme.muted, theme.background);
     M5.Display.drawString(shortBleLabel(remoteLabel), kCenter, 86);
-  } else if (!bluetooth_.connected()) {
+  } else {
     M5.Display.drawRoundRect(132, 72, 202, 28, 14, dimColor(theme.accent));
     M5.Display.setFont(&fonts::FreeSans9pt7b);
     M5.Display.setTextColor(theme.muted, theme.background);
     M5.Display.drawString(bluetooth_.deviceName(), kCenter, 86);
   }
 
-  drawIconButton(kCenter, 178, 72, Target::PlayPause);
-  drawIconButton(94, 190, 45, Target::Previous);
-  drawIconButton(372, 190, 45, Target::Next);
-  drawIconButton(142, 304, 44, Target::VolumeDown);
-  drawIconButton(324, 304, 44, Target::VolumeUp);
-  drawIconButton(kCenter, 364, 39, Target::Mute);
+  if (!connected) {
+    drawButton(kAdvertiseX, kAdvertiseY, kAdvertiseW, kAdvertiseH,
+               bluetooth_.advertising() ? "Advertising" : "Advertise",
+               bluetooth_.deviceName().c_str(), Target::Pair);
+  }
+
+  drawIconButton(kCenter, connected ? 186 : 204, connected ? 64 : 54, Target::PlayPause, connected);
+  drawIconButton(94, connected ? 198 : 214, connected ? 41 : 38, Target::Previous, connected);
+  drawIconButton(372, connected ? 198 : 214, connected ? 41 : 38, Target::Next, connected);
+  drawIconButton(142, 306, 40, Target::VolumeDown, connected);
+  drawIconButton(324, 306, 40, Target::VolumeUp, connected);
+  drawIconButton(kCenter, 364, 36, Target::Mute, connected);
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
-  const uint16_t statusColor = bluetooth_.connected() ? theme.accent : theme.muted;
+  const uint16_t statusColor = connected ? theme.accent : theme.muted;
   M5.Display.setTextColor(statusColor, theme.background);
   M5.Display.drawString(bluetooth_.statusText(), kCenter, 416);
   M5.Display.setTextColor(theme.muted, theme.background);
-  M5.Display.drawString("A: Prev  B: Next", kCenter, 442);
+  M5.Display.drawString(connected ? "A: Prev  B: Next" : "Tap Advertise to reconnect", kCenter, 442);
 }
 
 void MediaRemoteScreen::drawButton(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -186,15 +197,16 @@ void MediaRemoteScreen::drawButton(int32_t x, int32_t y, int32_t w, int32_t h,
 }
 
 void MediaRemoteScreen::drawIconButton(int32_t cx, int32_t cy, int32_t radius,
-                                       Target target) {
+                                       Target target, bool enabled) {
   const Theme theme = currentTheme(settings_);
-  const bool active = preview_ == target || lastSent_ == target;
+  const bool active = enabled && (preview_ == target || lastSent_ == target);
   const uint16_t fill = active ? theme.selected : theme.panel;
   const uint16_t ring = active ? theme.foreground : dimColor(theme.accent);
+  const uint16_t icon = enabled ? (active ? theme.foreground : theme.accent) : dimColor(theme.muted);
   M5.Display.fillCircle(cx, cy, radius, fill);
   M5.Display.drawCircle(cx, cy, radius, ring);
   M5.Display.drawCircle(cx, cy, radius - 1, dimColor(ring));
-  drawIcon(target, cx, cy, active ? theme.foreground : theme.accent);
+  drawIcon(target, cx, cy, icon);
 }
 
 void MediaRemoteScreen::drawIcon(Target target, int32_t cx, int32_t cy,
@@ -254,7 +266,10 @@ void MediaRemoteScreen::send(Target target) {
       if (manager_) manager_->show(ScreenId::MainMenu);
       return;
     case Target::Pair:
+      bluetooth_.setEnabled(true);
       bluetooth_.startAdvertising();
+      lastSent_ = Target::Pair;
+      feedbackUntilMs_ = millis() + kFeedbackMs;
       draw();
       return;
     case Target::Forget:
@@ -284,10 +299,22 @@ void MediaRemoteScreen::send(Target target) {
       return;
   }
 
+  if (!sent) {
+    lastSent_ = Target::None;
+    feedbackUntilMs_ = 0;
+    draw();
+    return;
+  }
   lastSent_ = target;
   feedbackUntilMs_ = millis() + kFeedbackMs;
-  if (sent) pulseHaptic();
+  pulseHaptic();
   draw();
+}
+
+bool MediaRemoteScreen::isMediaTarget(Target target) const {
+  return target == Target::Previous || target == Target::PlayPause ||
+         target == Target::Next || target == Target::VolumeDown ||
+         target == Target::VolumeUp || target == Target::Mute;
 }
 
 MediaRemoteScreen::Target MediaRemoteScreen::targetAt(int32_t x, int32_t y) const {
@@ -300,6 +327,11 @@ MediaRemoteScreen::Target MediaRemoteScreen::targetAt(int32_t x, int32_t y) cons
       y >= kForgetY - 12 && y <= kForgetY + kForgetH + 12) {
     return Target::Forget;
   }
+  if (view_ == View::Remote && !bluetooth_.connected() &&
+      x >= kAdvertiseX - 12 && x <= kAdvertiseX + kAdvertiseW + 12 &&
+      y >= kAdvertiseY - 12 && y <= kAdvertiseY + kAdvertiseH + 12) {
+    return Target::Pair;
+  }
   if (y >= 408 && x >= 118 && x <= 348) return Target::Menu;
   if (view_ == View::BleInfo) {
     if (x >= 118 && x <= 348 && y >= 318 && y <= 382) return Target::Pair;
@@ -311,13 +343,17 @@ MediaRemoteScreen::Target MediaRemoteScreen::targetAt(int32_t x, int32_t y) cons
     const int32_t dy = py - cy;
     return dx * dx + dy * dy <= radius * radius;
   };
-  if (inCircle(x, y, kCenter, 178, 84)) return Target::PlayPause;
-  if (inCircle(x, y, 94, 190, 58)) return Target::Previous;
-  if (inCircle(x, y, 372, 190, 58)) return Target::Next;
-  if (inCircle(x, y, 142, 304, 56)) return Target::VolumeDown;
-  if (inCircle(x, y, 324, 304, 56)) return Target::VolumeUp;
-  if (inCircle(x, y, kCenter, 364, 52)) return Target::Mute;
-  return Target::None;
+  Target target = Target::None;
+  if (inCircle(x, y, kCenter, bluetooth_.connected() ? 186 : 204,
+               bluetooth_.connected() ? 76 : 66)) target = Target::PlayPause;
+  if (inCircle(x, y, 94, bluetooth_.connected() ? 198 : 214,
+               bluetooth_.connected() ? 52 : 48)) target = Target::Previous;
+  if (inCircle(x, y, 372, bluetooth_.connected() ? 198 : 214,
+               bluetooth_.connected() ? 52 : 48)) target = Target::Next;
+  if (inCircle(x, y, 142, 306, 52)) target = Target::VolumeDown;
+  if (inCircle(x, y, 324, 306, 52)) target = Target::VolumeUp;
+  if (inCircle(x, y, kCenter, 364, 48)) target = Target::Mute;
+  return !bluetooth_.connected() && isMediaTarget(target) ? Target::None : target;
 }
 
 void MediaRemoteScreen::pulseHaptic(uint8_t strength, uint32_t durationMs) {
