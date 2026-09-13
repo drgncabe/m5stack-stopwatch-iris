@@ -319,6 +319,8 @@ The Badge page can upload one active PNG, JPEG, or GIF under 4 MB to the StopWat
 
 Animated GIF playback is opened only while the Badge app screen is active and is closed when leaving the screen, so app switching releases the decoder and badge file handle immediately.
 
+GIF rendering uses the same Fit, Fill, and Center badge modes where practical. Small GIFs are integer-scaled while decoding so they can occupy more of the round display without storing a full decompressed animation in memory.
+
 The Bluetooth page exposes BLE status, pairing/passkey state, the active host address, bonded-device addresses, the last accepted media command, advertising controls, auto-reconnect, host disconnect, paired-device reset, and media command test buttons. Iris acts as a Bluetooth Low Energy HID media remote; it does not stream audio and does not provide Bluetooth Classic headphone or speaker behavior.
 Bluetooth is off by default and starts when enabled from the web page or when pairing is started from Media Remote.
 Hardware Diagnostics includes a BLE page for inspecting status, active/bonded devices, starting or stopping advertising, disconnecting the active host, and clearing stored bonds.
