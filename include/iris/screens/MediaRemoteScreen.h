@@ -51,6 +51,8 @@ class MediaRemoteScreen : public Screen {
   bool isMediaTarget(Target target) const;
   const char* targetLabel(Target target) const;
   Target targetAt(int32_t x, int32_t y) const;
+  String stateToken() const;
+  void captureStateToken();
   void pulseHaptic(uint8_t strength = 70, uint32_t durationMs = 12);
   void updateHaptic(uint32_t nowMs);
 
@@ -59,8 +61,10 @@ class MediaRemoteScreen : public Screen {
   View view_ = View::BleInfo;
   Target preview_ = Target::None;
   Target lastSent_ = Target::None;
+  String lastStateToken_;
   uint32_t feedbackUntilMs_ = 0;
   uint32_t hapticUntilMs_ = 0;
+  uint32_t lastStateCheckMs_ = 0;
 };
 
 }  // namespace iris

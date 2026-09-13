@@ -22,6 +22,7 @@ constexpr int kAdvertiseX = 136;
 constexpr int kAdvertiseY = 104;
 constexpr int kAdvertiseW = 194;
 constexpr int kAdvertiseH = 36;
+constexpr uint32_t kStateRefreshMs = 250;
 
 uint16_t dimColor(uint16_t color) {
   const uint8_t r = (color >> 11) & 0x1F;
@@ -46,11 +47,25 @@ void MediaRemoteScreen::enter() {
   preview_ = Target::None;
   lastSent_ = Target::None;
   feedbackUntilMs_ = 0;
+  lastStateCheckMs_ = 0;
+  captureStateToken();
   draw();
 }
 
 void MediaRemoteScreen::update(uint32_t nowMs) {
   updateHaptic(nowMs);
+  if (lastStateCheckMs_ == 0 || nowMs - lastStateCheckMs_ >= kStateRefreshMs) {
+    lastStateCheckMs_ = nowMs;
+    const String token = stateToken();
+    if (token != lastStateToken_) {
+      lastStateToken_ = token;
+      if (view_ == View::BleInfo &&
+          (bluetooth_.bondedDeviceCount() > 0 || bluetooth_.connected())) {
+        view_ = View::Remote;
+      }
+      draw();
+    }
+  }
   if (feedbackUntilMs_ != 0 && static_cast<int32_t>(nowMs - feedbackUntilMs_) >= 0) {
     feedbackUntilMs_ = 0;
     lastSent_ = Target::None;
@@ -338,6 +353,28 @@ bool MediaRemoteScreen::isMediaTarget(Target target) const {
   return target == Target::Previous || target == Target::PlayPause ||
          target == Target::Next || target == Target::VolumeDown ||
          target == Target::VolumeUp || target == Target::Mute;
+}
+
+String MediaRemoteScreen::stateToken() const {
+  String token;
+  token.reserve(96);
+  token += bluetooth_.enabled() ? '1' : '0';
+  token += bluetooth_.initialized() ? '1' : '0';
+  token += bluetooth_.advertising() ? '1' : '0';
+  token += bluetooth_.connected() ? '1' : '0';
+  token += bluetooth_.pairingRequested() ? '1' : '0';
+  token += bluetooth_.pairingFailed() ? '1' : '0';
+  token += ':';
+  token += bluetooth_.activeDevice();
+  token += ':';
+  token += bluetooth_.bondedDeviceSummary();
+  token += ':';
+  token += bluetooth_.statusText();
+  return token;
+}
+
+void MediaRemoteScreen::captureStateToken() {
+  lastStateToken_ = stateToken();
 }
 
 const char* MediaRemoteScreen::targetLabel(Target target) const {
