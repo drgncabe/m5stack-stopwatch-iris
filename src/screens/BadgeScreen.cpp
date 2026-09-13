@@ -226,8 +226,9 @@ bool BadgeScreen::ensureGifOpen() {
   }
   gifOpen_ = true;
   gifError_ = GIF_SUCCESS;
-  gifOffsetX_ = (M5.Display.width() - gif_.getCanvasWidth()) / 2;
-  gifOffsetY_ = (M5.Display.height() - gif_.getCanvasHeight()) / 2;
+  gifScale_ = gifScaleFor(gif_.getCanvasWidth(), gif_.getCanvasHeight());
+  gifOffsetX_ = (M5.Display.width() - (gif_.getCanvasWidth() * gifScale_)) / 2;
+  gifOffsetY_ = (M5.Display.height() - (gif_.getCanvasHeight() * gifScale_)) / 2;
   nextGifFrameMs_ = 0;
   return true;
 }
@@ -291,18 +292,33 @@ float BadgeScreen::scaleFor(const BadgeMetadata& meta) const {
   return sx < sy ? sx : sy;
 }
 
+uint8_t BadgeScreen::gifScaleFor(int width, int height) const {
+  if (width <= 0 || height <= 0) return 1;
+  if (badge_.metadata().mode == BadgeDisplayMode::Center) return 1;
+
+  const int fitScale = min(kDisplayW / width, kDisplayH / height);
+  if (badge_.metadata().mode == BadgeDisplayMode::Fit) {
+    return static_cast<uint8_t>(max(1, fitScale));
+  }
+
+  const int fillScale = max((kDisplayW + width - 1) / width, (kDisplayH + height - 1) / height);
+  return static_cast<uint8_t>(max(1, fillScale));
+}
+
 void BadgeScreen::drawGifLine(GIFDRAW* draw) {
   if (!draw || !draw->pUser) return;
   BadgeScreen* screen = static_cast<BadgeScreen*>(draw->pUser);
-  const int y = screen->gifOffsetY_ + draw->iY + draw->y;
-  if (y < 0 || y >= kDisplayH) return;
+  const int scale = max(1, static_cast<int>(screen->gifScale_));
+  const int y = screen->gifOffsetY_ + ((draw->iY + draw->y) * scale);
+  if (y >= kDisplayH || y + scale <= 0) return;
 
   int sourceX = 0;
-  int x = screen->gifOffsetX_ + draw->iX;
-  int width = draw->iWidth;
+  int x = screen->gifOffsetX_ + (draw->iX * scale);
+  int width = draw->iWidth * scale;
   if (x < 0) {
-    sourceX = -x;
-    width -= sourceX;
+    sourceX = (-x + scale - 1) / scale;
+    width -= sourceX * scale;
+    x += sourceX * scale;
     x = 0;
   }
   if (x + width > kDisplayW) width = kDisplayW - x;
@@ -311,29 +327,52 @@ void BadgeScreen::drawGifLine(GIFDRAW* draw) {
   uint8_t* pixels = draw->pPixels + sourceX;
   uint16_t* palette = draw->pPalette;
   uint16_t line[kDisplayW];
+  const int sourceWidth = min(draw->iWidth - sourceX, (width + scale - 1) / scale);
 
   if (!draw->ucHasTransparency) {
-    for (int i = 0; i < width; ++i) {
-      line[i] = palette[pixels[i]];
+    int out = 0;
+    for (int i = 0; i < sourceWidth && out < width; ++i) {
+      const uint16_t color = palette[pixels[i]];
+      for (int repeat = 0; repeat < scale && out < width; ++repeat) {
+        line[out++] = color;
+      }
     }
-    M5.Display.pushImage(x, y, width, 1, line);
+    for (int repeatY = 0; repeatY < scale; ++repeatY) {
+      const int drawY = y + repeatY;
+      if (drawY >= 0 && drawY < kDisplayH) M5.Display.pushImage(x, drawY, width, 1, line);
+    }
     return;
   }
 
   int runStart = -1;
-  for (int i = 0; i < width; ++i) {
+  int out = 0;
+  for (int i = 0; i < sourceWidth && out < width; ++i) {
     if (pixels[i] == draw->ucTransparent) {
       if (runStart >= 0) {
-        M5.Display.pushImage(x + runStart, y, i - runStart, 1, line + runStart);
+        for (int repeatY = 0; repeatY < scale; ++repeatY) {
+          const int drawY = y + repeatY;
+          if (drawY >= 0 && drawY < kDisplayH) {
+            M5.Display.pushImage(x + runStart, drawY, out - runStart, 1, line + runStart);
+          }
+        }
         runStart = -1;
       }
+      out += scale;
       continue;
     }
-    if (runStart < 0) runStart = i;
-    line[i] = palette[pixels[i]];
+    const uint16_t color = palette[pixels[i]];
+    for (int repeat = 0; repeat < scale && out < width; ++repeat) {
+      if (runStart < 0) runStart = out;
+      line[out++] = color;
+    }
   }
   if (runStart >= 0) {
-    M5.Display.pushImage(x + runStart, y, width - runStart, 1, line + runStart);
+    for (int repeatY = 0; repeatY < scale; ++repeatY) {
+      const int drawY = y + repeatY;
+      if (drawY >= 0 && drawY < kDisplayH) {
+        M5.Display.pushImage(x + runStart, drawY, out - runStart, 1, line + runStart);
+      }
+    }
   }
 }
 

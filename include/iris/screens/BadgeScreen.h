@@ -31,6 +31,7 @@ class BadgeScreen : public Screen {
   void drawInfoOverlay();
   void showInfo(uint32_t nowMs);
   float scaleFor(const BadgeMetadata& meta) const;
+  uint8_t gifScaleFor(int width, int height) const;
   static void drawGifLine(GIFDRAW* draw);
 
   SettingsStore& settings_;
@@ -42,6 +43,7 @@ class BadgeScreen : public Screen {
   uint32_t nextGifFrameMs_ = 0;
   int gifOffsetX_ = 0;
   int gifOffsetY_ = 0;
+  uint8_t gifScale_ = 1;
   int gifError_ = GIF_SUCCESS;
   uint32_t hideInfoAtMs_ = 0;
 };
