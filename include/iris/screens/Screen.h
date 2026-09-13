@@ -41,6 +41,7 @@ class Screen {
   void attach(ScreenManager* manager) { manager_ = manager; }
 
   virtual void enter() = 0;
+  virtual void exit() {}
   virtual void update(uint32_t nowMs) = 0;
   virtual void draw() = 0;
   virtual void previewTouch(int32_t x, int32_t y) {}

@@ -18,6 +18,9 @@ void ScreenManager::show(ScreenId id) {
   const auto index = static_cast<size_t>(id);
   if (index >= screens_.size() || screens_[index] == nullptr) return;
 
+  if (current_ && current_ != screens_[index]) {
+    current_->exit();
+  }
   currentId_ = id;
   current_ = screens_[index];
   current_->enter();
