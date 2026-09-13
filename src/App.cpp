@@ -809,6 +809,10 @@ String App::buildControlSnapshot() const {
   snapshot += bluetooth_.connected() ? "On" : "Off";
   snapshot += "\nBLE active device: ";
   snapshot += bluetooth_.activeDevice().isEmpty() ? "None" : bluetooth_.activeDevice();
+  snapshot += "\nBLE connection time: ";
+  snapshot += bluetooth_.connected() ? String(bluetooth_.connectionMs() / 1000) + "s" : "Disconnected";
+  snapshot += "\nBLE connection ms: ";
+  snapshot += String(bluetooth_.connectionMs());
   snapshot += "\nBLE advertising: ";
   snapshot += bluetooth_.advertising() ? "On" : "Off";
   snapshot += "\nBLE pairing: ";
