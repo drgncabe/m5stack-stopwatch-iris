@@ -45,6 +45,7 @@ class BluetoothService {
 
   const String& deviceName() const { return deviceName_; }
   const String& activeDevice() const { return activeDevice_; }
+  const char* profileText() const { return "BLE HID Consumer"; }
   String bondedDeviceSummary() const;
   String statusText() const;
   String json() const;

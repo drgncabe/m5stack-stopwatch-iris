@@ -805,6 +805,8 @@ String App::buildControlSnapshot() const {
   snapshot += bluetooth_.statusText();
   snapshot += "\nBLE device: ";
   snapshot += bluetooth_.deviceName();
+  snapshot += "\nBLE profile: ";
+  snapshot += bluetooth_.profileText();
   snapshot += "\nBLE connected: ";
   snapshot += bluetooth_.connected() ? "On" : "Off";
   snapshot += "\nBLE active device: ";
