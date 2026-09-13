@@ -310,7 +310,7 @@ const char* HardwareDiagnosticsScreen::rowLabel(size_t index) const {
       return labels[index];
     }
     case Page::StatusLight: {
-      constexpr const char* labels[] = {"", "Controller", "Control", "Color", "Brightness", "Test on", "Turn off", ""};
+      constexpr const char* labels[] = {"", "Status", "Controller", "Control", "Color", "Test on", "Turn off", ""};
       return labels[index];
     }
   }
@@ -457,10 +457,10 @@ String HardwareDiagnosticsScreen::rowValue(size_t index) const {
       break;
     case Page::StatusLight:
       switch (index) {
-        case 1: return statusLight_.controllerText();
-        case 2: return statusLight_.controlText();
-        case 3: return statusLight_.colorText();
-        case 4: return statusLight_.brightnessText();
+        case 1: return statusLight_.statusText();
+        case 2: return statusLight_.controllerText();
+        case 3: return statusLight_.controlText();
+        case 4: return statusLight_.colorText();
         case 5: return statusLight_.available() ? "Run" : "No effect";
         case 6: return statusLight_.available() ? "Run" : "No effect";
       }
