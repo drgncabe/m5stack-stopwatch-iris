@@ -2002,6 +2002,8 @@ void WifiService::appendBluetoothPage(String& html, const String& snapshot) {
   html += escapeHtml(snapshotValue(snapshot, "Bluetooth"));
   html += F("</span></p><p><b>Device Name</b><span>");
   html += escapeHtml(snapshotValue(snapshot, "BLE device"));
+  html += F("</span></p><p><b>Profile</b><span>");
+  html += escapeHtml(snapshotValue(snapshot, "BLE profile"));
   html += F("</span></p><p><b>Connected</b><span>");
   html += escapeHtml(snapshotValue(snapshot, "BLE connected"));
   html += F("</span></p><p><b>Active Device</b><span>");

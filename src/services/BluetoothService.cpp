@@ -178,7 +178,9 @@ String BluetoothService::json() const {
   json += F("\",\"bondedDeviceAddresses\":");
   json += bondedDeviceJson();
   json += F(",\"bondManagement\":\"forget-all\"");
-  json += F(",\"profile\":\"BLE HID Consumer Control\"}");
+  json += F(",\"profile\":\"");
+  json += escapeJson(profileText());
+  json += F("\"}");
   return json;
 }
 
