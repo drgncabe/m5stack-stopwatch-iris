@@ -111,6 +111,11 @@ uint32_t BluetoothService::bondedDeviceCount() const {
   return bonds > 0 ? static_cast<uint32_t>(bonds) : 0;
 }
 
+uint32_t BluetoothService::connectionMs() const {
+  if (!connected_ || connectedAtMs_ == 0) return 0;
+  return millis() - connectedAtMs_;
+}
+
 String BluetoothService::bondedDeviceSummary() const {
   if (!initialized_) return "BLE off";
   const int bonds = NimBLEDevice::getNumBonds();
@@ -162,6 +167,8 @@ String BluetoothService::json() const {
   json += escapeJson(deviceName_);
   json += F("\",\"activeDevice\":\"");
   json += escapeJson(activeDevice_);
+  json += F("\",\"connectionMs\":");
+  json += String(connectionMs());
   json += F("\",\"status\":\"");
   json += escapeJson(statusText());
   json += F("\",\"bondedDevices\":");
@@ -306,6 +313,7 @@ void BluetoothService::handleConnected(const String& address, uint16_t connectio
   pairingFailed_ = false;
   pairingRequested_ = false;
   connectionId_ = connectionId;
+  connectedAtMs_ = millis();
   if (!address.isEmpty()) activeDevice_ = address;
   Serial.printf("[BLE] HID host connected %s\n", activeDevice_.c_str());
   publish(EventType::BleConnected, activeDevice_.c_str());
@@ -315,6 +323,7 @@ void BluetoothService::handleDisconnected() {
   if (!connected_) return;
   connected_ = false;
   connectionId_ = 0;
+  connectedAtMs_ = 0;
   Serial.println("[BLE] HID host disconnected");
   publish(EventType::BleDisconnected, activeDevice_.c_str());
   if (enabled_ && autoReconnect_) {
