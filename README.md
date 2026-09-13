@@ -119,6 +119,7 @@ Planned features are roadmap items unless they are listed under Implemented.
 - In Badge, BtnB cycles Fit/Fill/Center mode; BtnA returns to the main menu.
 - In Media Remote, pair from the BLE information screen, use the advertise/reconnect action when disconnected, cancel advertising from the same control, and tap large media controls once connected. While disconnected, BtnA returns to menu and BtnB toggles advertising; while connected, BtnA sends previous track and BtnB sends next track.
 - Media Remote briefly confirms accepted BLE media commands on-screen and uses haptics when a command is actually transmitted.
+- Media Remote refreshes its visible BLE status while open, so pairing, advertising, disconnect, and reconnect changes appear without leaving and reopening the app.
 
 ## User Interface
 
