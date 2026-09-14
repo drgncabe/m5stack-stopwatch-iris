@@ -1974,6 +1974,8 @@ void WifiService::appendBadgePage(String& html) {
   html += formatBytes(badge_->storageFreeBytes());
   html += F("</span></p><p><b>Max upload</b><span>");
   html += formatBytes(badge_->maxUploadBytes());
+  html += F("</span></p><p><b>Upload room</b><span>");
+  html += formatBytes(badge_->availableUploadBytes());
   html += F("</span></p></div></div></div>");
 
   html += F("<h3>Upload</h3><div class='control'><form class='badge-upload' id='badge-upload-form' method='post' action='/badge/upload' enctype='multipart/form-data'><label>Image file<span>PNG / JPEG / GIF, max ");

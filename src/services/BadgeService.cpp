@@ -239,6 +239,8 @@ String BadgeService::json() const {
   json += String(storageFreeBytes());
   json += F(",\"maxUploadBytes\":");
   json += String(maxUploadBytes());
+  json += F(",\"availableUploadBytes\":");
+  json += String(availableUploadBytes());
   json += F(",\"gifPlayback\":\"");
   json += metadata_.type == BadgeAssetType::Gif ? F("animated playback") : F("not applicable");
   json += F("\"}");
@@ -257,6 +259,11 @@ uint32_t BadgeService::storageFreeBytes() const {
   const uint32_t total = storageTotalBytes();
   const uint32_t used = storageUsedBytes();
   return total > used ? total - used : 0;
+}
+
+uint32_t BadgeService::availableUploadBytes() const {
+  const uint32_t free = storageFreeBytes();
+  return free < kMaxBadgeBytes ? free : kMaxBadgeBytes;
 }
 
 const char* BadgeService::modeName(BadgeDisplayMode mode) {
