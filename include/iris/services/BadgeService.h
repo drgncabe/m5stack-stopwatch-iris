@@ -59,6 +59,7 @@ class BadgeService {
   uint32_t storageTotalBytes() const;
   uint32_t storageUsedBytes() const;
   uint32_t storageFreeBytes() const;
+  uint32_t maxUploadBytes() const { return kMaxBadgeBytes; }
 
   static const char* modeName(BadgeDisplayMode mode);
 
