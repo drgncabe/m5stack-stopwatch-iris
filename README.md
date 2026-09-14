@@ -316,7 +316,7 @@ The web configurator is organized around Dashboard, Display, Touch, Sound, WiFi,
 
 The dashboard includes a round watch-face preview generated from the current Iris configuration. Device and Development pages expose the text snapshot and diagnostics links for validation.
 
-The Badge page can upload one active PNG, JPEG, or GIF under 4 MB to the StopWatch filesystem. PNG, JPEG, and animated GIF files render in the Badge app. Upload validation reports specific errors for unsupported formats, empty uploads, oversized files, invalid image data, and insufficient badge storage. The web page and Badge API expose the active upload limit, current effective upload room, and storage information.
+The Badge page can upload one active PNG, JPEG, or GIF under 4 MB to the StopWatch filesystem. PNG, JPEG, and animated GIF files render in the Badge app. Upload validation reports specific errors for unsupported formats, empty uploads, oversized files, invalid image data, and insufficient badge storage. The web page and Badge API expose the active upload limit, current effective upload room, storage information, and the latest upload error when one is available.
 
 Animated GIF playback is opened only while the Badge app screen is active and is closed when leaving the screen, so app switching releases the decoder and badge file handle immediately.
 
