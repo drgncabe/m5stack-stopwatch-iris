@@ -1981,6 +1981,11 @@ void WifiService::appendBadgePage(String& html) {
   html += F("<h3>Upload</h3><div class='control'><form class='badge-upload' id='badge-upload-form' method='post' action='/badge/upload' enctype='multipart/form-data'><label>Image file<span>PNG / JPEG / GIF, max ");
   html += formatBytes(badge_->maxUploadBytes());
   html += F("</span></label><input id='badge-file' name='badge' type='file' accept='image/png,image/jpeg,image/gif' required><button type='submit'>Upload</button></form></div>");
+  if (!badge_->lastUploadError().isEmpty()) {
+    html += F("<p class='hint'>Last upload error: ");
+    html += escapeHtml(badge_->lastUploadError());
+    html += F("</p>");
+  }
 
   html += F("<h3>Display</h3><div class='grid three'>");
   appendAction(html, "Launch Badge", "badge");
