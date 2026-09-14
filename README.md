@@ -116,7 +116,7 @@ Planned features are roadmap items unless they are listed under Implemented.
 - In Stopwatch, BtnB starts, pauses, or resumes; BtnA records a lap while running or starts reset confirmation while paused.
 - In Stopwatch, tap the left control for Lap/Reset/Back and the right control for Start/Pause/Resume.
 - In Stopwatch, tap the lap/status area to view recent lap history.
-- In Badge, BtnB cycles Fit/Fill/Center mode; BtnA returns to the main menu.
+- In Badge, tapping the badge shows filename, type, mode, size, and dimensions; BtnB cycles Fit/Fill/Center mode; BtnA returns to the main menu.
 - In Media Remote, pair from the BLE information screen, use the advertise/reconnect action when disconnected, cancel advertising from the same control, and tap large media controls once connected. While disconnected, BtnA returns to menu and BtnB toggles advertising; while connected, BtnA sends previous track and BtnB sends next track.
 - Media Remote briefly confirms accepted BLE media commands on-screen and uses haptics when a command is actually transmitted.
 - Media Remote refreshes its visible BLE status while open, so pairing, advertising, disconnect, and reconnect changes appear without leaving and reopening the app.

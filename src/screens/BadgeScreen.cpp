@@ -56,6 +56,22 @@ int32_t gifSeekFile(GIFFILE* file, int32_t position) {
   file->iPos = static_cast<int32_t>(fsFile->position());
   return file->iPos;
 }
+
+String shortBadgeLabel(const String& value) {
+  if (value.length() <= 28) return value;
+  return value.substring(0, 12) + "..." + value.substring(value.length() - 13);
+}
+
+String formatBadgeBytes(uint32_t bytes) {
+  if (bytes >= 1024UL * 1024UL) {
+    return String(bytes / (1024UL * 1024UL)) + "." +
+           String((bytes % (1024UL * 1024UL)) / (1024UL * 102UL)) + " MB";
+  }
+  if (bytes >= 1024UL) {
+    return String(bytes / 1024UL) + " KB";
+  }
+  return String(bytes) + " B";
+}
 }  // namespace
 
 BadgeScreen::BadgeScreen(SettingsStore& settings, BadgeService& badge)
@@ -256,22 +272,26 @@ bool BadgeScreen::playGifFrame(uint32_t nowMs) {
 void BadgeScreen::drawInfoOverlay() {
   const Theme theme = currentTheme(settings_);
   const BadgeMetadata& meta = badge_.metadata();
-  M5.Display.fillRoundRect(56, 322, 354, 88, 14, theme.panel);
-  M5.Display.drawRoundRect(56, 322, 354, 88, 14, theme.accent);
+  M5.Display.fillRoundRect(56, 302, 354, 114, 14, theme.panel);
+  M5.Display.drawRoundRect(56, 302, 354, 114, 14, theme.accent);
   M5.Display.setTextDatum(middle_center);
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.setTextColor(theme.foreground, theme.panel);
-  M5.Display.drawString(badge_.hasAsset() ? meta.filename : String("Default Iris badge"), kCenter, 346);
+  M5.Display.drawString(badge_.hasAsset() ? shortBadgeLabel(meta.filename) :
+                                              String("Default Iris badge"),
+                        kCenter, 326);
   M5.Display.setTextColor(theme.muted, theme.panel);
   String detail = badge_.typeName() + " / " + badge_.modeName();
+  M5.Display.drawString(detail, kCenter, 352);
+  detail = badge_.hasAsset() ? formatBadgeBytes(meta.sizeBytes) : String("No stored asset");
   if (meta.width > 0 && meta.height > 0) {
     detail += " / ";
     detail += String(meta.width);
     detail += "x";
     detail += String(meta.height);
   }
-  M5.Display.drawString(detail, kCenter, 374);
-  M5.Display.drawString("A: Menu   B: Mode", kCenter, 398);
+  M5.Display.drawString(detail, kCenter, 378);
+  M5.Display.drawString("A: Menu   B: Mode", kCenter, 404);
 }
 
 void BadgeScreen::showInfo(uint32_t nowMs) {
