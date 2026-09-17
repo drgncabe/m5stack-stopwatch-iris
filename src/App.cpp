@@ -855,10 +855,32 @@ String App::buildControlSnapshot() const {
   snapshot += String(ragnar.configuredChannel);
   snapshot += "\nRagnar active channel: ";
   snapshot += ragnar.activeChannel == 0 ? String("Unknown") : String(ragnar.activeChannel);
+  snapshot += "\nRagnar receiver initialized: ";
+  snapshot += ragnar.initialized ? "Yes" : "No";
+  snapshot += "\nRagnar raw RX count: ";
+  snapshot += String(ragnar.rawRxPackets);
+  snapshot += "\nRagnar last sender MAC: ";
+  snapshot += ragnar.lastSenderMac;
+  snapshot += "\nRagnar last packet length: ";
+  snapshot += String(ragnar.lastPacketLength);
+  snapshot += "\nRagnar last drop reason: ";
+  snapshot += RagnarLinkService::dropReasonName(ragnar.lastDropReason);
+  snapshot += "\nRagnar wrong length drops: ";
+  snapshot += String(ragnar.wrongLengthDrops);
+  snapshot += "\nRagnar bad magic drops: ";
+  snapshot += String(ragnar.badMagicDrops);
+  snapshot += "\nRagnar bad version drops: ";
+  snapshot += String(ragnar.badVersionDrops);
+  snapshot += "\nRagnar bad type drops: ";
+  snapshot += String(ragnar.badTypeDrops);
+  snapshot += "\nRagnar bad CRC drops: ";
+  snapshot += String(ragnar.badCrcDrops);
   snapshot += "\nRagnar valid packets: ";
   snapshot += String(ragnar.validPackets);
   snapshot += "\nRagnar invalid packets: ";
   snapshot += String(ragnar.invalidPackets);
+  snapshot += "\nRagnar seconds since valid packet: ";
+  snapshot += ragnar.packetSeen ? String((millis() - ragnar.lastPacketMs) / 1000UL) : String("Never");
   return snapshot;
 }
 
