@@ -72,6 +72,7 @@ class App {
   void showWatchIfActive();
   void noteActivity(uint32_t nowMs);
   void updateDisplayPower(uint32_t nowMs);
+  void updateRagnarDisplayRequest(ScreenId current);
   void updateWifiPower(uint32_t nowMs);
   void wakeDisplay(uint32_t nowMs);
   bool shouldUpdateForeground(uint32_t nowMs, const AppDescriptor* app);
@@ -137,6 +138,7 @@ class App {
   uint32_t lastSleepSensorUpdateMs_ = 0;
   uint32_t wifiDemandStartedMs_ = 0;
   bool batteryLowPublished_ = false;
+  bool ragnarDisplayRequested_ = false;
 };
 
 }  // namespace iris

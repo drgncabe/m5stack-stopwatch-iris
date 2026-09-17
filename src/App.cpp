@@ -78,6 +78,10 @@ bool isMediaRemoteScreen(ScreenId id) {
   return id == ScreenId::MediaRemote;
 }
 
+bool isRagnarLinkScreen(ScreenId id) {
+  return id == ScreenId::RagnarLink;
+}
+
 bool isMenuScreen(ScreenId id) {
   return id == ScreenId::MainMenu ||
          id == ScreenId::Settings ||
@@ -972,9 +976,11 @@ void App::updateDisplayPower(uint32_t nowMs) {
   const uint32_t idleMs = power_.idleMs(nowMs);
 
   const ScreenId current = screenManager_.currentId();
+  updateRagnarDisplayRequest(current);
   if (current != ScreenId::Watch && !isFidgetScreen(current) && !isStopwatchScreen(current) &&
       !isBadgeScreen(current) &&
       !isMediaRemoteScreen(current) &&
+      !isRagnarLinkScreen(current) &&
       idleMs >= kMenuReturnTimeoutMs) {
     appManager_.launch("system.watch");
     power_.userActivity(nowMs);
@@ -982,6 +988,21 @@ void App::updateDisplayPower(uint32_t nowMs) {
   }
 
   power_.update(nowMs, appManager_.current());
+}
+
+void App::updateRagnarDisplayRequest(ScreenId current) {
+  if (isRagnarLinkScreen(current)) {
+    if (!ragnarDisplayRequested_) {
+      power_.requestDisplay();
+      ragnarDisplayRequested_ = true;
+    }
+    return;
+  }
+
+  if (ragnarDisplayRequested_) {
+    power_.releaseDisplay();
+    ragnarDisplayRequested_ = false;
+  }
 }
 
 void App::updateWifiPower(uint32_t nowMs) {
