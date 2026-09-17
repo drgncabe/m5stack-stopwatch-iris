@@ -24,6 +24,15 @@ enum class RagnarCaptureState : uint8_t {
   Error = 3,
 };
 
+enum class RagnarDropReason : uint8_t {
+  None = 0,
+  WrongLength = 1,
+  BadMagic = 2,
+  BadVersion = 3,
+  BadType = 4,
+  BadCrc = 5,
+};
+
 struct RagnarLinkSnapshot {
   bool enabled = false;
   bool initialized = false;
@@ -41,8 +50,17 @@ struct RagnarLinkSnapshot {
   RagnarState ragnarState = RagnarState::Unknown;
   RagnarGpsState gpsState = RagnarGpsState::Unknown;
   RagnarCaptureState captureState = RagnarCaptureState::Idle;
+  String lastSenderMac = "Unknown";
+  int lastPacketLength = 0;
+  RagnarDropReason lastDropReason = RagnarDropReason::None;
+  uint32_t rawRxPackets = 0;
   uint32_t validPackets = 0;
   uint32_t invalidPackets = 0;
+  uint32_t wrongLengthDrops = 0;
+  uint32_t badMagicDrops = 0;
+  uint32_t badVersionDrops = 0;
+  uint32_t badTypeDrops = 0;
+  uint32_t badCrcDrops = 0;
 };
 
 class RagnarLinkService {
@@ -59,16 +77,18 @@ class RagnarLinkService {
   static const char* ragnarStateName(RagnarState state);
   static const char* gpsStateName(RagnarGpsState state);
   static const char* captureStateName(RagnarCaptureState state);
+  static const char* dropReasonName(RagnarDropReason reason);
 
  private:
   static void onReceive(const uint8_t* mac, const uint8_t* data, int len);
 
   void handleReceive(const uint8_t* mac, const uint8_t* data, int len);
-  bool parseStatusPacket(const uint8_t* data, int len, RagnarLinkSnapshot* out) const;
+  bool parseStatusPacket(const uint8_t* data, int len, RagnarLinkSnapshot* out,
+                         RagnarDropReason* reason) const;
   bool ensureWifi(uint8_t channel, bool wifiConnected, bool provisioning);
   bool ensureEspNow();
   void stopEspNow();
-  void noteInvalid();
+  void noteInvalid(RagnarDropReason reason);
 
   RagnarLinkSnapshot snapshot_;
   bool espNowReady_ = false;
